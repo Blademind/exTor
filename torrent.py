@@ -7,7 +7,7 @@ from socket import *
 
 class Torrent:
     def __init__(self):
-        with open('KNOPPIX.torrent', 'rb') as t:
+        with open('sintel.torrent', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
         self.url_yields = self.next_tracker()
@@ -34,7 +34,7 @@ class Torrent:
                         try:
                             yield urlparse(sub)
                         except GeneratorExit:
-                            break
+                            pass
                     elif 'http' in sub:
                         yield sub
         except:

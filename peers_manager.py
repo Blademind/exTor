@@ -1,10 +1,14 @@
 import _thread
+import random
+
 import select
 import threading
 from socket import *
 import bencode
 from urllib.parse import urlparse
 from socket import *
+
+import six
 from torrent import Torrent
 import message
 import bitstring
@@ -17,24 +21,19 @@ Made by Alon Levy
 
 
 class Peer:
-    def __init__(self, tracker):
+    def __init__(self, tracker, c_piece):
         self.s = 0  # pieces management
-        self.c_piece = 0
+        self.c_piece = c_piece
         self.s_bytes = b''
         self.in_progress = False
         self.all_downloaded = 0  # downloaded files
         self.block = b''
-        self.bitfield_progress = False
         self.length = 0
         self.written = b''
+        self.bitfield_progress = False
         self.tracker = tracker
         self.torrent = tracker.torrent
         self.size = self.torrent.size()
-        self.record = 0
-        print(self.size)
-        self.block_len = 16384
-        self.pieces = self.torrent.torrent['info']['pieces']
-        self.piece_length = self.torrent.torrent['info']['piece length']
         try:
             self.files = self.torrent.torrent['info']['files']
         except:
@@ -49,10 +48,10 @@ class Peer:
         self.peers = tracker.peers
 
     def download(self, peer):
-        print(peer[0], peer[1])
+        #print(peer[0], peer[1])
         self.sock.connect((peer[0], peer[1]))
         self.sock.settimeout(None)
-        print(f'successfully connected to {peer[0]}:{peer[1]}')
+        #print(f'successfully connected to {peer[0]}:{peer[1]}')
         self.sock.send(message.build_handshake(self.tracker))
         threading.Thread(target=self.listen).start()
 
@@ -64,10 +63,11 @@ class Peer:
             self.msg_handler(data, self.msg_type(data))
 
     def msg_type(self, msg):
+
         if len(msg) > 4:
             if msg[4] == 0 and int.from_bytes(msg[:4], 'big') == len(msg[4:]):
                 return 'choke'
-            elif msg[4] == 1 and int.from_bytes(msg[:4], 'big') <= len(msg[4:]):
+            elif msg[4] == 1 and int.from_bytes(msg[:4], 'big') == len(msg[4:]):
                 return 'unchoke'
             elif msg[4] == 5 and not self.bitfield_progress:
                 self.bitfield_progress = True
@@ -83,46 +83,35 @@ class Peer:
 
     def request_next(self):
         self.s -= 9  # without starters (only the block itself)
-        temp = 0
-        to_download = []
-        for file in list(self.files):
-            temp += file['length']
-            if temp <= len(self.s_bytes):
-                print(file['path'])
-                to_download.append((file['path'], file['length']))
-                self.files = self.files[1:]
-        for path in to_download:
-            with open(f"{self.torrent_name}/{path[0][0]}", 'wb') as w:
-                w.write(self.s_bytes[:path[1]])
-                self.written += self.s_bytes[:path[1]]
-                self.s_bytes = self.s_bytes[path[1]:]
-        if hashlib.sha1((self.written+self.s_bytes)[self.c_piece*self.piece_length: self.c_piece*self.piece_length + self.piece_length]).digest() == self.pieces[self.c_piece * 20: 20*self.c_piece+20]:
+        #temp = 0
+        #to_download = []
+        #for file in list(self.files):
+        #    temp += file['length']
+        #    if temp <= self.s:
+        #        to_download.append((file['path'], file['length']))
+        #        self.files = self.files[1:]
+        #for path in to_download:
+        #    with open(f"{self.torrent_name}/{path[0][0]}", 'wb') as w:
+        #        w.write(self.s_bytes[:path[1]])
+        #        self.written += self.s_bytes[:path[1]]
+        #        self.s_bytes = self.s_bytes[path[1]:]
+        if hashlib.sha1(self.s_bytes[: self.torrent.torrent['info']['piece length']]).digest() == self.torrent.torrent['info']['pieces'][self.c_piece * 20: 20*self.c_piece+20]:
             print(f"success piece #{self.c_piece}, total --> {len(self.s_bytes)}")
-            self.c_piece += 1
-            self.s = 0
+            self.sock.close()
+            return self.s_bytes
         elif hashlib.sha1((self.written+self.s_bytes)[self.c_piece*self.piece_length:]).digest() == self.pieces[self.c_piece * 20: 20*self.c_piece+20]:
-            print(f"last piece was downloaded, total --> {len(self.s_bytes)}")
-
-        self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+            print(f"last piece was downloaded, total --> {self.s}")
+        self.sock.send(message.build_request(self.c_piece, self.s, 16384))
 
     def msg_handler(self, msg, type):
-        #print(len(msg), msg, msg[4], type)
         if type == 'unchoke' and not self.in_progress:
-            self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+            self.sock.send(message.build_request(self.c_piece, self.s, 16384))
             self.in_progress = True
         elif self.is_handshake(msg):
-            print(f'handshake received')
+            #print(f'handshake received')
             self.sock.send(message.build_interested())
-        elif type == 'bitfield':
-            print(len(msg[4:]), msg[4:], int.from_bytes(msg[:4], 'big'))
-            print('bitfield')
-            data = b''
-            if len(msg[4:]) < int.from_bytes(msg[:4], 'big'):
-                data = self.sock.recv(16384)
-            msg += data
-            data = bitstring.BitArray(msg[5:int.from_bytes(msg[:4], 'big')+4])
-            print(data.bin)
         elif type == 'piece':
+            #print('piece')
             self.length = int.from_bytes(msg[:4], 'big')
             if len(msg[4:]) != self.length:
                 self.left = [len(msg[4:]), self.length, msg[4:]]
@@ -130,32 +119,26 @@ class Peer:
             else:
                 self.s_bytes += msg[9:]
                 self.s += len(msg[9:])
+                return self.request_next()
+        elif type is None and type != 'choke' and len(msg) != 0:  # block is detected
+            if len(self.written)+len(self.s_bytes) == self.size:
                 self.request_next()
-        elif type is None and type != 'choke' and len(msg) != 0:
+
             if self.left[0] != self.left[1]:  # if there is more left
                 if len(msg) == self.left[1] - self.left[0] or len(msg) < self.left[1] - self.left[0]:  # msg[4:]?
                     self.left[0] += len(msg)
                     self.left[2] += msg
-                    self.record += len(msg[9:])
                     self.s += len(msg)
                 elif len(msg) > self.left[1] - self.left[0]:  # msg[4:]?
                     self.left[2] += msg[:self.left[1] - self.left[0]]
                     self.left[0] += len(msg[:self.left[1] - self.left[0]])
 
-            #if len(self.s_bytes) + self.s + 16384 > self.size:  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #    self.block_len = 16384 - ((len(self.s_bytes) + self.s + 16384) - self.size)
-            #    print('passed -->', self.block_len)
-            #print(f'{len(self.written)}, {len(self.s_bytes)}, {self.s}')
-            if self.left[0] == self.left[1]:
-                #print('total --> ', self.size - (self.left[0] - 9 + len(self.s_bytes) + len(self.written)))
-                if self.size - (16384 + len(self.s_bytes) + len(self.written)) < 16384:  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    self.block_len = self.size - (16384 + len(self.s_bytes) + len(self.written))
+            if self.left[0] == self.left[1] and self.left[1] != 0:
+                # print(self.left)
                 self.s_bytes += (self.left[2])[9:]
-                self.request_next()
                 self.left = [0, 0, b'']
-           # elif (self.c_piece - 1) * self.length + self.s - 9 == self.size:
-           #     self.request_next()
-
+                return self.request_next()
+            #print(f'block --> {len(msg), msg, type}')
         if len(msg) != int.from_bytes(msg[:4], 'big') + 4 and len(msg) != 0 and type not in [None, 'piece']:
             if self.is_handshake(msg):
                 self.msg_handler(msg[68:], self.msg_type(msg[68:]))
@@ -212,7 +195,7 @@ def bitfield_handler(msg, type):
         if len(msg[4:]) < int.from_bytes(msg[:4], 'big'):
             data = sock.recv(16384)
         msg += data
-        data = bitstring.BitArray(msg[5:])
+        data = bitstring.BitArray(msg[5:int.from_bytes(msg[:4], 'big') + 4])
         print(f'bitfield received --> {data.bin}')
         return data.bin
     if len(msg) != int.from_bytes(msg[:4], 'big') + 4 and len(msg) != 0 and type not in [None, 'piece']:

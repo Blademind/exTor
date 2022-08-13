@@ -4,12 +4,11 @@ import socket
 import time
 from socket import *
 import bencode
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult
 from socket import *
 from torrent import Torrent
 from random import randbytes
 import requests
-
 
 
 class Tracker:
@@ -20,7 +19,7 @@ class Tracker:
         self.sock = socket(AF_INET, SOCK_DGRAM)
         self.sock.settimeout(0.5)
         # _thread.start_new_thread(self.listen, ())
-        if self.torrent.url is urlparse:
+        if type(self.torrent.url) is ParseResult:
             self.udp_send(self.build_conn_req())
         else:
             self.http_send()
