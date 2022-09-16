@@ -1,0 +1,4 @@
+BLOCKS ARE PARSED LIKE SO:
+#{id}#{piecenumber}#{blocknumber}#{length(not including this section)}#{block}
+
+BLOCKID = 0
