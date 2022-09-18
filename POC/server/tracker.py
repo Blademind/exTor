@@ -16,9 +16,10 @@ class Tracker:
         self.conn.cursor().execute('CREATE TABLE IF NOT EXISTS Peers(IP TEXT, PORT number(4),'
                                    ' Pieces TEXT);')
         self.conn.close()
-
+        self.flags = {}
+        self.global_num = 0
         self._BUF = 16384
-        self.sock.bind(('192.168.1.196', 50000))
+        self.sock.bind(('192.168.1.160', 50000))
         self.sock.listen(5)
         self.listen(readsock)
 
@@ -34,11 +35,13 @@ class Tracker:
                     try:
                         data = sock.recv(self._BUF)
                         datacontent = data.decode()
-                        print(datacontent)
                         if 'REQUEST' in datacontent:
                             if int(datacontent[7:]) in self.have:
                                 print(f'HAVE {datacontent[7:]}')
+                                self.flags[sock] = True
                                 _thread.start_new_thread(self.send_piece, (sock, int(datacontent[7:])))
+                        elif datacontent == 'FLOW':
+                            self.flags[sock] = True
                         elif datacontent == 'QUIT':
                             print(sock.getsockname(), 'DISCONNECTED')
                             readsock.remove(sock)
@@ -56,10 +59,12 @@ class Tracker:
         check_size = size - s if size - s < self._BUF else self._BUF
         with open(f'pieces/{self.have[piece]}', 'r') as f:
             while s < size:
-                text = f.read(self._BUF - 4 - len(str(check_size)))
-                check_size = len(text) + 4 + len(str(check_size)) if len(text) + 4 + len(str(check_size)) < self._BUF else self._BUF
-                sock.send(f'#0#{check_size}#{text}'.encode())
-                s += check_size
+                if self.flags[sock]:
+                    text = f.read(self._BUF - 4 - len(str(check_size)))
+                    check_size = len(text) + 4 + len(str(check_size)) if len(text) + 4 + len(str(check_size)) < self._BUF else self._BUF
+                    self.flags[sock] = False
+                    sock.send(f'#0#{check_size}#{text}'.encode())
+                    s += check_size
 
     def connected_handler(self, conn, addr):
         print(addr, 'CONNECTED')
