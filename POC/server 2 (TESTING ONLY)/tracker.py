@@ -10,7 +10,8 @@ class Tracker:
     def __init__(self):
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.pieces = os.listdir('pieces/')
-        self.have = {int(piece[1:], 16) - 170: piece for piece in self.pieces}
+        #self.have = {int(piece[1:], 16) - 170: piece for piece in self.pieces}
+        self.have = {int(piece[piece.find('_') +1 : piece.rfind('.')]): piece for piece in self.pieces}
         readsock = [self.sock]
         self.conn = sqlite3.connect('state.db')
         self.conn.cursor().execute('CREATE TABLE IF NOT EXISTS Peers(IP TEXT, PORT number(4),'
@@ -59,7 +60,7 @@ class Tracker:
     def send_piece(self, sock, piece):
         s = 0
         size = os.path.getsize(f'pieces/{self.have[piece]}')
-        with open(f'pieces/{self.have[piece]}', 'r') as f:
+        with open(f'pieces/{self.have[piece]}', 'rb') as f:
             while s < size:
                 if self.flags[sock]:
                     if size - s < self._BUF:
@@ -69,7 +70,7 @@ class Tracker:
                         temp -= len(str(temp))
                     text = f.read(temp)
                     self.flags[sock] = False
-                    sock.send(f'#0#{temp + 4 + len(str(temp))}#{text}'.encode())
+                    sock.send(f'#0#{temp + 4 + len(str(temp))}#'.encode()+text)
                     s += temp
 
     def connected_handler(self, conn, addr):
