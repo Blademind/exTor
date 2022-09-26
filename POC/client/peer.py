@@ -11,7 +11,7 @@ import hashlib
 class Peer:
     def __init__(self):
         self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.settimeout(1)
+        self.sock.settimeout(2)
         self._BUF = 16384
         file_info = os.listdir('file_info')[0]
         with open('file_info/'+file_info, 'r') as f:
@@ -51,6 +51,8 @@ class Peer:
                 data = b''
             try:
                 datacontent = data.decode()
+                if datacontent[:3] == '#0#':
+                    datacontent = 'BLOCK'
             except:
                 try:
                     datacontent = pickle.loads(data)  # not a block
