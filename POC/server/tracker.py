@@ -12,7 +12,7 @@ class Tracker:
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.pieces = os.listdir('pieces/')
         # self.have = {int(piece[1:], 16) - 170: piece for piece in self.pieces}
-        self.have = {int(piece[piece.find('_') +1 : piece.rfind('.')]): piece for piece in self.pieces}
+        self.have = {int(piece[piece.find('_') + 1: piece.rfind('.')]): piece for piece in self.pieces}
         readsock = [self.sock]
         self.conn = sqlite3.connect('state.db')
         self.conn.cursor().execute('CREATE TABLE IF NOT EXISTS Peers(IP TEXT, PORT number(4),'

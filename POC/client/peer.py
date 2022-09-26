@@ -11,7 +11,7 @@ import hashlib
 class Peer:
     def __init__(self):
         self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.settimeout(2)
+        self.sock.settimeout(1)
         self._BUF = 16384
         file_info = os.listdir('file_info')[0]
         with open('file_info/'+file_info, 'r') as f:
@@ -37,12 +37,17 @@ class Peer:
                 data = self.sock.recv(self._BUF)
             except:
                 print('ERROR')
-                if self.current_server < len(self.SERVERS) - 1:
+                if len(self.queue) != 0:
+                    print('Trying another piece...')
+                    self.desired_piece = self.queue[0]
+                    self.request(self.queue[0])
+                elif self.current_server < len(self.SERVERS) - 1:
                     print('Trying another tracker...')
                     self.close_open_new()
                     self.sock.connect(self.SERVERS[self.current_server])
                 else:
                     print('No more trackers available, file cannot be downloaded.')
+                    break
                 data = b''
             try:
                 datacontent = data.decode()
@@ -89,7 +94,6 @@ class Peer:
                         elif self.current_server != len(self.SERVERS) - 1:
                             if len(self.pieces) != len(self.requested):
                                 self.close_open_new()
-
                                 self.sock.connect(self.SERVERS[self.current_server])
                             else:
                                 print('DONE, not all servers scrolled')
