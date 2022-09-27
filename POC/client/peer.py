@@ -21,11 +21,12 @@ class Peer:
             self.filename = text[text.find('FILENAME: ') + 10: text.find('\n')]
             print('Started download:', self.filename)
         self.validate_piece = b""
+        self.validate_block = b""
         self.queue = []
         self.desired_piece = 0
         self.total_bytes = 0
         self.requested = {}
-        self.sock.bind(('192.168.1.196', 50001))
+        self.sock.bind(('192.168.1.161', 50001))
         self.current_server = 0
         self.SERVERS = [('192.168.1.196', 50000), ('192.168.1.196', 50002), ('192.168.1.196', 50003)]
         self.sock.connect(self.SERVERS[0])
@@ -80,10 +81,17 @@ class Peer:
                         start = begin[c]
                         c += 1
                     datacontent = data[c + 3:]
-                    print('PIECE', len(datacontent))
                     block_size = int(begin[:c - 1])
-                    self.validate_piece += datacontent
-                    self.total_bytes += block_size
+                    print('PIECE', block_size)
+                    self.validate_block += datacontent
+                    self.total_bytes += block_size if block_size == len(data) else len(data)
+                    while len(self.validate_block) != block_size - (c+3):
+                        data = self.sock.recv(self._BUF)
+                        datacontent = data
+                        self.validate_block += datacontent
+                        self.total_bytes += len(data)
+                    self.validate_piece += self.validate_block
+                    self.validate_block = b""
                     if hashlib.sha1(self.validate_piece).hexdigest() == self.pieces[self.desired_piece]:
                         self.total_bytes = 0
                         self.requested[self.desired_piece] = self.validate_piece
@@ -135,7 +143,7 @@ class Peer:
         except: pass
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.settimeout(2)
-        self.sock.bind(('192.168.1.196', 50001))
+        self.sock.bind(('192.168.1.161', 50001))
 
 
 if __name__ == '__main__':
