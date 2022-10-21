@@ -18,16 +18,17 @@ class Tracker:
         self.torrent = Torrent()
         self.sock = socket(AF_INET, SOCK_DGRAM)
         self.sock.settimeout(0.5)
-        # _thread.start_new_thread(self.listen, ())
         if type(self.torrent.url) is ParseResult:
+            # Udp tracker
             self.udp_send(self.build_conn_req())
         else:
+            # Http tracker
             self.http_send()
 
     def udp_send(self, message):
         print(self.torrent.url)
         try:
-            self.sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
+            self.sock.sendto(message, ("192.168.1.196", 55555))  # self.sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
             self.listen()
         except:
             print('Error, Trying another tracker...')
@@ -69,6 +70,7 @@ class Tracker:
                 port = int.from_bytes(ret[24+6*n: 26+6*n], 'big')
                 self.peers.append((ip, port))
                 n += 1
+            print(self.peers)
 
     def resp_type(self, ret):
         if int.from_bytes(ret[:4], 'big') == 0:
@@ -77,8 +79,9 @@ class Tracker:
             return 'announce'
 
     def build_conn_req(self):
-        message = bytes.fromhex('00 00 04 17 27 10 19 80')  # connection_id
-        message += (0).to_bytes(4, byteorder='big')  # action
+        """Builds udp tracker request"""
+        message = bytes.fromhex('00 00 04 17 27 10 19 80')  # connection_id (set id 41727101980)
+        message += (0).to_bytes(4, byteorder='big')  # action - connect
         message += randbytes(4)  # transaction_id
         return message
 
@@ -88,7 +91,7 @@ class Tracker:
 
     def build_announce_req(self, port=6881):
         message = self.conn_id  # connection_id
-        message += (1).to_bytes(4, byteorder='big') # action
+        message += (1).to_bytes(4, byteorder='big')  # action
         message += self.tran_id  # transaction_id
         message += self.torrent.generate_info_hash()  # info_hash
         message += self.id  # peer_id

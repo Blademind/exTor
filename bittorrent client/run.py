@@ -11,11 +11,11 @@ peers = tracker.peers
 torrent = tracker.torrent
 
 print('list of peers:', peers)
+
 for peer in peers:
     try:
-        if peer[0] != '221.230.166.76':
-            Peer(tracker).download(peer)
-            break
+        Peer(tracker).download(peer)
+        break
     except Exception as e:
         print(e)
         pass
