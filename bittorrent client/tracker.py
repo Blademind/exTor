@@ -28,7 +28,7 @@ class Tracker:
     def udp_send(self, message):
         print(self.torrent.url)
         try:
-            self.sock.sendto(message, ("192.168.1.196", 55555))  # self.sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
+            self.sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
             self.listen()
         except:
             print('Error, Trying another tracker...')

@@ -43,6 +43,7 @@ class Tracker:
                         action = int.from_bytes(data[8:12], byteorder="big")  # action type
                         # action is connect
                         if action == 0:
+                            print(f"New connection from {addr}")
                             sock.sendto(self.build_connect_response(), addr)  # send a connect response
 
                         # action is announce
