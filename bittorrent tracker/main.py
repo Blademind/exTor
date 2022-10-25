@@ -2,17 +2,18 @@ import _thread
 import pickle
 import time
 from random import randbytes
+from socket import *
 
 import select
-import threading
-from socket import *
-from urllib.parse import urlparse
-from socket import *
-import bitstring
-from threading import Thread
-import hashlib
+
 from torrents_handler import info_torrent
-import os
+
+
+def build_error_response(msg):
+    message = (3).to_bytes(4, byteorder='big')  # action - connect
+    message += randbytes(4)  # transaction_id
+    message += msg.encode()
+    return message
 
 
 class Tracker:
@@ -44,7 +45,9 @@ class Tracker:
                 if len(torrent) != 0:
                     for ip in torrent:
                         if time.time() - ip[1] >= timer:
-                            self.ip_addresses[list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(ip)
+                            self.ip_addresses[
+                                list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(
+                                ip)
                             size_changed = True
                             break
                 if size_changed:
@@ -69,6 +72,7 @@ class Tracker:
         """
         Listens to incoming communications
         """
+        print("Server is now listening")
         while 1:
             readable, writeable, ex = select.select(self.read_udp, self.write_udp, [])
             for sock in readable:
@@ -93,12 +97,16 @@ class Tracker:
                         # action is announce
                         elif action == 1:
                             connection_id = data[:8]  # connection id
-                            # 2 minutes must have not passed
+                            # 2 minutes must have not passed from connect request to announce request
                             try:
                                 if 0 <= int(time.time() - self.connection_ids[connection_id]) <= 120:
                                     torrent_name = info_torrent[data[16:36]]
                                     self.ip_addresses[torrent_name].append((addr, time.time()))
                                     sock.sendto(self.build_announce_response(addr, torrent_name), addr)
+                                else:
+                                    sock.sendto(build_error_response("announce timeout"), addr)
+
+                                del self.connection_ids[connection_id]  # action is announce, remove connection id
                             except Exception as e:
                                 print("sent connection id was not found")
                     except Exception as e:
@@ -122,7 +130,7 @@ class Tracker:
                     except:
                         break
                     if datacontent == "START":
-                        _thread.start_new_thread(self.recv_files, (sock, ))
+                        _thread.start_new_thread(self.recv_files, (sock,))
 
     def recv_files(self, sock):
         data = None
