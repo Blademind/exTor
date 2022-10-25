@@ -1,3 +1,4 @@
+import pickle
 import socket
 import time
 from random import randbytes
@@ -78,24 +79,27 @@ class Tracker:
 
     def listen(self):
         ret = self.sock.recv(1024)
-        if resp_type(ret) == 'connect':
-            self.conn_id = ret[8:]
-            self.tran_id = ret[4:8]
-            self.udp_send(self.build_announce_req())
+        try:
+            self.TCP_IP_PORT = pickle.loads(ret)
+        except:
+            if resp_type(ret) == 'connect':
+                self.conn_id = ret[8:]
+                self.tran_id = ret[4:8]
+                self.udp_send(self.build_announce_req())
 
-        elif resp_type(ret) == 'announce':
-            n = 0
-            while 24 + 6 * n <= len(ret):
-                ip = inet_ntoa(ret[20 + 6 * n: 24 + 6 * n])
-                port = int.from_bytes(ret[24 + 6 * n: 26 + 6 * n], 'big')
-                self.peers.append((ip, port))
-                n += 1
-            print(self.peers)
-        else:
-            # Error code 3
-            if int.from_bytes(ret[:4], byteorder='big') == 3:
-                print("=== ERROR ===")
-                print(ret[8:].decode())
+            elif resp_type(ret) == 'announce':
+                n = 0
+                while 24 + 6 * n <= len(ret):
+                    ip = inet_ntoa(ret[20 + 6 * n: 24 + 6 * n])
+                    port = int.from_bytes(ret[24 + 6 * n: 26 + 6 * n], 'big')
+                    self.peers.append((ip, port))
+                    n += 1
+                print(self.peers)
+            else:
+                # Error code 3
+                if int.from_bytes(ret[:4], byteorder='big') == 3:
+                    print("=== ERROR ===")
+                    print(ret[8:].decode())
 
     def build_announce_req(self, port=6881):
         message = self.conn_id  # connection_id

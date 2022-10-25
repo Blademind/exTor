@@ -3,7 +3,7 @@ import pickle
 import time
 from random import randbytes
 from socket import *
-
+from download_master import TrackerTCP
 import select
 
 from torrents_handler import info_torrent
@@ -18,18 +18,16 @@ def build_error_response(msg):
 
 class Tracker:
     def __init__(self):
-        self.server_sock2 = None  # tcp sock
         self.server_sock = None  # udp sock
-        self.init_tcp_sock()
         self.init_udp_sock()
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
-        self.read_tcp, self.write_tcp = [self.server_sock2], []  # read write for select udp
         self.connection_ids = {}  # list of all connected clients
         self.ip_addresses = {}
         self.reset_ip_addresses()  # reset lists of ip addresses
         _thread.start_new_thread(self.deleter_timer, ())
-        _thread.start_new_thread(self.listen_tcp, ())
+        t = TrackerTCP()  # incoming downloads
+        self.TCP_IP_PORT = t.get_ip_port()
         self.listen_udp()  # listen
 
     def deleter_timer(self):
@@ -63,11 +61,6 @@ class Tracker:
         self.server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.server_sock.bind(("0.0.0.0", 55555))
 
-    def init_tcp_sock(self):
-        self.server_sock2 = socket(AF_INET, SOCK_STREAM)
-        self.server_sock2.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.server_sock2.bind(("0.0.0.0", 55556))
-
     def listen_udp(self):
         """
         Listens to incoming communications
@@ -82,7 +75,7 @@ class Tracker:
                 try:
                     datacontent = data.decode()
                     if datacontent == "TCP_SERVER":
-                        sock.sendto(pickle.dumps(gethostbyname(gethostname())), addr)
+                        sock.sendto(pickle.dumps(self.TCP_IP_PORT), addr)
                 except:
                     pass
                 # request must be at least 16 bytes long
@@ -112,25 +105,6 @@ class Tracker:
                     except Exception as e:
                         print(e)
                         print("received unparsable data")
-
-    def listen_tcp(self):
-        while 1:
-            read, write, ex = select.select(self.read_tcp, self.write_tcp, [])
-            for sock in read:
-                if sock == self.server_sock2:
-                    conn, addr = self.server_sock2.accept()
-                    conn.settimeout(5.0)
-                    read.append(conn)
-                else:
-                    data = sock.recv(self.__BUF)
-                    if not data:
-                        break
-                    try:
-                        datacontent = data.decode()
-                    except:
-                        break
-                    if datacontent == "START":
-                        _thread.start_new_thread(self.recv_files, (sock,))
 
     def recv_files(self, sock):
         data = None
