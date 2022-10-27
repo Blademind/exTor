@@ -3,7 +3,6 @@ import pickle
 import time
 from random import randbytes
 from socket import *
-from download_master import TrackerTCP
 import select
 
 from torrents_handler import info_torrent
@@ -26,8 +25,6 @@ class Tracker:
         self.ip_addresses = {}
         self.reset_ip_addresses()  # reset lists of ip addresses
         _thread.start_new_thread(self.deleter_timer, ())
-        t = TrackerTCP()  # incoming downloads
-        self.TCP_IP_PORT = t.get_ip_port()
         self.listen_udp()  # listen
 
     def deleter_timer(self):
@@ -74,7 +71,8 @@ class Tracker:
                     break
                 try:
                     datacontent = data.decode()
-                    if datacontent == "TCP_SERVER":
+                    # MESSAGE FROM INFO SERVER
+                    if datacontent == "[SECRET_CODE]":
                         sock.sendto(pickle.dumps(self.TCP_IP_PORT), addr)
                 except:
                     pass

@@ -6,9 +6,11 @@ import time
 from random import randbytes
 from socket import *
 
-import select
+import bencode
 
 from torrents_handler import info_torrent
+
+import select
 
 
 def build_error_response(msg):
@@ -18,8 +20,16 @@ def build_error_response(msg):
     return message
 
 
+def ban_ip(ip, banned_ips):
+    if ip[0] not in banned_ips:
+        with open("banned_ips.txt", "a") as f:
+            f.write(f"{ip[0]}\n")
+
+
 class TrackerTCP:
     def __init__(self):
+        with open("banned_ips.txt", "r") as f:
+            self.banned_ips = f.read().split("\n")
         self.server_sock = None  # udp sock
         self.init_tcp_sock()
         self.__BUF = 1024
@@ -37,14 +47,24 @@ class TrackerTCP:
         return gethostbyname(gethostname()), self.server_sock.getsockname()[1]
 
     def listen_tcp(self):
+        print("TCP Server is now listening")
+        agree = True
         while 1:
             readable, writeable, ex = select.select(self.read_tcp, self.write_tcp, [])
             for sock in readable:
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
-                    print(f"Connection from {addr}")
-                    conn.settimeout(5.0)
-                    readable.append(conn)
+                    with open("banned_ips.txt", "r") as f:
+                        self.banned_ips = f.read().split("\n")
+                    if addr[0] in self.banned_ips:
+                        conn.close()
+                        agree = False
+                    if agree:
+                        print(f"Connection from {addr}")
+                        conn.settimeout(5.0)
+                        readable.append(conn)
+                    else:
+                        agree = True
                 else:
                     try:
                         data = sock.recv(self.__BUF)
@@ -55,38 +75,45 @@ class TrackerTCP:
                         readable.remove(sock)
                         break
                     datacontent = data.decode()
-                    if datacontent == "START":
-                        threading.Thread(target=self.recv_files, args=(sock, )).start()
+                    print(datacontent)
+                    # file upload immense
+                    if datacontent[-8:] == ".torrent":
+                        threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
 
-    def recv_files(self, sock):
-        data = None
+    def recv_files(self, sock, filename):
         try:
-            data = sock.recv(self.__BUF)
-        except:
-            print("file name was not received on time")
-        try:
-            datacontent = data.decode()
-            filename = datacontent
-            print(filename)
-            if filename[-8:] != ".torrent":
-                return
             if not os.path.exists(f"torrents\\{filename}"):
                 sock.send("FLOW".encode())
-
                 s = 0
-                length = int(pickle.loads(sock.recv(self.__BUF)))
-                print(length)
+                length = int(pickle.loads(sock.recv(self.__BUF)))  # awaiting client to send the file's length
+                print(f"{filename} download has started ({length} bytes)")
                 while s != length:
                     data = sock.recv(self.__BUF)
-                    print(data)
                     s += len(data)
-                    print(s)
                     with open(f"torrents\\{filename}", "ab") as f:
                         f.write(data)
-                    sock.send("FLOW".encode())
+                    if length != s:
+                        sock.send("FLOW".encode())
+                print(f"DONE {filename}")
                 sock.send("DONE".encode())
+                self.check_newly_added_file(filename, sock)
+            else:
+                sock.send("FILE_EXISTS".encode())
         except:
             return
+
+    def check_newly_added_file(self, filename, sock):
+
+        with open(f"torrents\\{filename}", "rb") as f:
+            try:
+                bencode.bdecode(f.read())
+            except bencode.exceptions.BencodeDecodeError:
+                print(filename, "is corrupted, removing")
+                f.close()
+                os.remove(f"torrents\\{filename}")
+                print(filename, "removed")
+                print("Banning", sock.getpeername()[0])
+                ban_ip(sock.getpeername(), self.banned_ips)
 
 
 if __name__ == '__main__':
