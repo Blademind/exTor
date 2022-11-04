@@ -29,7 +29,7 @@ class Tracker:
 
     def deleter_timer(self):
         """
-        removes ip after an hour
+        removes ip after an hour (according to protocol)
         :return:
         """
         timer = 3600
@@ -72,8 +72,6 @@ class Tracker:
                 try:
                     datacontent = data.decode()
                     # MESSAGE FROM INFO SERVER
-                    if datacontent == "[SECRET_CODE]":
-                        sock.sendto(pickle.dumps(self.TCP_IP_PORT), addr)
                 except:
                     pass
                 # request must be at least 16 bytes long

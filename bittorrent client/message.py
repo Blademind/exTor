@@ -58,6 +58,7 @@ def build_bitfield(bitfield):
 
 
 def build_request(index, begin, length):
+    print(index, begin, length)
     message = (13).to_bytes(4, byteorder='big')  # len
     message += (6).to_bytes(1, byteorder='big')  # id
     message += (index).to_bytes(4, byteorder='big')

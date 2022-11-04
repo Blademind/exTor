@@ -7,10 +7,11 @@ from socket import *
 
 class Torrent:
     def __init__(self):
-        with open('sintel.torrent', 'rb') as t:
+        with open('wired-cd.torrent', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
-        self.announce_list = self.torrent["announce-list"].insert(0, self.torrent["announce"])
+        self.announce_list = self.torrent["announce-list"]
+        self.announce_list.insert(0, [self.torrent["announce"]])
         self.url_yields = self.next_tracker()
         self.url = self.url_yields.__next__()
 
