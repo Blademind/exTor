@@ -43,16 +43,21 @@ class Peer:
         self.torrent_name = self.torrent.torrent['info']['name']
         os.mkdir(self.torrent_name) if not os.path.exists(self.torrent_name) else None
         self.left = [0, 0, b'']  # total / len / data
+        self.listen_sock = socket(AF_INET, SOCK_STREAM)
+        self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        # self.sock.settimeout(1)
+        self.listen_sock.bind(('0.0.0.0', self.torrent.port))
+        self.listen_sock.listen(5)
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        # self.sock.settimeout(1)
-        self.sock.bind(('192.168.1.196', self.torrent.port))
-        print(f"my ip \ port is: {self.sock.getsockname()}")
-        # self.sock.listen(5)
+        self.sock.bind(('0.0.0.0', 0))
+        self.sock.settimeout(1)
+        print(f"my port is: {self.listen_sock.getsockname()[1]}")
         self.peers = tracker.peers
-        self.readable, self.writable = [self.sock], []
+        self.readable, self.writable = [self.listen_sock], []
         # _thread.start_new_thread(self.listen, ())
         threading.Thread(target=self.listen_to_peers).start()
+        # self.listen_to_peers()
 
     def download(self, peer):
         print("Trying", peer[0], peer[1])
@@ -60,7 +65,7 @@ class Peer:
         print(f'successfully connected to {peer[0]}:{peer[1]}')
         self.sock.send(message.build_handshake(self.tracker))
         # threading.Thread(target=self.listen).start()
-        # self.listen()
+        self.listen_to_server()
 
     def listen_to_server(self):
         while 1:
@@ -74,17 +79,19 @@ class Peer:
         while 1:
             read, write, [] = select.select(self.readable, self.writable, [])
             for sock in read:
-                if read == sock:
-                    print("here")
-                    conn, addr = self.sock.accept()
+                if self.listen_sock == sock:
+                    conn, addr = self.listen_sock.accept()
                     print(f"Connected to {addr}")
                     self.readable.append(conn)
                 else:
-                    data = self.sock.recv(self.__BUF)
+                    data = sock.recv(self.__BUF)
                     if not data:
                         if sock in self.readable:
-                            self.readable.remove()
+                            self.readable.remove(sock)
                     print(data)
+                    if self.is_handshake(data):
+                        print(f'handshake received')
+                        sock.send(message.build_handshake(self.tracker))
 
     def msg_type(self, msg):
 
