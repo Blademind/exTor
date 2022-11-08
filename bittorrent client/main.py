@@ -21,4 +21,6 @@ for peer_info in peers:
     except Exception as e:
         print(e)
         pass
+peer.stop_thread = True
+print(peers)
 

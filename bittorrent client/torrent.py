@@ -39,4 +39,5 @@ class Torrent:
                     elif 'http' in sub:
                         yield sub
         except RuntimeError:
+            print("here")
             yield

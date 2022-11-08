@@ -1,20 +1,17 @@
 import _thread
-import random
-
 import select
 import threading
 from socket import *
 import bencode
 from urllib.parse import urlparse
 from socket import *
-
-import six
 from torrent import Torrent
 import message
 import bitstring
 import hashlib
 import os
 from tracker import Tracker
+
 """
 Made by Alon Levy
 """
@@ -23,17 +20,23 @@ Made by Alon Levy
 class Peer:
     def __init__(self, tracker, c_piece):
         self.s = 0  # pieces management
-        self.c_piece = c_piece
+        self.c_piece = 0
         self.s_bytes = b''
         self.in_progress = False
         self.all_downloaded = 0  # downloaded files
         self.block = b''
-        self.length = 0
-        self.written = b''
         self.bitfield_progress = False
+        self.length = 0
         self.tracker = tracker
         self.torrent = tracker.torrent
+        self.__BUF = 16384
         self.size = self.torrent.size()
+        self.record = 0
+        # print(self.size)
+        self.stop_thread = False
+        self.block_len = 16384
+        self.pieces = self.torrent.torrent['info']['pieces']
+        self.piece_length = self.torrent.torrent['info']['piece length']
         try:
             self.files = self.torrent.torrent['info']['files']
         except:
@@ -41,11 +44,23 @@ class Peer:
         self.torrent_name = self.torrent.torrent['info']['name']
         os.mkdir(self.torrent_name) if not os.path.exists(self.torrent_name) else None
         self.left = [0, 0, b'']  # total / len / data
+        self.listen_sock = socket(AF_INET, SOCK_STREAM)
+        self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        # self.sock.settimeout(1)
+        self.listen_sock.bind(('0.0.0.0', self.torrent.port))
+        self.listen_sock.listen(5)
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.sock.bind(('0.0.0.0', 0))
         self.sock.settimeout(1)
-        self.sock.bind(('192.168.1.196', 6881))
+        print(f"my port is: {self.listen_sock.getsockname()[1]}")
         self.peers = tracker.peers
+        self.readable, self.writable = [self.listen_sock], []
+        # _thread.start_new_thread(self.listen, ())
+
+        th = threading.Thread(target=self.listen_to_peers)
+        th.start()
+        # self.listen_to_peers()
 
     def download(self, peer):
         #print(peer[0], peer[1])

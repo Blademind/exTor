@@ -33,6 +33,7 @@ class Peer:
         self.size = self.torrent.size()
         self.record = 0
         # print(self.size)
+        self.stop_thread = False
         self.block_len = 16384
         self.pieces = self.torrent.torrent['info']['pieces']
         self.piece_length = self.torrent.torrent['info']['piece length']
@@ -56,7 +57,9 @@ class Peer:
         self.peers = tracker.peers
         self.readable, self.writable = [self.listen_sock], []
         # _thread.start_new_thread(self.listen, ())
-        threading.Thread(target=self.listen_to_peers).start()
+
+        th = threading.Thread(target=self.listen_to_peers)
+        th.start()
         # self.listen_to_peers()
 
     def download(self, peer):
@@ -72,11 +75,12 @@ class Peer:
             data = self.sock.recv(16384)
             if len(data) == 0:
                 break
+            print(data)
             self.msg_handler(data, self.msg_type(data))
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
-        while 1:
+        while 1 and not self.stop_thread:
             read, write, [] = select.select(self.readable, self.writable, [])
             for sock in read:
                 if self.listen_sock == sock:
@@ -88,10 +92,23 @@ class Peer:
                     if not data:
                         if sock in self.readable:
                             self.readable.remove(sock)
-                    print(data)
-                    if self.is_handshake(data):
+
+                    if not self.is_handshake(data):
+                        data_len = int.from_bytes(data, 'big')
+                        print("data length:", data_len)
+                        data = sock.recv(data_len)
+                        print(data)
+                    elif self.is_handshake(data):
                         print(f'handshake received')
                         sock.send(message.build_handshake(self.tracker))
+                        self.__BUF = 4
+            print("Stopped listening to incoming connections...")
+    def server_msg_type(self, msg):
+        try:
+            if int.from_bytes(msg, "big") == 2:
+                return 'announce'
+        except:
+            return
 
     def msg_type(self, msg):
 
@@ -105,6 +122,7 @@ class Peer:
                 return 'bitfield'
             elif msg[4] == 7 and int.from_bytes(msg[:2], 'big') == 0:
                 return 'piece'
+
             # if int.from_bytes(msg[:4], 'big') == 0:
             #     return 'keep-alive'
             try:
