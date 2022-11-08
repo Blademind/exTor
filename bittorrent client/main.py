@@ -14,9 +14,10 @@ torrent = tracker.torrent
 
 print('list of peers:', peers)
 
-for peer in peers:
+peer = Peer(tracker)
+for peer_info in peers:
     try:
-        Peer(tracker).download(peer)
+        peer.download(peer_info)
     except Exception as e:
         print(e)
         pass

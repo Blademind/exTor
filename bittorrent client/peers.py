@@ -29,9 +29,10 @@ class Peer:
         self.written = b''
         self.tracker = tracker
         self.torrent = tracker.torrent
+        self.__BUF = 1024
         self.size = self.torrent.size()
         self.record = 0
-        print(self.size)
+        # print(self.size)
         self.block_len = 16384
         self.pieces = self.torrent.torrent['info']['pieces']
         self.piece_length = self.torrent.torrent['info']['piece length']
@@ -44,24 +45,46 @@ class Peer:
         self.left = [0, 0, b'']  # total / len / data
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.sock.settimeout(1)
-        self.sock.bind(('192.168.1.196', 6881))
+        # self.sock.settimeout(1)
+        self.sock.bind(('192.168.1.196', self.torrent.port))
+        print(f"my ip \ port is: {self.sock.getsockname()}")
+        # self.sock.listen(5)
         self.peers = tracker.peers
+        self.readable, self.writable = [self.sock], []
+        # _thread.start_new_thread(self.listen, ())
+        threading.Thread(target=self.listen_to_peers).start()
 
     def download(self, peer):
-        print(peer[0], peer[1])
+        print("Trying", peer[0], peer[1])
         self.sock.connect((peer[0], peer[1]))
         print(f'successfully connected to {peer[0]}:{peer[1]}')
         self.sock.send(message.build_handshake(self.tracker))
         # threading.Thread(target=self.listen).start()
-        self.listen()
+        # self.listen()
 
-    def listen(self):
+    def listen_to_server(self):
         while 1:
             data = self.sock.recv(16384)
             if len(data) == 0:
                 break
             self.msg_handler(data, self.msg_type(data))
+
+    def listen_to_peers(self):
+        print("Now listening to incoming connections...")
+        while 1:
+            read, write, [] = select.select(self.readable, self.writable, [])
+            for sock in read:
+                if read == sock:
+                    print("here")
+                    conn, addr = self.sock.accept()
+                    print(f"Connected to {addr}")
+                    self.readable.append(conn)
+                else:
+                    data = self.sock.recv(self.__BUF)
+                    if not data:
+                        if sock in self.readable:
+                            self.readable.remove()
+                    print(data)
 
     def msg_type(self, msg):
 
@@ -89,6 +112,11 @@ class Peer:
                     return 'keep-alive'
 
     def request_next(self):
+        """
+        Requests next piece in line
+
+        :return:
+        """
         if self.s - 9 > 0:
             self.s -= 9  # without starters (only the block itself)
             temp = 0

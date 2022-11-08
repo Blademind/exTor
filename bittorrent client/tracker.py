@@ -38,6 +38,7 @@ class Tracker:
         self.peers = []
         self.torrent = Torrent()
         self.sock = socket(AF_INET, SOCK_DGRAM)
+        self.sock.bind(("0.0.0.0", self.torrent.port))
         self.sock.settimeout(0.5)
         if type(self.torrent.url) is ParseResult:
             # Udp tracker

@@ -1,4 +1,5 @@
 import hashlib
+import random
 from socket import *
 import bencode
 from urllib.parse import urlparse
@@ -7,7 +8,8 @@ from socket import *
 
 class Torrent:
     def __init__(self):
-        with open('wired-cd.torrent', 'rb') as t:
+        self.port = random.randint(6881, 6889)
+        with open('modified_sintel.torrent', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
         self.announce_list = self.torrent["announce-list"]
@@ -33,11 +35,8 @@ class Torrent:
             for tracker in self.announce_list:
                 for sub in tracker:
                     if 'udp' in sub:
-                        try:
-                            yield urlparse(sub)
-                        except GeneratorExit:
-                            pass
+                        yield urlparse(sub)
                     elif 'http' in sub:
                         yield sub
-        except:
-            yield urlparse(self.torrent['announce']) if 'udp' in self.torrent['announce'] else self.torrent['announce']
+        except RuntimeError:
+            yield
