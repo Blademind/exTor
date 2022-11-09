@@ -7,10 +7,10 @@ from socket import *
 
 
 def build_handshake(tracker):
-    message = (19).to_bytes(1, byteorder='big')  # pstrlen
-    message += "BitTorrent protocol".encode()  # pstr
+    message = (19).to_bytes(1, byteorder='big')  # pstrlen (const)
+    message += "BitTorrent protocol".encode()  # pstr (const)
     message += (0).to_bytes(8, byteorder='big')  # reserved
-    message += tracker.torrent.generate_info_hash()  # hash
+    message += tracker.torrent.generate_info_hash()  # torrent info hash
     message += tracker.id  # peer_id
     return message
 

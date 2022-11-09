@@ -9,18 +9,22 @@ from peers import Peer
 
 
 tracker = Tracker()
+
 peers = tracker.peers
 torrent = tracker.torrent
 
 print('list of peers:', peers)
 
 peer = Peer(tracker)
+
 for peer_info in peers:
     try:
         peer.download(peer_info)
     except Exception as e:
+        peer.create_new_sock()
         print(e)
         pass
-peer.stop_thread = True
+
+# peer.stop_thread = True
 print(peers)
 

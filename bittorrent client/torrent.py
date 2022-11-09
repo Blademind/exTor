@@ -9,7 +9,7 @@ from socket import *
 class Torrent:
     def __init__(self):
         self.port = random.randint(6881, 6889)
-        with open('modified_sintel.torrent', 'rb') as t:
+        with open('torrents\\info_hashes\\sintel.torrent', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
         self.announce_list = self.torrent["announce-list"]
@@ -31,13 +31,13 @@ class Torrent:
             return s
 
     def next_tracker(self):
-        try:
-            for tracker in self.announce_list:
-                for sub in tracker:
-                    if 'udp' in sub:
-                        yield urlparse(sub)
-                    elif 'http' in sub:
-                        yield sub
-        except RuntimeError:
-            print("here")
-            yield
+        for tracker in self.announce_list:
+            for sub in tracker:
+                if 'udp' in sub:
+                    yield urlparse(sub)
+                elif 'http' in sub:
+                    yield sub
+                else:  # might be wss? not supported yet
+                    yield
+        yield
+

@@ -11,13 +11,46 @@ import bitstring
 import hashlib
 import os
 from tracker import Tracker
+
 """
 Made by Alon Levy
 """
 
 
+def is_handshake(msg):
+    try:
+        return msg[1:21].decode()[:19] == 'BitTorrent protocol'
+    except:
+        return False
+
+
+def bitstring_to_bytes(s):
+    return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
+
+
+def server_msg_type(msg):
+    id = msg[0]
+    try:
+        if int.from_bytes(id, "big") == 2:
+            return 'announce'
+    except:
+        return
+
+
+def reset_have(num_of_pieces):
+    """
+    resets have
+    :return:
+    """
+    have = ""
+    for i in range(num_of_pieces):
+        have += "0"
+    return have
+
+
 class Peer:
     def __init__(self, tracker):
+        self.sock = None
         self.s = 0  # pieces management
         self.c_piece = 0
         self.s_bytes = b''
@@ -32,42 +65,64 @@ class Peer:
         self.__BUF = 1024
         self.size = self.torrent.size()
         self.record = 0
-        # print(self.size)
         self.stop_thread = False
         self.block_len = 16384
         self.pieces = self.torrent.torrent['info']['pieces']
         self.piece_length = self.torrent.torrent['info']['piece length']
+        self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
+
+        self.have = reset_have(self.num_of_pieces)  # what pieces I have
+
         try:
             self.files = self.torrent.torrent['info']['files']
         except:
             self.files = self.torrent.torrent['info']
         self.torrent_name = self.torrent.torrent['info']['name']
-        os.mkdir(self.torrent_name) if not os.path.exists(self.torrent_name) else None
+        os.mkdir(f"torrents\\files\\{self.torrent_name}") if not os.path.exists(
+            f"torrents\\files\\{self.torrent_name}") else None
         self.left = [0, 0, b'']  # total / len / data
         self.listen_sock = socket(AF_INET, SOCK_STREAM)
         self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        # self.sock.settimeout(1)
         self.listen_sock.bind(('0.0.0.0', self.torrent.port))
         self.listen_sock.listen(5)
-        self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.sock.bind(('0.0.0.0', 0))
-        self.sock.settimeout(1)
+        self.create_new_sock()
         print(f"my port is: {self.listen_sock.getsockname()[1]}")
         self.peers = tracker.peers
         self.readable, self.writable = [self.listen_sock], []
-        # _thread.start_new_thread(self.listen, ())
 
         th = threading.Thread(target=self.listen_to_peers)
         th.start()
-        # self.listen_to_peers()
+
+    def calculate_have_bitfield(self):
+        if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+            files = os.listdir(f"torrents\\files\\{self.torrent_name}")
+            read = 0
+            fs_raw = b""
+            for file in files:
+                with open(f"torrents\\files\\{file}", "rb") as f:
+                    fs_raw += f.read(self.piece_length - read)
+                    read += len(fs_raw)
+
+    def is_handshake_hash(self, handshake_msg):
+        """
+        does the handshake hash match desired torrent?
+        :param handshake_msg:
+        :return:
+        """
+        return handshake_msg[27: 27 + len(self.torrent.generate_info_hash())] == self.torrent.generate_info_hash
+
+    def create_new_sock(self):
+        if self.sock:
+            self.sock.close()
+        self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.sock.settimeout(1)
 
     def download(self, peer):
         print("Trying", peer[0], peer[1])
         self.sock.connect((peer[0], peer[1]))
         print(f'successfully connected to {peer[0]}:{peer[1]}')
         self.sock.send(message.build_handshake(self.tracker))
-        # threading.Thread(target=self.listen).start()
         self.listen_to_server()
 
     def listen_to_server(self):
@@ -93,22 +148,18 @@ class Peer:
                         if sock in self.readable:
                             self.readable.remove(sock)
 
-                    if not self.is_handshake(data):
+                    if not is_handshake(data):
                         data_len = int.from_bytes(data, 'big')
                         print("data length:", data_len)
                         data = sock.recv(data_len)
                         print(data)
-                    elif self.is_handshake(data):
+                        if server_msg_type(data) == 'announce':  # message is announce
+                            pass
+                    elif is_handshake(data):
                         print(f'handshake received')
                         sock.send(message.build_handshake(self.tracker))
                         self.__BUF = 4
-            print("Stopped listening to incoming connections...")
-    def server_msg_type(self, msg):
-        try:
-            if int.from_bytes(msg, "big") == 2:
-                return 'announce'
-        except:
-            return
+        print("Stopped listening to incoming connections...")
 
     def msg_type(self, msg):
 
@@ -122,9 +173,6 @@ class Peer:
                 return 'bitfield'
             elif msg[4] == 7 and int.from_bytes(msg[:2], 'big') == 0:
                 return 'piece'
-
-            # if int.from_bytes(msg[:4], 'big') == 0:
-            #     return 'keep-alive'
             try:
                 if msg[1:21].decode()[:19] == 'BitTorrent protocol':
                     return 'handshake'
@@ -149,27 +197,24 @@ class Peer:
             for file in list(self.files):
                 temp += file['length']
                 if temp <= len(self.s_bytes):
-                    # print(file['path'])
                     to_download.append((file['path'], file['length']))
                     self.files = self.files[1:]
             for path in to_download:
-                with open(f"{self.torrent_name}/{path[0][0]}", 'wb') as w:
+                with open(f"torrents\\files\\{self.torrent_name}\\{path[0][0]}", 'wb') as w:
                     w.write(self.s_bytes[:path[1]])
                     self.written += self.s_bytes[:path[1]]
                     self.s_bytes = self.s_bytes[path[1]:]
                 print("done writing", path)
-            # print('s_bytes length:', len(self.s_bytes))
-            # print('written length:', len(self.written))
-            # print("sha11:", hashlib.sha1(self.written[self.c_piece*self.piece_length:]).digest())
-            # print("sha12:", self.pieces[self.c_piece * 20: 20*self.c_piece+20])
 
-            if hashlib.sha1((self.written+self.s_bytes)[self.c_piece*self.piece_length: self.c_piece*self.piece_length + self.piece_length]).digest() == self.pieces[self.c_piece * 20: 20*self.c_piece+20]:
+            if hashlib.sha1((self.written + self.s_bytes)[
+                            self.c_piece * self.piece_length: self.c_piece * self.piece_length + self.piece_length]).digest() == self.pieces[
+                                                                                                                                 self.c_piece * 20: 20 * self.c_piece + 20]:
                 print(f"success piece #{self.c_piece}, total --> {len(self.s_bytes)}")
                 self.c_piece += 1
                 self.s = 0
-            elif hashlib.sha1(self.written[self.c_piece*self.piece_length:]).digest() == self.pieces[self.c_piece * 20: 20*self.c_piece+20]:
+            elif hashlib.sha1(self.written[self.c_piece * self.piece_length:]).digest() == self.pieces[
+                                                                                           self.c_piece * 20: 20 * self.c_piece + 20]:
                 print(f"success piece #{self.c_piece}, last piece")
-            # print(self.c_piece, self.s, self.block_len)
             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
         else:
             self.request_again(self.s)
@@ -178,16 +223,15 @@ class Peer:
         self.sock.send(message.build_request(self.c_piece, block, self.block_len))
 
     def msg_handler(self, msg, type):
-        # print(type)
-        # print(msg)
-        #print(len(msg), msg, msg[4], type)
         if type == 'unchoke' and not self.in_progress:
             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
             self.in_progress = True
-        elif self.is_handshake(msg):
+        elif is_handshake(msg):
             print(f'handshake received')
             self.sock.settimeout(None)
-            self.sock.send(message.build_interested())
+            if self.is_handshake_hash(msg):
+                print("hash matches, started downloading")
+                self.sock.send(message.build_interested())
         elif type == 'bitfield':
             print(len(msg[4:]), msg[4:], int.from_bytes(msg[:4], 'big'))
             print('bitfield')
@@ -195,8 +239,9 @@ class Peer:
             if len(msg[4:]) < int.from_bytes(msg[:4], 'big'):
                 data = self.sock.recv(16384)
             msg += data
-            data = bitstring.BitArray(msg[5:int.from_bytes(msg[:4], 'big')+4])
-            print(data.bin)
+
+            data = bitstring.BitArray(msg[5:int.from_bytes(msg[:4], 'big') + 4])
+            print(bitstring_to_bytes(data.bin))
         elif type == 'piece':
             self.length = int.from_bytes(msg[:4], 'big')
             if len(msg[4:]) != self.length:
@@ -205,7 +250,6 @@ class Peer:
             else:
                 self.s_bytes += msg[9:]
                 self.s += len(msg[9:])
-                # print("here 1: ", msg)
                 self.request_next()
         elif type is None and len(msg) != 0:
             if self.left[0] != self.left[1]:  # if there is more left
@@ -218,27 +262,22 @@ class Peer:
                     self.left[2] += msg[:self.left[1] - self.left[0]]
                     self.left[0] += len(msg[:self.left[1] - self.left[0]])
 
-            #if len(self.s_bytes) + self.s + 16384 > self.size:  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            #    self.block_len = 16384 - ((len(self.s_bytes) + self.s + 16384) - self.size)
-            #    print('passed -->', self.block_len)
-            #print(f'{len(self.written)}, {len(self.s_bytes)}, {self.s}')
             if self.left[0] == self.left[1]:
-                #print('total --> ', self.size - (self.left[0] - 9 + len(self.s_bytes) + len(self.written)))
-                if self.size - (16384 + len(self.s_bytes) + len(self.written)) < 16384:  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if self.size - (
+                        16384 + len(self.s_bytes) + len(self.written)) < 16384:
                     self.block_len = self.size - (16384 + len(self.s_bytes) + len(self.written))
                 self.s_bytes += (self.left[2])[9:]
                 print("here 2: ", msg)
                 self.request_next()
                 self.left = [0, 0, b'']
-           # elif (self.c_piece - 1) * self.length + self.s - 9 == self.size:
-           #     self.request_next()
 
         if len(msg) != int.from_bytes(msg[:4], 'big') + 4 and len(msg) != 0 and type not in [None, 'piece']:
-            if self.is_handshake(msg):
+            if is_handshake(msg):
                 self.msg_handler(msg[68:], self.msg_type(msg[68:]))
 
             elif type == 'bitfield':
-                self.msg_handler(msg[int.from_bytes(msg[:4], 'big') + 4:], self.msg_type(msg[int.from_bytes(msg[:4], 'big') + 4:]))
+                self.msg_handler(msg[int.from_bytes(msg[:4], 'big') + 4:],
+                                 self.msg_type(msg[int.from_bytes(msg[:4], 'big') + 4:]))
             else:
                 if type == 'keep-alive':
                     self.msg_handler(msg[4:], self.msg_type(msg[4:]))
@@ -246,69 +285,24 @@ class Peer:
                 else:
                     self.msg_handler(msg[5:], self.msg_type(msg[5:]))
 
-    def is_handshake(self, msg):
-        try:
-            return msg[1:21].decode()[:19] == 'BitTorrent protocol'
-        except:
-            return False
-
 
 def msg_type(msg):
-
-    if len(msg) > 4:
+    if len(msg) > 4:  # message is longer than its length, very weird if not
         if msg[4] == 0 and int.from_bytes(msg[:4], 'big') == len(msg[4:]):
             return 'choke'
+
         elif msg[4] == 1 and int.from_bytes(msg[:4], 'big') <= len(msg[4:]):
             return 'unchoke'
+
         elif msg[4] == 5 and int.from_bytes(msg[:4], 'big') <= len(msg[4:]):
             return 'bitfield'
+
         elif msg[4] == 7 and int.from_bytes(msg[:2], 'big') == 0:
             return 'piece'
+
         try:
             if msg[1:21].decode()[:19] == 'BitTorrent protocol':
                 return 'handshake'
             return None
         except:
             return None
-
-
-# def check(peer, tracker):
-#     print(peer[0], peer[1])
-#     sock = socket(AF_INET, SOCK_STREAM)
-#     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-#     sock.settimeout(1)
-#     sock.bind(('192.168.1.196', 6881))
-#     sock.connect((peer[0], peer[1]))
-#     sock.send(message.build_handshake(tracker))
-#     msg = sock.recv(16384)
-#     try:
-#         msg += sock.recv(16384)
-#     except: pass
-#     sock.close()
-#     return bitfield_handler(msg, msg_type(msg))
-#
-#
-# def bitfield_handler(msg, type):
-#     if type == 'bitfield':
-#         data = b''
-#         if len(msg[4:]) < int.from_bytes(msg[:4], 'big'):
-#             data = sock.recv(16384)
-#         msg += data
-#         data = bitstring.BitArray(msg[5:])
-#         print(f'bitfield received --> {data.bin}')
-#         return data.bin
-#     if len(msg) != int.from_bytes(msg[:4], 'big') + 4 and len(msg) != 0 and type not in [None, 'piece']:
-#         if is_handshake(msg):
-#             return bitfield_handler(msg[68:], msg_type(msg[68:]))
-#         elif type == 'bitfield':
-#             return bitfield_handler(msg[int.from_bytes(msg[:4], 'big') + 4:],
-#                              msg_type(msg[int.from_bytes(msg[:4], 'big') + 4:]))
-#         else:
-#             return bitfield_handler(msg[5:], msg_type(msg[5:]))
-
-
-def is_handshake(msg):
-    try:
-        return msg[1:21].decode()[:19] == 'BitTorrent protocol'
-    except:
-        return False

@@ -1,11 +1,12 @@
 import pickle
+import socket
 import time
 from socket import *
 import os
 
 import bencode
 
-print("Welcome to file uploader\n"
+print("Welcome to exTorrent upload service\n"
       "Here you can upload your own file to a tracker\n"
       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
 
@@ -13,7 +14,7 @@ print("Welcome to file uploader\n"
 class Upload:
     def __init__(self):
         c = 0
-        torrents = os.listdir("torrents")
+        torrents = os.listdir("torrents\\info_hashes")
         for t in torrents:
             print(c, t)
             c += 1
@@ -42,10 +43,10 @@ class Upload:
             except:
                 break
             if datacontent == "FLOW":
-                length = os.path.getsize(f"torrents\\{self.torrent}")
+                length = os.path.getsize(f"torrents\\info_hashes\\{self.torrent}")
                 s = 0
                 self.sock.send(pickle.dumps(length))
-                with open(f"torrents\\{self.torrent}", "rb") as f:
+                with open(f"torrents\\info_hashes\\{self.torrent}", "rb") as f:
                     while f:
                         if datacontent == "FLOW":
                             file_data = f.read(self.__BUF)
@@ -59,6 +60,7 @@ class Upload:
                 break
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
+                break
 
 
 if __name__ == '__main__':
