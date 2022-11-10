@@ -44,6 +44,7 @@ class Pieces:
             except:
                 pass
         print(self.pieces)
+
     def request_next(self):
         # if self.s == self.torrent.torrent['info']['piece length']:
         self.s -= 9  # without starters (only the block itself)

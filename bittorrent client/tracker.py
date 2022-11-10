@@ -109,7 +109,10 @@ class Tracker:
                 while 24 + 6 * n <= len(ret):
                     ip = inet_ntoa(ret[20 + 6 * n: 24 + 6 * n])
                     port = int.from_bytes(ret[24 + 6 * n: 26 + 6 * n], 'big')
-                    self.peers.append((ip, port))
+
+                    # only add peer if needed
+                    if (ip, port) not in self.peers:
+                        self.peers.append((ip, port))
                     n += 1
                 print(self.peers)
             else:

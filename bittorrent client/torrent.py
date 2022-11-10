@@ -9,7 +9,7 @@ from socket import *
 class Torrent:
     def __init__(self):
         self.port = random.randint(6881, 6889)
-        with open('torrents\\info_hashes\\sintel.torrent', 'rb') as t:
+        with open('torrents\\info_hashes\\wired-cd.torrent', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
         self.announce_list = self.torrent["announce-list"]

@@ -1,10 +1,15 @@
 import _thread
+import time
+
 import select
 import threading
 from socket import *
 import bencode
 from urllib.parse import urlparse
 from socket import *
+
+from alive_progress import alive_bar
+
 from torrent import Torrent
 import message
 import bitstring
@@ -71,7 +76,6 @@ class Peer:
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
 
-        self.have = reset_have(self.num_of_pieces)  # what pieces I have
 
         try:
             self.files = self.torrent.torrent['info']['files']
@@ -90,19 +94,66 @@ class Peer:
         self.peers = tracker.peers
         self.readable, self.writable = [self.listen_sock], []
 
+        self.have = reset_have(self.num_of_pieces)  # what pieces I have
+
+        self.progress_flag = True
+        threading.Thread(target=self.calculate_have_bitfield).start()
+        self.generate_progress_bar()
+        print(self.have)
+
         th = threading.Thread(target=self.listen_to_peers)
         th.start()
 
+    def generate_progress_bar(self):
+        with alive_bar(self.num_of_pieces, force_tty=True) as self.bar:
+            while self.progress_flag:
+                time.sleep(0.01)
+
     def calculate_have_bitfield(self):
+        time.sleep(0.5)
         if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
             files = os.listdir(f"torrents\\files\\{self.torrent_name}")
-            read = 0
-            fs_raw = b""
+            read = 0  # whats left to next piece
+            left = b""  # lasting bytes to next piece
+            piece_number = 0  # what piece are we at?
             for file in files:
-                with open(f"torrents\\files\\{file}", "rb") as f:
-                    fs_raw += f.read(self.piece_length - read)
-                    read += len(fs_raw)
+                with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+                    fs_raw = left + f.read(self.piece_length - read)
+                    file_length = os.path.getsize(f"torrents\\files\\{self.torrent_name}\\{file}")
+                    if len(fs_raw) == self.piece_length:
+                        # while file_length - (self.piece_length + read) > 0:
+                        #     last =
+                        if hashlib.sha1(fs_raw).digest() == self.pieces[piece_number * 20: 20 * piece_number + 20]:
+                            temp = list(self.have)
+                            temp[piece_number] = "1"
+                            self.have = "".join(temp)
+                            # print(f"validated piece #{piece_number}, current bitfield progress:")
+                            self.bar()
+                        while len(fs_raw) == self.piece_length:
+                            # print("here")
+                            fs_raw = f.read(self.piece_length)
+                            if len(fs_raw) == self.piece_length:
+                                piece_number += 1
+                                if hashlib.sha1(fs_raw).digest() == self.pieces[
+                                                                    piece_number * 20: 20 * piece_number + 20]:
+                                    temp = list(self.have)
+                                    temp[piece_number] = "1"
+                                    self.have = "".join(temp)
+                                    self.bar()
 
+                                    # print(f"validated piece #{piece_number}, current bitfield progress:")
+                                    # print(self.have)
+                            else:
+                                if len(fs_raw) < self.piece_length:
+                                    read = len(fs_raw)
+                                    left = fs_raw
+                                else:
+                                    read = 0
+                        piece_number += 1
+                    else:
+                        read = len(fs_raw)
+                        left = fs_raw
+        self.progress_flag = False
     def is_handshake_hash(self, handshake_msg):
         """
         does the handshake hash match desired torrent?
@@ -157,6 +208,7 @@ class Peer:
                             pass
                     elif is_handshake(data):
                         print(f'handshake received')
+                        self.calculate_have_bitfield()
                         sock.send(message.build_handshake(self.tracker))
                         self.__BUF = 4
         print("Stopped listening to incoming connections...")
@@ -215,6 +267,7 @@ class Peer:
             elif hashlib.sha1(self.written[self.c_piece * self.piece_length:]).digest() == self.pieces[
                                                                                            self.c_piece * 20: 20 * self.c_piece + 20]:
                 print(f"success piece #{self.c_piece}, last piece")
+
             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
         else:
             self.request_again(self.s)
@@ -228,7 +281,7 @@ class Peer:
             self.in_progress = True
         elif is_handshake(msg):
             print(f'handshake received')
-            self.sock.settimeout(None)
+            self.sock.settimeout(5)
             if self.is_handshake_hash(msg):
                 print("hash matches, started downloading")
                 self.sock.send(message.build_interested())
