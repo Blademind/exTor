@@ -40,13 +40,16 @@ class Tracker:
         self.sock = socket(AF_INET, SOCK_DGRAM)
         self.sock.bind(("0.0.0.0", self.torrent.port))
         self.sock.settimeout(0.5)
-        self.yields = self.torrent.url_yields
-        if type(self.torrent.url) is ParseResult:
-            # Udp tracker
-            self.udp_send(build_conn_req())
-        else:
-            # Http tracker
-            self.http_send()
+        try:
+            self.yields = self.torrent.url_yields
+            if type(self.torrent.url) is ParseResult:
+                # Udp tracker
+                self.udp_send(build_conn_req())
+            else:
+                # Http tracker
+                self.http_send()
+        except AttributeError:
+            pass
 
     def udp_send(self, message):
         print(self.torrent.url)

@@ -1,15 +1,22 @@
 import hashlib
+import os
 import random
 from socket import *
 import bencode
 from urllib.parse import urlparse
 from socket import *
 
+import bencodepy.exceptions
+
 
 class Torrent:
     def __init__(self):
         self.port = random.randint(6881, 6889)
-        with open('torrents\\info_hashes\\wired-cd.torrent', 'rb') as t:
+        torrents = os.listdir("torrents\\info_hashes")
+        for torrent in torrents:
+            print(torrents.index(torrent), torrent)
+        index = input("what torrent would you like to download? ->\t")
+        with open(f'torrents\\info_hashes\\{torrents[int(index)]}', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
         self.announce_list = self.torrent["announce-list"]

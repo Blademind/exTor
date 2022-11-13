@@ -53,7 +53,7 @@ def build_have(payload):
 def build_bitfield(bitfield):
     message = (1 + len(bitfield)).to_bytes(4, byteorder='big')  # len
     message += (5).to_bytes(1, byteorder='big')  # id
-    message += bitfield
+    message += bitfield.encode()
     return message
 
 

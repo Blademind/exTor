@@ -154,6 +154,7 @@ class Peer:
                         read = len(fs_raw)
                         left = fs_raw
         self.progress_flag = False
+
     def is_handshake_hash(self, handshake_msg):
         """
         does the handshake hash match desired torrent?
@@ -198,6 +199,7 @@ class Peer:
                     if not data:
                         if sock in self.readable:
                             self.readable.remove(sock)
+                        break
 
                     if not is_handshake(data):
                         data_len = int.from_bytes(data, 'big')
@@ -208,8 +210,8 @@ class Peer:
                             pass
                     elif is_handshake(data):
                         print(f'handshake received')
-                        self.calculate_have_bitfield()
                         sock.send(message.build_handshake(self.tracker))
+                        sock.send(message.build_bitfield(self.have))
                         self.__BUF = 4
         print("Stopped listening to incoming connections...")
 
@@ -262,10 +264,18 @@ class Peer:
                             self.c_piece * self.piece_length: self.c_piece * self.piece_length + self.piece_length]).digest() == self.pieces[
                                                                                                                                  self.c_piece * 20: 20 * self.c_piece + 20]:
                 print(f"success piece #{self.c_piece}, total --> {len(self.s_bytes)}")
+                temp = list(self.have)
+                temp[self.c_piece] = "1"
+                self.have = "".join(temp)
+                self.have_msg()
                 self.c_piece += 1
                 self.s = 0
             elif hashlib.sha1(self.written[self.c_piece * self.piece_length:]).digest() == self.pieces[
                                                                                            self.c_piece * 20: 20 * self.c_piece + 20]:
+                temp = list(self.have)
+                temp[self.c_piece] = "1"
+                self.have = "".join(temp)
+
                 print(f"success piece #{self.c_piece}, last piece")
 
             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
@@ -274,6 +284,12 @@ class Peer:
 
     def request_again(self, block):
         self.sock.send(message.build_request(self.c_piece, block, self.block_len))
+
+    def have_msg(self):
+        conn = self.listen_sock.getpeername()
+        print(conn)
+        if conn:
+            pass
 
     def msg_handler(self, msg, type):
         if type == 'unchoke' and not self.in_progress:
