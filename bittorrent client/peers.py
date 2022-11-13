@@ -170,20 +170,20 @@ class Peer:
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.sock.settimeout(1)
 
-    def download(self, peer):
+    def download(self, peer, piece_number):
         print("Trying", peer[0], peer[1])
         self.sock.connect((peer[0], peer[1]))
         print(f'successfully connected to {peer[0]}:{peer[1]}')
         self.sock.send(message.build_handshake(self.tracker))
-        self.listen_to_server()
+        self.listen_to_server(piece_number)
 
-    def listen_to_server(self):
+    def listen_to_server(self, piece_number):
         while 1:
             data = self.sock.recv(16384)
             if len(data) == 0:
                 break
             print(data)
-            self.msg_handler(data, self.msg_type(data))
+            self.msg_handler(data, self.msg_type(data), piece_number)
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
@@ -291,9 +291,9 @@ class Peer:
         if conn:
             pass
 
-    def msg_handler(self, msg, type):
+    def msg_handler(self, msg, type, piece_number):
         if type == 'unchoke' and not self.in_progress:
-            self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+            self.sock.send(message.build_request(piece_number, self.s, self.block_len))
             self.in_progress = True
         elif is_handshake(msg):
             print(f'handshake received')
@@ -342,17 +342,17 @@ class Peer:
 
         if len(msg) != int.from_bytes(msg[:4], 'big') + 4 and len(msg) != 0 and type not in [None, 'piece']:
             if is_handshake(msg):
-                self.msg_handler(msg[68:], self.msg_type(msg[68:]))
+                self.msg_handler(msg[68:], self.msg_type(msg[68:]), piece_number)
 
             elif type == 'bitfield':
                 self.msg_handler(msg[int.from_bytes(msg[:4], 'big') + 4:],
-                                 self.msg_type(msg[int.from_bytes(msg[:4], 'big') + 4:]))
+                                 self.msg_type(msg[int.from_bytes(msg[:4], 'big') + 4:]), piece_number)
             else:
                 if type == 'keep-alive':
-                    self.msg_handler(msg[4:], self.msg_type(msg[4:]))
+                    self.msg_handler(msg[4:], self.msg_type(msg[4:]), piece_number)
 
                 else:
-                    self.msg_handler(msg[5:], self.msg_type(msg[5:]))
+                    self.msg_handler(msg[5:], self.msg_type(msg[5:]), piece_number)
 
 
 def msg_type(msg):
