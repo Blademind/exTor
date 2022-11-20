@@ -6,7 +6,7 @@ import bencode
 from urllib.parse import urlparse
 from socket import *
 from torrent import Torrent
-import message
+import message_handler as message
 import bitstring
 import hashlib
 import os

@@ -77,7 +77,6 @@ class Tracker:
                     self.http_send()
 
     def http_send(self):
-        print(self.torrent.url)
         params = {
             'info_hash': self.torrent.generate_info_hash(),
             'peer_id': self.id,

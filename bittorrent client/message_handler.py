@@ -6,6 +6,48 @@ from urllib.parse import urlparse
 from socket import *
 
 
+def is_handshake(msg):
+    try:
+        return msg[1:21].decode()[:19] == 'BitTorrent protocol'
+    except:
+        return False
+
+
+def msg_type(msg):
+    if not msg:
+        return "keep-alive"
+    if len(msg) == 1 and msg[0] == 0:
+        return 'choke'
+    elif len(msg) == 1 and msg[0] == 1:
+        return 'unchoke'
+    elif msg[0] == 5:
+        return 'bitfield'
+    elif msg[0] == 7:
+        return 'piece'
+    elif msg[0] == 4 and len(msg) == 5:
+        return 'have'
+
+    # try:
+    #     if msg[1:21].decode()[:19] == 'BitTorrent protocol':
+    #         return 'handshake'
+    #     return None
+    # except:
+    #     return None
+    # else:
+    #     if len(msg) == 4:
+    #         if int.from_bytes(msg[:4], 'big') == 0:
+    #             return 'keep-alive'
+
+
+def server_msg_type(msg):
+    id = msg[0]
+    try:
+        if int.from_bytes(id, "big") == 2:
+            return 'announce'
+    except:
+        return
+
+
 def build_handshake(tracker):
     message = (19).to_bytes(1, byteorder='big')  # pstrlen (const)
     message += "BitTorrent protocol".encode()  # pstr (const)
@@ -58,7 +100,7 @@ def build_bitfield(bitfield):
 
 
 def build_request(index, begin, length):
-    print(index, begin, length)
+    # print(index, begin, length)
     message = (13).to_bytes(4, byteorder='big')  # len
     message += (6).to_bytes(1, byteorder='big')  # id
     message += (index).to_bytes(4, byteorder='big')
