@@ -41,6 +41,7 @@ def reset_have(num_of_pieces):
 
 class Peer:
     def __init__(self, tracker):
+        self.total_current_piece_length = None
         self.sock = None
         self.s = 0  # pieces management
         self.c_piece = 0
@@ -59,7 +60,6 @@ class Peer:
         self.pieces = self.torrent.torrent['info']['pieces']
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
-
 
         try:
             self.files = self.torrent.torrent['info']['files']
@@ -144,6 +144,8 @@ class Peer:
     def download(self, peer, piece_number, current_piece_peers):
         self.c_piece = piece_number
         self.current_piece_peers = current_piece_peers
+        self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
+
         print("Trying", peer[0], peer[1])
         self.sock.connect((peer[0], peer[1]))
         print(f'successfully connected to {peer[0]}:{peer[1]}')
@@ -156,7 +158,7 @@ class Peer:
 
                 data = self.sock.recv(self.buf)
                 if not data:
-                    raise Exception
+                    raise Exception("data length 0")
 
                 # print(data)
                 # print(len(data), data, self.sock.getpeername())
@@ -168,28 +170,30 @@ class Peer:
 
             except TimeoutError:
                 print("Timeout")
-                if not self.in_progress:
-                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
-                    self.in_progress = True
+                # if not self.in_progress:
+                #     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                #     self.in_progress = True
                 self.buf = 4
 
-            except ValueError:
-                print("Error Detected")
+            # except ValueError:
+            #     print("Error Detected")
+            #     break
+            #     # if len(self.current_piece_peers) != 0:
+            #     #     self.s_bytes = 0
+            #     #     self.s = 0
+            #     #     self.left = [0, 0, b""]
+            #     #     self.create_new_sock()
+            #     #     self.buf = 68
+            #     #     self.download(self.current_piece_peers[0], self.c_piece, self.current_piece_peers[1:])
+            #     # else:
+            #     #     print("NO MORE PEERS LEFT")
+            #     #     break
+            except Exception as e:
+                print(e)
                 break
-                # if len(self.current_piece_peers) != 0:
-                #     self.s_bytes = 0
-                #     self.s = 0
-                #     self.left = [0, 0, b""]
-                #     self.create_new_sock()
-                #     self.buf = 68
-                #     self.download(self.current_piece_peers[0], self.c_piece, self.current_piece_peers[1:])
-                # else:
-                #     print("NO MORE PEERS LEFT")
-                #     break
-
-            except Exception:
-                print("0 length dumb error!")
-                break
+        if self.sock:
+            self.sock.close()
+        # print(self.sock.getpeername())
 
     def message_handler(self, data):
         if message.is_handshake(data):
@@ -208,46 +212,76 @@ class Peer:
         elif message.msg_type(data) == "unchoke":
             print("unchoke")
             if not self.in_progress:
-                self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                # last piece algo
+                if self.c_piece == self.num_of_pieces - 1:
+                    if self.total_current_piece_length >= self.block_len:
+                        self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+
+                        # if self.total_current_piece_length - len(self.s_bytes) < self.block_len:
+                        #     print("here", self.total_current_piece_length)
+                        #     self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
+                        # else:
+                        #     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                    else:
+                        self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
+                else:
+                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
                 self.in_progress = True
             self.buf = 4
         elif message.msg_type(data) == "choke":
             print("choke")
-            raise ValueError
+            raise Exception("choked")
 
         elif message.msg_type(data) == "piece":
             print("piece")
             while len(data) != self.buf:
                 data += self.sock.recv(self.buf)
+
             data = data[9:]
             self.s_bytes += data
             self.s += len(data)
             self.buf = 4
             if self.s != self.piece_length:
+                # a unique if statement for last piece
+                if self.c_piece == self.num_of_pieces - 1:
+                    if hashlib.sha1(self.s_bytes).digest() == self.pieces[self.c_piece * 20: self.c_piece * 20 + 20]:
+                        print(f"success piece #{self.c_piece}, last piece")
 
-                self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                        manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
+                        manager.down.download_files()  # take care of files
+                        manager.currently_connected.remove(self.sock.getpeername())
+                        self.piece_downloaded = True
+
+                        return "DONE"
+                if self.c_piece == self.num_of_pieces - 1:
+                    if self.total_current_piece_length >= self.block_len:
+                        if self.total_current_piece_length - len(self.s_bytes) < self.block_len:
+                            self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length - len(self.s_bytes)))
+                        else:
+                            self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                    else:
+                        self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
+                else:
+                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
             else:
                 # checks if downloaded piece matches current piece hash
                 if hashlib.sha1(self.s_bytes).digest() == self.pieces[
                                                      self.c_piece * 20: 20 * self.c_piece + 20]:
+                    # temp = list(self.have)
+                    # temp[self.c_piece] = "1"    # problem here, peer gets reset all the time
+                    # self.have = "".join(temp)
                     print(f"success piece #{self.c_piece}, total --> {self.s}")
-                    self.s = 0
-                    self.s_bytes = b""
-                    self.piece_downloaded = True
+
+                    manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
+                    manager.down.download_files()  # take care of files
                     manager.currently_connected.remove(self.sock.getpeername())
+
+                    # self.s = 0
+                    # self.s_bytes = b""
+                    self.piece_downloaded = True
                     return "DONE"
                     # self.have_msg()  # send have message to all connected peers
 
-                # a unique if statement for last piece
-                elif hashlib.sha1(self.s_bytes).digest() == self.pieces[
-                                                       self.c_piece * 20: 20 * self.c_piece + 20]:
-                    temp = list(self.have)
-                    temp[self.c_piece] = "1"
-                    self.have = "".join(temp)
-                    self.s = 0
-                    self.s_bytes = b""
-                    print(f"success piece #{self.c_piece}, last piece")
-                    return "DONE"
         elif message.msg_type(data) == "have":
             print("have")
             self.buf = 4

@@ -31,17 +31,17 @@ class Handler:
             self.tracker = Tracker()
             self.peers = self.tracker.peers
             self.torrent = self.tracker.torrent
+            manager.down = manager.Downloader(self.torrent)
+
             self.pieces = {}
-            self.peer_objs = []
             for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
                 self.pieces[i] = []
             self.rarest_piece(self.peers, self.tracker)
             self.currently_connected = []
-            # print(self.pieces)
-
+            for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
+                print(key, end=" ")
             for k in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
                 peer = Peer(self.tracker)  # create a peer object
-                self.peer_objs.append(peer)
                 self.current_piece_peers = self.pieces[k]
 
                 # no peers holding current piece
@@ -49,22 +49,33 @@ class Handler:
                     raise Exception("no peers holding piece")
 
                 # go over all piece holders
-                for p in self.current_piece_peers:
-                    # print(p)
-                    if p not in manager.currently_connected:
-                        manager.currently_connected.append(p)
-                        threading.Thread(target=peer.download, args=(p, k, self.current_piece_peers)).start()
-                        break
-
-                    # last peer and was not caught beforehand - all conns in use
-                    if p == self.current_piece_peers[-1]:
-                        last_piece_length = len(manager.currently_connected)
-                        while len(manager.currently_connected) == last_piece_length:
-                            time.sleep(0.1)
+                self.recursive_peers(peer, k)
 
         except Exception as e:
             print(e)
             pass
+
+    def recursive_peers(self, peer, k):
+        """
+        goes over peers recursively in order to get a piece downloaded
+        :param peer:
+        :param k:
+        :return:
+        """
+        for p in self.current_piece_peers:
+            # print(p)
+            if p not in manager.currently_connected:
+                manager.currently_connected.append(p)
+                threading.Thread(target=peer.download, args=(p, k, self.current_piece_peers)).start()
+                break
+
+            # last peer and was not caught beforehand - all conns in use
+            if p == self.current_piece_peers[-1]:
+                last_piece_length = len(manager.currently_connected)
+                while len(manager.currently_connected) == last_piece_length:
+                    time.sleep(0.1)
+                self.recursive_peers(peer, k)
+        print("Completed Download")
 
     def connect_to_peer(self, peers, sock, current_peer, tracker):
         try:
