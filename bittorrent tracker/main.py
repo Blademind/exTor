@@ -32,7 +32,7 @@ class Tracker:
         removes ip after an hour (according to protocol)
         :return:
         """
-        timer = 10
+        timer = 3600
         while 1:
             size_changed = False
             # adds all ips-times into one list

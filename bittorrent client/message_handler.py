@@ -8,7 +8,7 @@ from socket import *
 
 def is_handshake(msg):
     try:
-        return msg[1:21].decode()[:19] == 'BitTorrent protocol'
+        return msg[1:20].decode()[:19] == 'BitTorrent protocol'
     except:
         return False
 
@@ -42,9 +42,9 @@ def msg_type(msg):
 def server_msg_type(msg):
     id = msg[0]
     try:
-        if int.from_bytes(id, "big") == 2:
+        if id == 2:
             return 'interested'
-        elif int.from_bytes(id, "big") == 6:
+        elif id == 6:
             return 'request'
     except:
         return

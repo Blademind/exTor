@@ -34,7 +34,7 @@ class Downloader:
         self.listen_sock.bind(('0.0.0.0', self.torrent.port))
         self.listen_sock.listen(5)
         self.readable, self.writable = [self.listen_sock], []
-        self.__BUF = 1024
+        self.BUFS = {}
 
         self.torrent_name = self.torrent.torrent['info']['name']
         self.pieces = self.torrent.torrent['info']['pieces']
@@ -60,21 +60,22 @@ class Downloader:
                 if self.listen_sock == sock:
                     conn, addr = self.listen_sock.accept()
                     print(f"Connected to {addr}")
+                    self.BUFS[conn] = 68
                     self.readable.append(conn)
                 else:
-                    data = sock.recv(self.__BUF)
+                    data = sock.recv(self.BUFS[sock])
                     if not data:
                         if sock in self.readable:
                             self.readable.remove(sock)
                         break
-
                     if not message.is_handshake(data):
                         data_len = int.from_bytes(data, 'big')
                         print("data length:", data_len)
                         data = sock.recv(data_len)
                         print(data)
                         if message.server_msg_type(data) == 'interested':  # message is interested
-                            if len(self.readable) != 5:
+                            print("interested")
+                            if len(self.readable) > 5:
                                 sock.send(message.build_choke())
                             else:
                                 sock.send(message.build_unchoke())
@@ -85,7 +86,7 @@ class Downloader:
                         print(f'handshake received')
                         sock.send(message.build_handshake(self.tracker))
                         sock.send(message.build_bitfield(self.bitstring_to_bytes(self.have)))
-                        self.__BUF = 4
+                        self.BUFS[sock] = 4
 
     def send_piece(self, data, sock):
         """Send given piece to a peer"""
@@ -119,7 +120,6 @@ class Downloader:
         time.sleep(0.1)
         if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
             files = sorted(os.listdir(f"torrents\\files\\{self.torrent_name}"), key=self.file_names.index)  # ordered file names
-            print(files)
             files_raw = b""
             for file in files:
                 with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
@@ -130,7 +130,6 @@ class Downloader:
                     temp = list(self.have)
                     index_of_piece = self.info_hashes.index(hashlib.sha1(files_raw[:self.piece_length]).digest())
                     self.info_hashes[index_of_piece] = None
-                    print(index_of_piece)
                     temp[index_of_piece] = "1"
                     self.have = "".join(temp)
                     # print(self.have)
