@@ -85,24 +85,33 @@ class Peer:
         # self.progress_flag = True
         # threading.Thread(target=self.calculate_have_bitfield).start()
         # self.generate_progress_bar()
-        # print(self.have)
-
 
         # th = threading.Thread(target=self.listen_to_peers)
         # th.start()
 
     def generate_info_hashes(self):
+        """
+        TO BE DELETED
+        :return:
+        """
         ret = []
         for i in range(0, len(self.pieces), 20):
             ret.append(self.pieces[i: i + 20])
         return ret
 
     def generate_progress_bar(self):
+        """
+        TO BE DELETED
+        :return:
+        """
         with alive_bar(self.num_of_pieces, force_tty=True) as self.bar:
             while self.progress_flag:
                 time.sleep(0.01)
-
     def calculate_have_bitfield2(self):
+        """
+        TO BE DELETED
+        :return:
+        """
         time.sleep(0.1)
         if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
             files = os.listdir(f"torrents\\files\\{self.torrent_name}")
@@ -295,6 +304,7 @@ class Peer:
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
+
         while 1:
             read, write, [] = select.select(self.readable, self.writable, [])
             for sock in read:
@@ -314,14 +324,29 @@ class Peer:
                         print("data length:", data_len)
                         data = sock.recv(data_len)
                         print(data)
-                        if message.server_msg_type(data) == 'announce':  # message is announce
-                            pass
+                        if message.server_msg_type(data) == 'interested':  # message is interested
+                            if len(self.readable) != 5:
+                                sock.send(message.build_choke())
+                            else:
+                                sock.send(message.build_unchoke())
+                        elif message.server_msg_type(data) == 'request':
+                            self.send_piece(data, sock)
 
                     elif message.is_handshake(data):
                         print(f'handshake received')
                         sock.send(message.build_handshake(self.tracker))
                         sock.send(message.build_bitfield(self.have))
                         self.__BUF = 4
+
+    def send_piece(self, data, sock):
+        """Send given piece to a peer"""
+        index = int.from_bytes(data[1: 5], "big")
+        begin = int.from_bytes(data[5: 9], "big")
+        length = int.from_bytes(data[9: 13], "big")
+
+        if self.have[index]:
+            piece_to_send = manager.down.pieces_bytes[index][begin:]
+            sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
     def have_msg(self):
         """

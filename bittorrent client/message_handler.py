@@ -43,7 +43,9 @@ def server_msg_type(msg):
     id = msg[0]
     try:
         if int.from_bytes(id, "big") == 2:
-            return 'announce'
+            return 'interested'
+        elif int.from_bytes(id, "big") == 6:
+            return 'request'
     except:
         return
 
@@ -95,7 +97,7 @@ def build_have(payload):
 def build_bitfield(bitfield):
     message = (1 + len(bitfield)).to_bytes(4, byteorder='big')  # len
     message += (5).to_bytes(1, byteorder='big')  # id
-    message += bitfield.encode()
+    message += bitfield
     return message
 
 
@@ -109,12 +111,12 @@ def build_request(index, begin, length):
     return message
 
 
-def build_piece(payload):
-    message = (9+len(payload.block)).to_bytes(4, byteorder='big')  # len
+def build_piece(index, begin, block):
+    message = (9+len(block)).to_bytes(4, byteorder='big')  # len
     message += (7).to_bytes(1, byteorder='big')  # id
-    message += (payload.index).to_bytes(4, byteorder='big')
-    message += (payload.begin).to_bytes(4, byteorder='big')
-    message += payload.block
+    message += index.to_bytes(4, byteorder='big')
+    message += begin.to_bytes(4, byteorder='big')
+    message += block
     return message
 
 

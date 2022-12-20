@@ -31,15 +31,15 @@ class Handler:
             self.tracker = Tracker()
             self.peers = self.tracker.peers
             self.torrent = self.tracker.torrent
-            manager.down = manager.Downloader(self.torrent)
+            manager.down = manager.Downloader(self.torrent, self.tracker)
 
             self.pieces = {}
             for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
                 self.pieces[i] = []
             self.rarest_piece(self.peers, self.tracker)
             self.currently_connected = []
-            for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
-                print(key, end=" ")
+            # for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
+            #     print(key, end=" ")
             for k in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
                 peer = Peer(self.tracker)  # create a peer object
                 self.current_piece_peers = self.pieces[k]
@@ -50,6 +50,7 @@ class Handler:
 
                 # go over all piece holders
                 self.recursive_peers(peer, k)
+            print("Completed Download!")
 
         except Exception as e:
             print(e)
@@ -75,21 +76,21 @@ class Handler:
                 while len(manager.currently_connected) == last_piece_length:
                     time.sleep(0.1)
                 self.recursive_peers(peer, k)
-        print("Completed Download")
 
     def connect_to_peer(self, peers, sock, current_peer, tracker):
         try:
             sock.connect(peers[current_peer])
             sock.send(message.build_handshake(tracker))
             data = sock.recv(68)  # read handshake
-
             if message.is_handshake(data):
+                print("HANDSHAKE")
                 msg_len = int.from_bytes(sock.recv(4), "big")
                 data = sock.recv(msg_len)
                 if message.msg_type(data) == 'bitfield':
+                    print(data)
                     data = bitstring.BitArray(data[1:])
                     # print(bitstring_to_bytes(data.bin))
-                    # print(data.bin)
+                    print(data.bin)
                     for t, i in enumerate(data.bin):
                         if i == "1":
                             self.pieces[t].append(sock.getpeername())
