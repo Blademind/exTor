@@ -40,20 +40,22 @@ class Handler:
             self.currently_connected = []
             # for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
             #     print(key, end=" ")
-            for k in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
-                peer = Peer(self.tracker)  # create a peer object
-                self.current_piece_peers = self.pieces[k]
 
-                # no peers holding current piece
-                if len(self.current_piece_peers) == 0:
-                    raise Exception("no peers holding piece")
+            for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):
 
-                # go over all piece holders
-                self.recursive_peers(peer, k)
+                if manager.down.have[piece] == "0":
+                    peer = Peer(self.tracker)  # create a peer object
+                    self.current_piece_peers = self.pieces[k]
+                    # no peers holding current piece
+                    if len(self.current_piece_peers) == 0:
+                        raise Exception("no peers holding piece")
+
+                    # go over all piece holders
+                    self.recursive_peers(peer, k)
             print("Completed Download!")
 
         except Exception as e:
-            print(e)
+            print("exception: ", e)
             pass
 
     def recursive_peers(self, peer, k):
@@ -107,16 +109,17 @@ class Handler:
         """
         # asyncio.run(self.peer_instances(peers, tracker))
         socks = [create_new_sock() for i in range(len(peers))]
-        a = []
-        current_peer = 0
-        for sock in socks:
-            a.append(threading.Thread(target=self.connect_to_peer, args=(peers, sock, current_peer, tracker)))
-            current_peer += 1
+        if len(socks) != 0:  # at least one peer is in swarms
+            a = []
+            current_peer = 0
+            for sock in socks:
+                a.append(threading.Thread(target=self.connect_to_peer, args=(peers, sock, current_peer, tracker)))
+                current_peer += 1
 
-        for thread in a:
-            thread.start()
-            time.sleep(0.01)  # create a small delay to create a gap
-        a[-1].join()  # last thread has ended
+            for thread in a:
+                thread.start()
+                time.sleep(0.01)  # create a small delay to create a gap
+            a[-1].join()  # last thread has ended
 
 # region ASYNC SOLUTION
 #     async def conn_task(self, peers, current_peer, tracker):
