@@ -132,6 +132,8 @@ class Downloader:
                     self.info_hashes[index_of_piece] = None
                     temp[index_of_piece] = "1"
                     self.have = "".join(temp)
+                    self.add_bytes(index_of_piece, files_raw[:self.piece_length])
+                    self.check_files()
                     # print(self.have)
                     self.bar()
                     self.pieces_bytes[index_of_piece] = files_raw[:self.piece_length]
@@ -181,6 +183,22 @@ class Downloader:
                 self.written += self.s_bytes[:path[1]]
                 self.s_bytes = self.s_bytes[path[1]:]
             print("done writing", path)
+
+    def check_files(self):
+        temp = 0
+        to_download = []
+        self.s_bytes_handler()
+        for file in list(self.files):
+            temp += file['length']
+            if temp <= len(self.s_bytes):
+                to_download.append((file['path'], file['length']))
+                self.files = self.files[1:]
+        for path in to_download:
+            with open(f"torrents\\files\\{self.torrent_name}\\{path[0][0]}", 'rb'):
+                # w.write(self.s_bytes[:path[1]])
+                self.written += self.s_bytes[:path[1]]
+                self.s_bytes = self.s_bytes[path[1]:]
+            print("done checking", path)
 
 
 currently_connected = []
