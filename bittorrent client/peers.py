@@ -259,6 +259,9 @@ class Peer:
                         manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
                         manager.down.download_files()  # take care of files
                         manager.currently_connected.remove(self.sock.getpeername())
+                        temp = list(manager.down.have)
+                        temp[self.c_piece] = "1"
+                        manager.down.have = "".join(temp)
                         self.piece_downloaded = True
 
                         return "DONE"
@@ -284,6 +287,9 @@ class Peer:
                     manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
                     manager.down.download_files()  # take care of files
                     manager.currently_connected.remove(self.sock.getpeername())
+                    temp = list(manager.down.have)
+                    temp[self.c_piece] = "1"
+                    manager.down.have = "".join(temp)
 
                     # self.s = 0
                     # self.s_bytes = b""
