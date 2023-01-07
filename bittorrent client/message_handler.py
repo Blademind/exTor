@@ -14,7 +14,7 @@ def is_handshake(msg):
 
 
 def msg_type(msg):
-    if not msg:
+    if not int.from_bytes(msg, 'big'):
         return "keep-alive"
     if len(msg) == 1 and msg[0] == 0:
         return 'choke'
@@ -129,7 +129,7 @@ def build_cancel(payload):
     return message
 
 
-def build_port(self, payload):
+def build_port(payload):
     message = (3).to_bytes(4, byteorder='big')  # len
     message += (9).to_bytes(1, byteorder='big')  # id
     message += payload.to_bytes(2, byteorder='big')  # listen port

@@ -36,6 +36,7 @@ class Downloader:
         self.readable, self.writable = [self.listen_sock], []
         self.BUFS = {}
 
+        self.file_data = {}
         self.torrent_name = self.torrent.torrent['info']['name']
         self.pieces = self.torrent.torrent['info']['pieces']
         self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
@@ -46,10 +47,14 @@ class Downloader:
         self.buf = 68
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.progress_flag = True
+
+        self.error_queue = []  # queue for errors from peers calls
+
         threading.Thread(target=self.calculate_have_bitfield2).start()
         self.generate_progress_bar()
         print(self.have)
         threading.Thread(target=self.listen_to_peers).start()
+
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
@@ -168,7 +173,15 @@ class Downloader:
 
         :return:
         """
+        downloaded_files = os.listdir(f"torrents\\files\\{self.torrent_name}")
 
+        # solution for mid-flight deletion
+
+        if len(downloaded_files) != len(self.file_data.keys()):
+            for file_name, file_data in self.file_data.items():
+                if file_name not in downloaded_files:
+                    with open(f"torrents\\files\\{self.torrent_name}\\{file_name}", 'wb') as w:
+                        w.write(file_data)
         temp = 0
         to_download = []
         self.s_bytes_handler()
@@ -180,9 +193,12 @@ class Downloader:
         for path in to_download:
             with open(f"torrents\\files\\{self.torrent_name}\\{path[0][0]}", 'wb') as w:
                 w.write(self.s_bytes[:path[1]])
+                self.file_data[path[0][0]] = self.s_bytes[:path[1]]
                 self.written += self.s_bytes[:path[1]]
                 self.s_bytes = self.s_bytes[path[1]:]
+
             print("done writing", path)
+
 
     def check_files(self):
         temp = 0
@@ -201,5 +217,45 @@ class Downloader:
             print("done checking", path)
 
 
+    # def start_download(self):
+    #         for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):
+    #
+    #             if self.have[piece] == "0":
+    #                 peer = Peer(self.tracker)  # create a peer object
+    #                 self.current_piece_peers = self.pieces[k]
+    #                 # no peers holding current piece
+    #                 if len(self.current_piece_peers) == 0:
+    #                     raise Exception("no peers holding piece")
+    #
+    #                 # go over all piece holders
+    #                 self.recursive_peers(peer, k)
+    #         print("Completed Download!")
+    # def recursive_peers(self, peer, k):
+    #     """
+    #     goes over peers recursively in order to get a piece downloaded
+    #     :param peer:
+    #     :param k:
+    #     :return:
+    #     """
+    #     global currently_connected
+    #
+    #     for p in self.current_piece_peers:
+    #         # print(p)
+    #         if p not in currently_connected:
+    #             currently_connected.append(p)
+    #             threading.Thread(target=peer.download, args=(p, k, self.current_piece_peers)).start()
+    #             break
+    #
+    #         # last peer and was not caught beforehand - all conns in use
+    #         if p == self.current_piece_peers[-1]:
+    #             last_piece_length = len(currently_connected)
+    #             while len(currently_connected) == last_piece_length:
+    #                 time.sleep(0.1)
+    #             self.recursive_peers(peer, k)
+
+
+
+
 currently_connected = []
+DONE = False
 down = None
