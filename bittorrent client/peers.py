@@ -42,6 +42,7 @@ def reset_have(num_of_pieces):
 
 class Peer:
     def __init__(self, tracker):
+        self.piece_request_timeout = 0.1
         self.done_piece_download = False
         self.peer = None
         self.total_current_piece_length = None
@@ -111,9 +112,13 @@ class Peer:
     def request_piece(self, piece_number):
         try:
             if self.in_progress:
+                self.piece_request_timeout+=0.01
+                piece_request_timeout = self.piece_request_timeout
                 while not self.done_piece_download:
                     print("STUCK")
-                    time.sleep(0.5)
+                    time.sleep(piece_request_timeout)
+                # if piece_request_timeout < self.piece_request_timeout:
+                #     self.piece_request_timeout = piece_request_timeout
                 manager.currently_connected.append(self.peer)
                 self.done_piece_download = False
                 self.c_piece = piece_number

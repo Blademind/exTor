@@ -123,33 +123,34 @@ class Downloader:
 
     def calculate_have_bitfield2(self):
         time.sleep(0.1)
-        if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-            files = sorted(os.listdir(f"torrents\\files\\{self.torrent_name}"), key=self.file_names.index)  # ordered file names
-            files_raw = b""
-            for file in files:
-                with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
-                    files_raw += f.read()
-            files_len = len(files_raw)
-            while files_raw:
-                if hashlib.sha1(files_raw[:self.piece_length]).digest() in self.info_hashes:
-                    temp = list(self.have)
-                    index_of_piece = self.info_hashes.index(hashlib.sha1(files_raw[:self.piece_length]).digest())
-                    self.info_hashes[index_of_piece] = None
-                    temp[index_of_piece] = "1"
-                    self.have = "".join(temp)
-                    self.add_bytes(index_of_piece, files_raw[:self.piece_length])
-                    self.check_files()
-                    # print(self.have)
-                    self.bar()
-                    self.pieces_bytes[index_of_piece] = files_raw[:self.piece_length]
-                    if len(files_raw[:self.piece_length]) == self.piece_length:
-                        files_raw = files_raw[self.piece_length:]
-                    elif len(files_raw[:self.piece_length]) < self.piece_length:
-                        break
-                else:
+        if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+            os.makedirs("torrents\\files\\{self.torrent_name}")
+        files = sorted(os.listdir(f"torrents\\files\\{self.torrent_name}"), key=self.file_names.index)  # ordered file names
+        files_raw = b""
+        for file in files:
+            with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+                files_raw += f.read()
+        files_len = len(files_raw)
+        while files_raw:
+            if hashlib.sha1(files_raw[:self.piece_length]).digest() in self.info_hashes:
+                temp = list(self.have)
+                index_of_piece = self.info_hashes.index(hashlib.sha1(files_raw[:self.piece_length]).digest())
+                self.info_hashes[index_of_piece] = None
+                temp[index_of_piece] = "1"
+                self.have = "".join(temp)
+                self.add_bytes(index_of_piece, files_raw[:self.piece_length])
+                self.check_files()
+                # print(self.have)
+                self.bar()
+                self.pieces_bytes[index_of_piece] = files_raw[:self.piece_length]
+                if len(files_raw[:self.piece_length]) == self.piece_length:
+                    files_raw = files_raw[self.piece_length:]
+                elif len(files_raw[:self.piece_length]) < self.piece_length:
                     break
-                    # files_raw = files_raw[1:]
-            self.progress_flag = False
+            else:
+                break
+                # files_raw = files_raw[1:]
+        self.progress_flag = False
 
     def reset_pieces(self):
         ret = []

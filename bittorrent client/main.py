@@ -78,6 +78,32 @@ class Handler:
         """
         for p in self.current_piece_peers:
             # print(p)
+            while manager.down.error_queue:
+                peer_piece = manager.down.error_queue.pop(0)
+                peer_ip_port, piece = peer_piece[0], peer_piece[1]
+                peer_error_object = Peer(self.tracker)  # create a peer object
+                # deletes all peer instances
+                for piece_number, peers_list in self.pieces.items():
+                    for peer_id in peers_list:
+                        if peer_id == peer_ip_port:
+                            self.pieces[piece_number].remove(peer_id)
+
+                current_piece_peers = self.pieces[piece]
+
+                for piece_peer in current_piece_peers:
+                    # print(p)
+                    if piece_peer not in manager.currently_connected:
+                        if piece_peer in self.peer_thread.keys():
+                            threading.Thread(target=self.peer_thread[piece_peer].request_piece, args=(piece,)).start()
+                        else:
+                            manager.currently_connected.append(piece_peer)
+                            self.peer_thread[piece_peer] = peer_error_object
+                            threading.Thread(target=peer_error_object.download, args=(piece_peer, piece)).start()
+                        break
+                    else:
+                        threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
+                        break
+
             if p not in manager.currently_connected:
 
                 if p in self.peer_thread.keys():
@@ -103,6 +129,7 @@ class Handler:
                         for peer_id in peers_list:
                             if peer_id == peer_ip_port:
                                 self.pieces[piece_number].remove(peer_id)
+
                     current_piece_peers = self.pieces[piece]
 
                     for piece_peer in current_piece_peers:
@@ -124,16 +151,16 @@ class Handler:
                     time.sleep(0.5)
 
                 self.current_piece_peers = self.pieces[k]
+
                 for p3 in self.current_piece_peers:
                     # print(p)
                     if p3 not in manager.currently_connected:
-
-                        if p3 in self.peer_thread.keys():
-                            threading.Thread(target=self.peer_thread[p3].request_piece, args=(k,)).start()
-                        else:
-                            manager.currently_connected.append(p3)
-                            self.peer_thread[p3] = peer
-                            threading.Thread(target=peer.download, args=(p3, k)).start()
+                        # if p3 in self.peer_thread.keys():
+                        threading.Thread(target=self.peer_thread[p3].request_piece, args=(k,)).start()
+                        # else:
+                        #     manager.currently_connected.append(p3)
+                        #     self.peer_thread[p3] = peer
+                        #     threading.Thread(target=peer.download, args=(p3, k)).start()
                         break
 
                 break
