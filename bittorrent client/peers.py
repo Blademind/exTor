@@ -112,19 +112,21 @@ class Peer:
     def request_piece(self, piece_number):
         try:
             if self.in_progress:
-                self.piece_request_timeout+=0.01
-                piece_request_timeout = self.piece_request_timeout
+                # self.piece_request_timeout+=0.01
+                # piece_request_timeout = self.piece_request_timeout
                 while not self.done_piece_download:
-                    print("STUCK")
-                    time.sleep(piece_request_timeout)
+                    print("STUCK", self.peer)
+                    time.sleep(0.5)
+                    # time.sleep(piece_request_timeout)
                 # if piece_request_timeout < self.piece_request_timeout:
                 #     self.piece_request_timeout = piece_request_timeout
-                manager.currently_connected.append(self.peer)
-                self.done_piece_download = False
-                self.c_piece = piece_number
-                print(f"THIS REQUEST IS PIECE #=>{self.c_piece}")
-                self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
-                self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                with manager.lock:
+                    manager.currently_connected.append(self.peer)
+                    self.done_piece_download = False
+                    self.c_piece = piece_number
+                    print(f"THIS REQUEST IS PIECE #=>{self.c_piece}")
+                    self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
+                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
                 # self.sock.send(message.build_keep_alive())
         except:
             print("Error piece request")
@@ -154,8 +156,8 @@ class Peer:
         while 1:
             try:
                 data = self.sock.recv(self.buf)
-                if not data:
-                    raise Exception("data length 0")
+                if not data and self.buf != 0:
+                    raise Exception("data length 0", self.c_piece)
                 if manager.DONE:
                     break
 
