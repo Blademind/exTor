@@ -42,7 +42,7 @@ def reset_have(num_of_pieces):
 
 class Peer:
     def __init__(self, tracker):
-        self.piece_request_timeout = 0.1
+        self.peer_removed = False
         self.done_piece_download = False
         self.peer = None
         self.total_current_piece_length = None
@@ -114,25 +114,39 @@ class Peer:
             if self.in_progress:
                 # self.piece_request_timeout+=0.01
                 # piece_request_timeout = self.piece_request_timeout
-                while not self.done_piece_download:
+
+                # manager.peer_request.append(self.peer)
+                while 1:
+                    if self.done_piece_download:
+                        with manager.request_lock:
+                            self.done_piece_download = False
+                            break
+                    if self.peer_removed:
+                        break
                     print("STUCK", self.peer)
                     time.sleep(0.5)
-                    # time.sleep(piece_request_timeout)
+
+                # manager.peer_request.remove(self.peer)
+                # time.sleep(piece_request_timeout)
                 # if piece_request_timeout < self.piece_request_timeout:
                 #     self.piece_request_timeout = piece_request_timeout
-                with manager.lock:
-                    manager.currently_connected.append(self.peer)
-                    self.done_piece_download = False
+                if not self.peer_removed:
+                    with manager.lock:
+                        # if not self.done_piece_download:
+                        #     self.request_piece(piece_number)
+                        manager.currently_connected.append(self.peer)
                     self.c_piece = piece_number
                     print(f"THIS REQUEST IS PIECE #=>{self.c_piece}")
                     self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
                     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
-                # self.sock.send(message.build_keep_alive())
-        except:
-            print("Error piece request")
-            if self.peer in manager.currently_connected:
-                manager.currently_connected.remove(self.peer)
-            manager.down.error_queue.append((self.peer, piece_number))
+                    # self.sock.send(message.build_keep_alive())
+        except Exception as e:
+            print("Error piece request:", e)
+            with manager.lock:
+                if self.peer in manager.currently_connected:
+                    manager.currently_connected.remove(self.peer)
+                manager.down.error_queue.append((self.peer, piece_number))
+            self.peer_removed = True
 
 
     def download(self, peer, piece_number):
@@ -148,15 +162,17 @@ class Peer:
             self.listen_to_server()
         except Exception as e:
             print(e)
+            with manager.lock:
+                manager.currently_connected.remove(self.peer)
+                manager.down.error_queue.append((self.peer, self.c_piece))
+            self.peer_removed = True
 
-            manager.currently_connected.remove(self.peer)
-            manager.down.error_queue.append((self.peer, self.c_piece))
 
     def listen_to_server(self):
         while 1:
             try:
                 data = self.sock.recv(self.buf)
-                if not data and self.buf != 0:
+                if not data:
                     raise Exception("data length 0", self.c_piece)
                 if manager.DONE:
                     break
@@ -166,9 +182,12 @@ class Peer:
 
             except TimeoutError:
                 print("Timeout", self.c_piece)
-                if self.peer in manager.currently_connected:
-                    manager.currently_connected.remove(self.peer)
-                manager.down.error_queue.append((self.peer, self.c_piece))
+                with manager.lock:
+                    if self.peer in manager.currently_connected:
+                        manager.currently_connected.remove(self.peer)
+                    manager.down.error_queue.append((self.peer, self.c_piece))
+                self.peer_removed = True
+
                 # if self.retry_peer:
                 #     manager.currently_connected.remove(self.peer)
                 #     manager.down.error_queue.append((self.peer, self.c_piece))
@@ -189,9 +208,14 @@ class Peer:
                     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
 
                 else:
-                    manager.currently_connected.remove(self.peer)
-                    manager.down.error_queue.append((self.peer, self.c_piece))
+                    with manager.lock:
+                        if self.peer in manager.currently_connected:
+                            manager.currently_connected.remove(self.peer)
+                        manager.down.error_queue.append((self.peer, self.c_piece))
+                    self.peer_removed = True
+
                     break
+
 
         if self.sock:
             self.sock.close()
@@ -269,22 +293,22 @@ class Peer:
                 if self.c_piece == self.num_of_pieces - 1:
                     if hashlib.sha1(self.s_bytes).digest() == self.pieces[self.c_piece * 20: self.c_piece * 20 + 20]:
                         print(f"success piece #{self.c_piece}, last piece",self.peer)
+                        with manager.lock:
+                            manager.down.add_bytes(self.c_piece, self.s_bytes)  # adds bytes of current piece to manager
+                            manager.down.download_files()  # takes care of files
 
-                        manager.down.add_bytes(self.c_piece, self.s_bytes)  # adds bytes of current piece to manager
-                        manager.down.download_files()  # takes care of files
+                            # reset buffer, sum, and bytes sum
+                            self.buf = 4
+                            self.s = 0
+                            self.s_bytes = b""
 
-                        # reset buffer, sum, and bytes sum
-                        self.buf = 4
-                        self.s = 0
-                        self.s_bytes = b""
+                            temp = list(manager.down.have)
+                            temp[self.c_piece] = "1"
+                            manager.down.have = "".join(temp)
 
-                        temp = list(manager.down.have)
-                        temp[self.c_piece] = "1"
-                        manager.down.have = "".join(temp)
-
-                        self.done_piece_download = True
-                        manager.currently_connected.remove(self.peer)
-                        return
+                            self.done_piece_download = True
+                            manager.currently_connected.remove(self.peer)
+                            return
 
                         # return "DONE"
 
@@ -306,26 +330,26 @@ class Peer:
                     # temp[self.c_piece] = "1"    # problem here, peer gets reset all the time
                     # self.have = "".join(temp)
                     print(f"success piece #{self.c_piece}, total --> {self.s}", self.peer)
+                    with manager.lock:
+                        manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
+                        manager.down.download_files()  # take care of files
 
-                    manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
-                    manager.down.download_files()  # take care of files
+                        # reset buffer, sum, and bytes sum
+                        self.buf = 4
+                        self.s = 0
+                        self.s_bytes = b""
 
-                    # reset buffer, sum, and bytes sum
-                    self.buf = 4
-                    self.s = 0
-                    self.s_bytes = b""
+                        temp = list(manager.down.have)
+                        temp[self.c_piece] = "1"
+                        manager.down.have = "".join(temp)
 
-                    temp = list(manager.down.have)
-                    temp[self.c_piece] = "1"
-                    manager.down.have = "".join(temp)
+                        self.done_piece_download = True
 
-                    self.done_piece_download = True
+                        manager.currently_connected.remove(self.peer)
 
-                    manager.currently_connected.remove(self.peer)
-
-                    return
-                    # return "DONE"
-                    # self.have_msg()  # send have message to all connected peers
+                        return
+                        # return "DONE"
+                        # self.have_msg()  # send have message to all connected peers
 
         # message is have
         elif message.msg_type(data) == "have":
@@ -390,8 +414,9 @@ class Peer:
         length = int.from_bytes(data[9: 13], "big")
 
         if self.have[index]:
-            piece_to_send = manager.down.pieces_bytes[index][begin:]
-            sock.send(message.build_piece(index, begin, piece_to_send[:length]))
+            with manager.lock:
+                piece_to_send = manager.down.pieces_bytes[index][begin:]
+                sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
     def have_msg(self):
         """

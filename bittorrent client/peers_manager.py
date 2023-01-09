@@ -50,7 +50,7 @@ class Downloader:
 
         self.error_queue = []  # queue for errors from peers calls
 
-        threading.Thread(target=self.calculate_have_bitfield).start()
+        threading.Thread(target=self.calculate_have_bitfield2).start()
         self.generate_progress_bar()
         print(self.have)
         threading.Thread(target=self.listen_to_peers).start()
@@ -308,6 +308,7 @@ class Downloader:
 
 
 lock = threading.Lock()
+request_lock = threading.Lock()
 currently_connected = []
 DONE = False
 down = None

@@ -104,21 +104,6 @@ class Handler:
                         threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
                         break
 
-                current_piece_peers = self.pieces[piece]
-
-                for piece_peer in current_piece_peers:
-                    # print(p)
-                    if piece_peer not in manager.currently_connected:
-                        if piece_peer in self.peer_thread.keys():
-                            threading.Thread(target=self.peer_thread[piece_peer].request_piece, args=(piece,)).start()
-                        else:
-                            manager.currently_connected.append(piece_peer)
-                            self.peer_thread[piece_peer] = peer_error_object
-                            threading.Thread(target=peer_error_object.download, args=(piece_peer, piece)).start()
-                        break
-                    else:
-                        threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
-                        break
 
             if p not in manager.currently_connected:
 
