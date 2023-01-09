@@ -26,7 +26,7 @@ class Upload:
         print(self.torrent, "chosen")
         self.sock = socket(AF_INET, SOCK_STREAM)
         try:
-            self.sock.connect(("127.0.0.1", 55556))  # tracker upload ip
+            self.sock.connect(("192.168.1.196", 55556))  # tracker upload ip
             self.sock.send(self.torrent.encode())
             self.__BUF = 1024
             self.listen()

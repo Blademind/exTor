@@ -53,6 +53,7 @@ class Downloader:
         threading.Thread(target=self.calculate_have_bitfield2).start()
         self.generate_progress_bar()
         print(self.have)
+        print(self.bitstring_to_bytes(self.have))
         threading.Thread(target=self.listen_to_peers).start()
 
 
@@ -104,8 +105,9 @@ class Downloader:
             sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
     def bitstring_to_bytes(self, s):
-        return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
-
+        while len(s) % 8 != 0:
+            s = s.ljust(len(s) + 1, "0")
+        return bytes(int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big'))
     def generate_progress_bar(self):
         """
         Generates on-screen progress bar when checking pieces the user owns

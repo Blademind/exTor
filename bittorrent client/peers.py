@@ -241,6 +241,7 @@ class Peer:
             while len(data) != self.buf:
                 data += self.sock.recv(self.buf)
             data = bitstring.BitArray(data[1:])
+
             print(data.bin)
             self.buf = 4
 
@@ -369,9 +370,7 @@ class Peer:
                 print("next msg len:", msg_len, self.c_piece)
 
     def listen_to_peers(self):
-        """
-        TODO: FIX MESSAGE LENGTH 0 **fixed?
-        """
+
         print("Now listening to incoming connections...")
 
         while 1:

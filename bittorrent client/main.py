@@ -147,22 +147,21 @@ class Handler:
                             threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
                             break
 
-                last_piece_length = len(manager.currently_connected)
-                while len(manager.currently_connected) == last_piece_length:
-                    time.sleep(0.5)
+                # last_piece_length = len(manager.currently_connected)
+                # while len(manager.currently_connected) == last_piece_length:
+                #     time.sleep(0.5)
 
                 self.current_piece_peers = self.pieces[k]
 
                 for p3 in self.current_piece_peers:
                     # print(p)
-                    if p3 not in manager.currently_connected:
-                        # if p3 in self.peer_thread.keys():
-                        threading.Thread(target=self.peer_thread[p3].request_piece, args=(k,)).start()
-                        # else:
-                        #     manager.currently_connected.append(p3)
-                        #     self.peer_thread[p3] = peer
-                        #     threading.Thread(target=peer.download, args=(p3, k)).start()
-                        break
+                    # if p3 in self.peer_thread.keys():
+                    threading.Thread(target=self.peer_thread[p3].request_piece, args=(k,)).start()
+                    # else:
+                    #     manager.currently_connected.append(p3)
+                    #     self.peer_thread[p3] = peer
+                    #     threading.Thread(target=peer.download, args=(p3, k)).start()
+                    break
 
                 break
 
