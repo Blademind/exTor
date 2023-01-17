@@ -10,6 +10,7 @@ from download_master import TrackerTCP
 from torrents_handler import info_torrent
 from difflib import get_close_matches
 from py1337x import py1337x
+import torf
 import bencode
 
 def build_error_response(msg):
@@ -73,58 +74,62 @@ class Tracker:
                 data, addr = sock.recvfrom(self.__BUF)
                 if not data:
                     break
-                try:
-                    datacontent = data.decode()
-                    # MESSAGE FROM INFO SERVER
-                except:
-                    datacontent = ""
-
-                if datacontent[:4] == "GET ":
-                    torrent_files = os.listdir("torrents")
-                    matches = get_close_matches(datacontent[4:], torrent_files)
-                    if matches:
-                        locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
-                        if locals_:
-                            file_name = locals_[0]
-                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
-                            self.add_peer_to_LOC(file_name, addr)
-                            # add the client inside loc file after sending the file
-                        else:
-                            file_name = matches[0]
-                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
-                            # send the client the file via udp
-
-                    else:
-                        # search 1337x for a torrent matching request, get the torrent and send it to the client
-                        pass
-
-                # request must be at least 16 bytes long
-                if len(data) >= 16:
+                if data == b'FIND LOCAL TRACKER':
+                    sock.sendto(pickle.dumps((gethostbyname(gethostname()), 55555)), addr)
+                else:
                     try:
-                        action = int.from_bytes(data[8:12], byteorder="big")  # action type
-                        # action is connect
-                        if action == 0:
-                            print(f"New connection from {addr}")
-                            sock.sendto(self.build_connect_response(), addr)  # send a connect response
+                        datacontent = data.decode()
+                        # MESSAGE FROM INFO SERVER
+                    except:
+                        datacontent = ""
 
-                        # action is announce
-                        elif action == 1:
-                            connection_id = data[:8]  # connection id
-                            # 2 minutes must have not passed from connect request to announce request
-                            try:
-                                if 0 <= int(time.time() - self.connection_ids[connection_id]) <= 120:
-                                    torrent_name = info_torrent[data[16:36]]
-                                    self.ip_addresses[torrent_name].append((addr, time.time()))
-                                    sock.sendto(self.build_announce_response(addr, torrent_name), addr)
-                                else:
-                                    sock.sendto(build_error_response("announce timeout"), addr)
+                    if datacontent[:4] == "GET ":
+                        torrent_files = os.listdir("torrents")
+                        matches = get_close_matches(datacontent[4:], torrent_files)
+                        if matches:
+                            locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
+                            if locals_:
+                                file_name = locals_[0]
+                                threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                                self.add_peer_to_LOC(file_name, addr)
+                                # add the client inside loc file after sending the file
+                            else:
+                                file_name = matches[0]
+                                threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                                # send the client the file via udp
 
-                                del self.connection_ids[connection_id]  # action is announce, remove connection id
-                            except Exception as e:
-                                print("sent connection id was not found")
-                    except Exception as e:
-                        print(e)
-                        print("received unparsable data")
+                        else:
+                            # search 1337x for a torrent matching request, get the torrent and send it to the client
+
+                            pass
+
+                    # request must be at least 16 bytes long
+                    if len(data) >= 16:
+                        try:
+                            action = int.from_bytes(data[8:12], byteorder="big")  # action type
+                            # action is connect
+                            if action == 0:
+                                print(f"New connection from {addr}")
+                                sock.sendto(self.build_connect_response(), addr)  # send a connect response
+
+                            # action is announce
+                            elif action == 1:
+                                connection_id = data[:8]  # connection id
+                                # 2 minutes must have not passed from connect request to announce request
+                                try:
+                                    if 0 <= int(time.time() - self.connection_ids[connection_id]) <= 120:
+                                        torrent_name = info_torrent[data[16:36]]
+                                        self.ip_addresses[torrent_name].append((addr, time.time()))
+                                        sock.sendto(self.build_announce_response(addr, torrent_name), addr)
+                                    else:
+                                        sock.sendto(build_error_response("announce timeout"), addr)
+
+                                    del self.connection_ids[connection_id]  # action is announce, remove connection id
+                                except Exception as e:
+                                    print("sent connection id was not found")
+                        except Exception as e:
+                            print(e)
+                            print("received unparsable data")
 
     def add_peer_to_LOC(self, file_name, addr):
         with open(f"torrents\\{file_name}", "rb") as f:
@@ -137,19 +142,22 @@ class Tracker:
         print(f"Now sending torrent file to {addr}")
         sock = self.init_udp_sock(0)
         sock.sendto(file_name.encode(), addr)
-        err = False
-        with open(f"torrents\\{file_name}", "rb") as f:
-            while f:
-                data = sock.recv(1024)
-                if data == b"FLOW":
-                    sock.sendto(f.readline(1024), addr)
-                else:
-                    print(f"Error sending torrent file to {addr}")
-                    err = True
-                    break
-        if not err:
-            sock.sendto(b"END", addr)
+        data = sock.recv(1024)
 
+        if data == b"FLOW":
+            length = os.path.getsize(f"torrents\\{file_name}")
+            sock.sendto(pickle.dumps(length), addr)
+            with open(f"torrents\\{file_name}", "rb") as f:
+                sock.sendto(f.readline(1024), addr)
+                while f:
+                    data = sock.recv(1024)
+                    if data == b"FLOW":
+                        sock.sendto(f.readline(1024), addr)
+                    else:
+                        print(f"Error sending torrent file to {addr}")
+                        break
+        else:
+            print("did not receive what was expected")
 
     def recv_files(self, sock):
         data = None

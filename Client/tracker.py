@@ -1,3 +1,4 @@
+import os.path
 import pickle
 import socket
 import time
@@ -32,14 +33,28 @@ def generate_peer_id():
 
 class Tracker:
     def __init__(self):
+        self.__BUF = 1024
+        self.local_tracker = self.find_local_tracker()
         self.tran_id = None  # the transaction id (later use)
         self.conn_id = None  # the connection id (later use)
         self.id = generate_peer_id()  # peer_id
         self.peers = []
+
         self.torrent = Torrent()
         self.sock = socket(AF_INET, SOCK_DGRAM)
         self.sock.bind(("0.0.0.0", self.torrent.port))
         self.sock.settimeout(0.5)
+
+        file_name = self.fetch_torrent_file()
+        # the torrent file is not local
+        if file_name[-12: -8] != "_LOC":
+            self.torrent.init_torrent_seq(file_name)
+
+        else:
+            # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
+            pass
+
+
         try:
             self.yields = self.torrent.url_yields
             if type(self.torrent.url) is ParseResult:
@@ -64,6 +79,10 @@ class Tracker:
                 else:
                     # Http tracker
                     self.http_send()
+
+        except StopIteration:
+            print("gone over all the trackers")
+            pass
         except Exception as e:
             print(f'Error: {e}')
             self.torrent.url = self.torrent.url_yields.__next__()
@@ -138,6 +157,69 @@ class Tracker:
         message += (-1).to_bytes(4, byteorder='big', signed=True)
         message += port.to_bytes(2, byteorder='big')
         return message
+
+
+    def find_local_tracker(self):
+        interfaces = getaddrinfo(host=gethostname(), port=None, family=AF_INET)
+        allips = [ip[-1][0] for ip in interfaces]
+        msg = b'FIND LOCAL TRACKER'
+        sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        sock.settimeout(2)
+        sock.bind(("0.0.0.0", 0))
+        for _ in allips:
+            sock.sendto(msg, ("255.255.255.255", 55555))
+        try:
+            data = sock.recv(1024)
+            try:
+                ip = pickle.loads(data)
+                test_open = sock.connect_ex(ip)
+                if test_open != 0:
+                    print("tracker is not connectable")
+                    return
+                print("found local tracker")
+                return ip
+            except KeyError:
+                print("fatal error while searching for local tracker")
+        except TimeoutError:
+            print("no response from local tracker")
+            return
+
+    def fetch_torrent_file(self):
+        file_name = input("What torrent would you like to download? -> ")
+        self.sock.sendto(f"GET {file_name}".encode(), self.local_tracker)
+        return self.recv_files()
+
+    def recv_files(self):
+        data = None
+        try:
+            data, addr = self.sock.recvfrom(self.__BUF)
+        except:
+            print("file name was not received on time")
+        try:
+            datacontent = data.decode()
+            filename = datacontent
+            if filename[-8:] != ".torrent":
+                print("file is not torrent")
+                return
+            with open(f"torrents\\info_hashes\\{filename}", "wb") as f:
+                f.write(b"")
+            self.sock.sendto(b"FLOW", addr)
+            s = 0
+            length = int(pickle.loads(self.sock.recv(self.__BUF)))
+            while s != length:
+                data = self.sock.recv(self.__BUF)
+                s += len(data)
+                with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
+                    f.write(data)
+                self.sock.sendto(b"FLOW", addr)
+            print("received torrent file from local tracker")
+            return filename
+        except Exception as e:
+            print(e)
+            return
+
+
 
 
 if __name__ == '__main__':

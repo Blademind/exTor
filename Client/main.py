@@ -56,9 +56,12 @@ class Handler:
                     # no peers holding current piece
                     if len(self.current_piece_peers) == 0:
                         raise Exception("no peers holding piece")
-
                     # go over all piece holders
-                    self.recursive_peers(peer, k)
+                    try:
+                        self.recursive_peers(peer, k)
+                    except:
+                        time.sleep(0.5)
+                        raise Exception("operation stopped by user")
             while len(manager.currently_connected) != 0:
                 time.sleep(1)
             manager.DONE = True
