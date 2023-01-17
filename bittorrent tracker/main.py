@@ -1,12 +1,16 @@
 import _thread
+import os
 import pickle
+import threading
 import time
 from random import randbytes
 from socket import *
 import select
-
+from download_master import TrackerTCP
 from torrents_handler import info_torrent
-
+from difflib import get_close_matches
+from py1337x import py1337x
+import bencode
 
 def build_error_response(msg):
     message = (3).to_bytes(4, byteorder='big')  # action - connect
@@ -17,8 +21,7 @@ def build_error_response(msg):
 
 class Tracker:
     def __init__(self):
-        self.server_sock = None  # udp sock
-        self.init_udp_sock()
+        self.server_sock = self.init_udp_sock(55555)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
         self.connection_ids = {}  # list of all connected clients
@@ -53,10 +56,11 @@ class Tracker:
         for i in info_torrent.values():
             self.ip_addresses[i] = []
 
-    def init_udp_sock(self):
-        self.server_sock = socket(AF_INET, SOCK_DGRAM)
-        self.server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.server_sock.bind(("0.0.0.0", 55555))
+    def init_udp_sock(self, port):
+        server_sock = socket(AF_INET, SOCK_DGRAM)
+        server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        server_sock.bind(("0.0.0.0", port))
+        return server_sock
 
     def listen_udp(self):
         """
@@ -73,7 +77,27 @@ class Tracker:
                     datacontent = data.decode()
                     # MESSAGE FROM INFO SERVER
                 except:
-                    pass
+                    datacontent = ""
+
+                if datacontent[:4] == "GET ":
+                    torrent_files = os.listdir("torrents")
+                    matches = get_close_matches(datacontent[4:], torrent_files)
+                    if matches:
+                        locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
+                        if locals_:
+                            file_name = locals_[0]
+                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                            self.add_peer_to_LOC(file_name, addr)
+                            # add the client inside loc file after sending the file
+                        else:
+                            file_name = matches[0]
+                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                            # send the client the file via udp
+
+                    else:
+                        # search 1337x for a torrent matching request, get the torrent and send it to the client
+                        pass
+
                 # request must be at least 16 bytes long
                 if len(data) >= 16:
                     try:
@@ -101,6 +125,31 @@ class Tracker:
                     except Exception as e:
                         print(e)
                         print("received unparsable data")
+
+    def add_peer_to_LOC(self, file_name, addr):
+        with open(f"torrents\\{file_name}", "rb") as f:
+            torrent_data = bencode.bdecode(f.read())
+        torrent_data["announce-list"].append(f"{addr[0]}:{addr[1]}")
+        with open(f"torrents\\{file_name}", "wb") as f:
+            f.write(bencode.bencode(torrent_data))
+
+    def send_torrent_file(self, file_name, addr):
+        print(f"Now sending torrent file to {addr}")
+        sock = self.init_udp_sock(0)
+        sock.sendto(file_name.encode(), addr)
+        err = False
+        with open(f"torrents\\{file_name}", "rb") as f:
+            while f:
+                data = sock.recv(1024)
+                if data == b"FLOW":
+                    sock.sendto(f.readline(1024), addr)
+                else:
+                    print(f"Error sending torrent file to {addr}")
+                    err = True
+                    break
+        if not err:
+            sock.sendto(b"END", addr)
+
 
     def recv_files(self, sock):
         data = None
@@ -149,4 +198,5 @@ class Tracker:
 
 
 if __name__ == '__main__':
+    threading.Thread(target=TrackerTCP).start()
     Tracker()

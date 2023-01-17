@@ -12,14 +12,18 @@ import bencodepy.exceptions
 class Torrent:
     def __init__(self):
         self.port = random.randint(6881, 6889)
-        torrents = os.listdir("torrents\\info_hashes")
-        for torrent in torrents:
-            print(torrents.index(torrent), torrent)
-        index = input("what torrent would you like to download? ->\t")
-        with open(f'torrents\\info_hashes\\{torrents[int(index)]}', 'rb') as t:
-            torrent = t.read()
-        self.torrent = bencode.bdecode(torrent)
+        # torrents = os.listdir("torrents\\info_hashes")
+        # for torrent in torrents:
+        #     print(torrents.index(torrent), torrent)
+        # index = input("what torrent would you like to download? ->\t")
+        # with open(f'torrents\\info_hashes\\{torrents[int(index)]}', 'rb') as t:
+        #     torrent = t.read()
+        # self.torrent = bencode.bdecode(torrent)
         # print(self.torrent["announce-list"] is not None)
+
+        torrent_name = input("what torrent would you like to download? ->\t")
+
+
         try:
             self.announce_list = self.torrent["announce-list"]
         except:

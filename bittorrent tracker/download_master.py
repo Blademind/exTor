@@ -103,7 +103,6 @@ class TrackerTCP:
             return
 
     def check_newly_added_file(self, filename, sock):
-
         with open(f"torrents\\{filename}", "rb") as f:
             try:
                 bencode.bdecode(f.read())
