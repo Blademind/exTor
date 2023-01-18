@@ -5,6 +5,8 @@ import threading
 import time
 from random import randbytes
 from socket import *
+
+import requests
 import select
 from download_master import TrackerTCP
 from torrents_handler import info_torrent
@@ -22,6 +24,7 @@ def build_error_response(msg):
 
 class Tracker:
     def __init__(self):
+        self.torrents_search_object = py1337x()
         self.server_sock = self.init_udp_sock(55555)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
@@ -100,6 +103,18 @@ class Tracker:
 
                         else:
                             # search 1337x for a torrent matching request, get the torrent and send it to the client
+                            query = datacontent[4:]
+                            try:
+                                url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
+                                show = requests.get(url, headers={'User-Agent': 'Chrome'})
+                                bdecoded_torrent = bencode.bdecode(show.content)
+                                file_name = f"{bdecoded_torrent['info']['name']}.torrent"
+                                with open(f"torrents\\{file_name}", "wb") as w:
+                                    w.write(show.content)
+
+                                threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                            except IndexError:
+                                print("no torrents matching query found")
 
                             pass
 

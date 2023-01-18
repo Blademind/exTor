@@ -43,7 +43,7 @@ class Tracker:
         self.torrent = Torrent()
         self.sock = socket(AF_INET, SOCK_DGRAM)
         self.sock.bind(("0.0.0.0", self.torrent.port))
-        self.sock.settimeout(0.5)
+        self.sock.settimeout(5)
 
         file_name = self.fetch_torrent_file()
         # the torrent file is not local
@@ -54,7 +54,7 @@ class Tracker:
             # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
             pass
 
-
+        self.sock.settimeout(1)
         try:
             self.yields = self.torrent.url_yields
             if type(self.torrent.url) is ParseResult:
@@ -202,8 +202,9 @@ class Tracker:
             if filename[-8:] != ".torrent":
                 print("file is not torrent")
                 return
-            with open(f"torrents\\info_hashes\\{filename}", "wb") as f:
-                f.write(b"")
+            with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
+                w.write(b"")
+
             self.sock.sendto(b"FLOW", addr)
             s = 0
             length = int(pickle.loads(self.sock.recv(self.__BUF)))
