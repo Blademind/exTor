@@ -68,7 +68,6 @@ class Handler:
             print("Completed Download!")
 
         except Exception as e:
-            print("exception: ", e)
             pass
 
     def recursive_peers(self, peer, k):
@@ -122,7 +121,7 @@ class Handler:
             if p == self.current_piece_peers[-1]:
                 last_piece_length = len(manager.currently_connected)
                 while len(manager.currently_connected) == last_piece_length:
-                    time.sleep(0.5)
+                    time.sleep(0.01)
 
                 while manager.down.error_queue:
                     peer_piece = manager.down.error_queue.pop(0)

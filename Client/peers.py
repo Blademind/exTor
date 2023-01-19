@@ -56,7 +56,7 @@ class Peer:
         self.block = b''
         self.bitfield_progress = False
         self.length = 0
-        self.written = b''
+        # self.written = b''
         self.tracker = tracker
         self.torrent = tracker.torrent
         self.__BUF = 1024
@@ -71,8 +71,6 @@ class Peer:
         except:
             self.files = self.torrent.torrent['info']
         self.torrent_name = self.torrent.torrent['info']['name']
-        os.mkdir(f"torrents\\files\\{self.torrent_name}") if not os.path.exists(
-            f"torrents\\files\\{self.torrent_name}") else None
         self.left = [0, 0, b'']  # total / len / data
         self.listen_sock = socket(AF_INET, SOCK_STREAM)
         self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -123,8 +121,8 @@ class Peer:
                             break
                     if self.peer_removed:
                         break
-                    print("STUCK", self.peer)
-                    time.sleep(0.5)
+                    # print("STUCK", self.peer)
+                    time.sleep(0.01)
 
                 # manager.peer_request.remove(self.peer)
                 # time.sleep(piece_request_timeout)

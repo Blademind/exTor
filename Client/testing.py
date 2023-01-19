@@ -5,7 +5,7 @@
 # with alive_bar(1000, force_tty=True) as bar:
 #     while flag:
 #         pass
-
+import os.path
 
 # from socket import gethostbyname, gethostname
 #
@@ -30,18 +30,27 @@
 # metadata = get_metadata(magnet_link)
 # print(metadata)
 
-import requests
-from py1337x import py1337x
-torrents = py1337x()
+# import requests
+# from py1337x import py1337x
+# torrents = py1337x()
+#
+# try:
+#     url = f'https://itorrents.org/torrent/{torrents.info(link=torrents.search("stray")["items"][0]["link"])["infoHash"]}.torrent'
+#     show = requests.get(url, headers={'User-Agent': 'Chrome'})
+#     with open("test.torrent", "wb") as w:
+#         w.write(show.content)
+# except IndexError:
+#     print("no torrents matching query found")
+#
+# # print(data)
+# # with open("test.torrent", "w") as f:
+# #     f.write(data)
 
-try:
-    url = f'https://itorrents.org/torrent/{torrents.info(link=torrents.search("stray")["items"][0]["link"])["infoHash"]}.torrent'
-    show = requests.get(url, headers={'User-Agent': 'Chrome'})
-    with open("test.torrent", "wb") as w:
-        w.write(show.content)
-except IndexError:
-    print("no torrents matching query found")
+with open("test.txt","r+") as f:
+    new_f = f.read()
+    f.seek(0)
+    f.write(new_f[5:])
+    f.truncate()
+    f.seek(0)
 
-# print(data)
-# with open("test.torrent", "w") as f:
-#     f.write(data)
+# print(len(file.read()))

@@ -12,7 +12,6 @@ from download_master import TrackerTCP
 from torrents_handler import info_torrent
 from difflib import get_close_matches
 from py1337x import py1337x
-import torf
 import bencode
 
 def build_error_response(msg):
@@ -70,7 +69,7 @@ class Tracker:
         """
         Listens to incoming communications
         """
-        print("Server is now listening")
+        print("UDP Server is now listening\n")
         while 1:
             readable, writeable, ex = select.select(self.read_udp, self.write_udp, [])
             for sock in readable:

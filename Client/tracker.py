@@ -35,36 +35,41 @@ class Tracker:
     def __init__(self):
         self.__BUF = 1024
         self.local_tracker = self.find_local_tracker()
-        self.tran_id = None  # the transaction id (later use)
-        self.conn_id = None  # the connection id (later use)
-        self.id = generate_peer_id()  # peer_id
-        self.peers = []
+        if self.local_tracker:
 
-        self.torrent = Torrent()
-        self.sock = socket(AF_INET, SOCK_DGRAM)
-        self.sock.bind(("0.0.0.0", self.torrent.port))
-        self.sock.settimeout(5)
+            self.tran_id = None  # the transaction id (later use)
+            self.conn_id = None  # the connection id (later use)
+            self.id = generate_peer_id()  # peer_id
+            self.peers = []
 
-        file_name = self.fetch_torrent_file()
-        # the torrent file is not local
-        if file_name[-12: -8] != "_LOC":
-            self.torrent.init_torrent_seq(file_name)
+            self.torrent = Torrent()
+            self.sock = socket(AF_INET, SOCK_DGRAM)
+            self.sock.bind(("0.0.0.0", self.torrent.port))
+            self.sock.settimeout(5)
 
-        else:
-            # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
-            pass
+            file_name = self.fetch_torrent_file()
+            if not os.path.exists(f"torrents\\files\\{file_name}"):
+                os.mkdir(f"torrents\\files\\{file_name}")
 
-        self.sock.settimeout(1)
-        try:
-            self.yields = self.torrent.url_yields
-            if type(self.torrent.url) is ParseResult:
-                # Udp tracker
-                self.udp_send(build_conn_req())
+            # the torrent file is not local
+            if file_name[-12: -8] != "_LOC":
+                self.torrent.init_torrent_seq(file_name)
+
             else:
-                # Http tracker
-                self.http_send()
-        except AttributeError:
-            pass
+                # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
+                pass
+
+            self.sock.settimeout(1)
+            try:
+                self.yields = self.torrent.url_yields
+                if type(self.torrent.url) is ParseResult:
+                    # Udp tracker
+                    self.udp_send(build_conn_req())
+                else:
+                    # Http tracker
+                    self.http_send()
+            except AttributeError:
+                pass
 
     def udp_send(self, message):
         print(self.torrent.url)
@@ -186,10 +191,12 @@ class Tracker:
             return
 
     def fetch_torrent_file(self):
-        file_name = input("What torrent would you like to download? -> ")
-        self.sock.sendto(f"GET {file_name}".encode(), self.local_tracker)
-        return self.recv_files()
-
+        try:
+            file_name = input("What torrent would you like to download? -> ")
+            self.sock.sendto(f"GET {file_name}".encode(), self.local_tracker)
+            return self.recv_files()
+        except KeyboardInterrupt:
+            print("program ended")
     def recv_files(self):
         data = None
         try:

@@ -47,7 +47,7 @@ class TrackerTCP:
         return gethostbyname(gethostname()), self.server_sock.getsockname()[1]
 
     def listen_tcp(self):
-        print("TCP Server is now listening")
+        print("TCP Server is now listening\n")
         agree = True
         while 1:
             readable, writeable, ex = select.select(self.read_tcp, self.write_tcp, [])
