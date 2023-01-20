@@ -53,4 +53,4 @@ with open("test.txt","r+") as f:
     f.truncate()
     f.seek(0)
 
-# print(len(file.read()))
+    print(f.read())

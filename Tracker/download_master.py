@@ -14,6 +14,11 @@ import select
 
 
 def build_error_response(msg):
+    """
+    Builds error response, sent when error has occurred
+    :param msg: the message of the error
+    :return: error response which will be sent to peer
+    """
     message = (3).to_bytes(4, byteorder='big')  # action - connect
     message += randbytes(4)  # transaction_id
     message += msg.encode()
@@ -21,12 +26,22 @@ def build_error_response(msg):
 
 
 def ban_ip(ip, banned_ips):
+    """
+    Adds ip to banned ips text file,
+    which will not be able to contact the tracker afterwards
+    :param ip: ip to ban
+    :param banned_ips: the banned ips list
+    :return: None
+    """
     if ip[0] not in banned_ips:
         with open("banned_ips.txt", "a") as f:
             f.write(f"{ip[0]}\n")
 
 
 class TrackerTCP:
+    """
+    Create a Download Master object
+    """
     def __init__(self):
         with open("banned_ips.txt", "r") as f:
             self.banned_ips = f.read().split("\n")

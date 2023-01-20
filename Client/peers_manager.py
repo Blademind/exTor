@@ -48,7 +48,10 @@ class Downloader:
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.progress_flag = True
 
+        if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+            os.makedirs(f"torrents\\files\\{self.torrent_name}")
         self.bytes_file = open(f"torrents\\files\\{self.torrent_name}\\bytes_file.txt", "wb+")
+        self.bytes_file_length = 0
 
         self.error_queue = []  # queue for errors from peers calls
 
@@ -179,8 +182,6 @@ class Downloader:
         self.progress_flag = False
     def calculate_have_bitfield2(self):
         time.sleep(0.1)
-        if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-            os.makedirs(f"torrents\\files\\{self.torrent_name}")
         base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file.txt"]
         files = sorted(base_files, key=self.file_names.index)  # ordered file names
         files_raw = b""
@@ -228,6 +229,7 @@ class Downloader:
                 break
             self.pointer += 1
             with bytes_file_lock:
+                self.bytes_file_length += len(b)
                 self.bytes_file.write(b)
             # self.s_bytes += b
     def download_files(self):
@@ -249,37 +251,40 @@ class Downloader:
         to_download = []
         self.bytes_file_handler()
         with bytes_file_lock:
-            bytes_file_length = self.bytes_file_length()
-            for file in list(self.files):
-                temp += file['length']
-                if temp <= bytes_file_length:
-                    to_download.append((file['path'], file['length']))
-                    self.files = self.files[1:]
-                else:
-                    break
+            bytes_file_length = self.bytes_file_length
+        # with bytes_file_lock:
+        for file in list(self.files):
+            temp += file['length']
+            if temp <= bytes_file_length:
+                to_download.append((file['path'], file['length']))
+                self.files = self.files[1:]
+            else:
+                break
         for path in to_download:
             with open(f"torrents\\files\\{self.torrent_name}\\{path[0][0]}", 'wb') as w:
                 with bytes_file_lock:
                     self.bytes_file.seek(0)
                     write_data = self.bytes_file.read(path[1])
 
-                    w.write(write_data)
-                    # w.write(self.s_bytes[:path[1]])
+                    # w.write(write_data)
+                    # # w.write(self.s_bytes[:path[1]])
+                    #
+                    # self.file_data[path[0][0]] = write_data
+                w.write(write_data)
+                self.file_data[path[0][0]] = write_data
 
-                    self.file_data[path[0][0]] = write_data
-                    self.bytes_file.seek(0)
 
                     # self.file_data[path[0][0]] = self.s_bytes[:path[1]]
 
                     # self.written += self.s_bytes[:path[1]]
 
                 with bytes_file_lock:
+                    self.bytes_file_length -= path[1]
                     self.bytes_file.seek(0)
                     new_f = self.bytes_file.read()
                     self.bytes_file.seek(0)
                     self.bytes_file.write(new_f[path[1]:])
                     self.bytes_file.truncate()
-                    self.bytes_file.seek(0)
                     #
                     # self.bytes_file.truncate(0)
                     # self.bytes_file.write(self.s_bytes[path[1]:])
@@ -293,10 +298,10 @@ class Downloader:
         to_download = []
         self.bytes_file_handler()
 
-        bytes_file_length = self.bytes_file_length()
+        # bytes_file_length = self.bytes_file_length()
         for file in list(self.files):
             temp += file['length']
-            if temp <= bytes_file_length:
+            if temp <= self.bytes_file_length:
                 to_download.append((file['path'], file['length']))
                 self.files = self.files[1:]
             else:
@@ -307,21 +312,21 @@ class Downloader:
             #     # self.written += self.s_bytes[:path[1]]
             #
 
+            self.bytes_file_length -= path[1]
             self.bytes_file.seek(0)
             new_f = self.bytes_file.read()
             self.bytes_file.seek(0)
             self.bytes_file.write(new_f[path[1]:])
             self.bytes_file.truncate()
-            self.bytes_file.seek(0)
 
             # self.s_bytes = self.s_bytes[path[1]:]
             print("done checking", path)
 
-    def bytes_file_length(self):
-        self.bytes_file.seek(0)
-        size = os.path.getsize(f"torrents\\files\\{self.torrent_name}\\bytes_file.txt")
-        self.bytes_file.seek(0)
-        return size
+    # def bytes_file_length(self):
+    #     self.bytes_file.seek(0)
+    #     size = len(self.bytes_file.read())
+    #     self.bytes_file.seek(0)
+    #     return size
 
 
     # def start_download(self):
@@ -359,7 +364,6 @@ class Downloader:
     #             while len(currently_connected) == last_piece_length:
     #                 time.sleep(0.1)
     #             self.recursive_peers(peer, k)
-
 
 
 lock = threading.Lock()

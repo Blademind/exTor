@@ -120,7 +120,7 @@ class Peer:
                             self.done_piece_download = False
                             break
                     if self.peer_removed:
-                        break
+                        raise Exception(f"Peer {self.peer} Removed")
                     # print("STUCK", self.peer)
                     time.sleep(0.01)
 

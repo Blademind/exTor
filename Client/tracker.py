@@ -48,10 +48,10 @@ class Tracker:
             self.sock.settimeout(5)
 
             file_name = self.fetch_torrent_file()
-            if not os.path.exists(f"torrents\\files\\{file_name}"):
-                os.mkdir(f"torrents\\files\\{file_name}")
+            # if not os.path.exists(f"torrents\\files\\{file_name}"):
+            #     os.mkdir(f"torrents\\files\\{file_name}")
 
-            # the torrent file is not local
+            # the torrent file is not local torrent
             if file_name[-12: -8] != "_LOC":
                 self.torrent.init_torrent_seq(file_name)
 
