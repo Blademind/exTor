@@ -37,6 +37,8 @@ class Handler:
 
             manager.down = manager.Downloader(self.torrent, self.tracker)
 
+            self.peer_list = []
+
             self.peer_thread = {}
             self.pieces = {}
             for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
@@ -61,6 +63,14 @@ class Handler:
 
             print("Completed Download!")
 
+            self.tracker.done_downloading()
+            # for peer, thread in self.peer_thread.items():
+            #     thread.join()
+
+            while self.peer_list:
+                obj = self.peer_list.pop(0)
+                del obj
+
         except Exception as e:
             print(e)
             pass
@@ -70,10 +80,11 @@ class Handler:
         Goes over all the piece
         :return:
         """
-        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):
+        for piece, k in enumerate(sorted(self.pieces, key=lambda p: p)):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
             if manager.down.have[k] == "0":
                 print(f"currently working on: {k}#")
-                peer = Peer(self.tracker)  # create a peer object
+                self.peer_list.append(Peer(self.tracker))
+                peer = self.peer_list[-1]  # create a peer object
                 current_piece_peers = self.pieces[k]
                 # no peers holding current piece
                 if len(current_piece_peers) == 0:
@@ -98,7 +109,9 @@ class Handler:
         while manager.down.error_queue:
             peer_piece = manager.down.error_queue.pop(0)
             peer_ip_port, piece = peer_piece[0], peer_piece[1]
-            peer_error_object = Peer(self.tracker)  # create a peer object
+            print(piece)
+            self.peer_list.append(Peer(self.tracker))
+            peer_error_object = self.peer_list[-1]  # create a peer object
             # deletes all peer instances
             for piece_number, peers_list in self.pieces.items():
                 if peer_ip_port in peers_list:
@@ -118,6 +131,7 @@ class Handler:
                 else:
                     threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
                     break
+
         for p in current_piece_peers:
             if p not in manager.currently_connected:
                 if p in self.peer_thread.keys():
@@ -133,6 +147,7 @@ class Handler:
                 last_piece_length = len(manager.currently_connected)
                 while len(manager.currently_connected) == last_piece_length:
                     time.sleep(0.01)
+                    pass
                 self.peer_piece_assignment(peer, k, current_piece_peers)
                 break
 
@@ -142,17 +157,20 @@ class Handler:
             sock.send(message.build_handshake(tracker))
             data = sock.recv(68)  # read handshake
             if message.is_handshake(data):
+                print("HANDSHAKE")
                 msg_len = int.from_bytes(sock.recv(4), "big")
                 data = sock.recv(msg_len)
                 if message.msg_type(data) == 'bitfield':
                     # print(data)
                     data = bitstring.BitArray(data[1:])
+                    print("BITFIELD", data , peers[current_peer])
+
                     # print(bitstring_to_bytes(data.bin))
                     # print(data.bin)
                     for t, i in enumerate(data.bin):
                         if i == "1":
                             self.pieces[t].append(sock.getpeername())
-
+            sock.close()
         except:
             return
 
@@ -177,6 +195,7 @@ class Handler:
                 time.sleep(0.01)  # create a small delay to create a gap
             a[-1].join()  # last thread has ended
 
+        time.sleep(0.5)  # some peers are slow, gives them some time to delete client's instance from them
 # region ASYNC SOLUTION
 #     async def conn_task(self, peers, current_peer, tracker):
 #         try:

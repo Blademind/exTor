@@ -46,11 +46,25 @@ import os.path
 # # with open("test.torrent", "w") as f:
 # #     f.write(data)
 
-with open("test.txt","r+") as f:
-    new_f = f.read()
-    f.seek(0)
-    f.write(new_f[5:])
-    f.truncate()
-    f.seek(0)
+# with open("test.txt","r+") as f:
+#     new_f = f.read()
+#     f.seek(0)
+#     f.write(new_f[5:])
+#     f.truncate()
+#     f.seek(0)
+#
+#     print(f.read())
 
-    print(f.read())
+import threading
+import time
+
+
+def test():
+    while 1:
+        print("hey")
+        pass
+
+th = threading.Thread(target=test)
+th.start()
+th.join(1)
+print("done")

@@ -33,6 +33,7 @@ def generate_peer_id():
 
 class Tracker:
     def __init__(self):
+        self.file_name = None
         self.__BUF = 1024
         self.local_tracker = self.find_local_tracker()
         if self.local_tracker:
@@ -59,7 +60,7 @@ class Tracker:
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
                 pass
 
-            self.sock.settimeout(1)
+            self.sock.settimeout(1)  # going over trackers, less timeout for more speed
             try:
                 self.yields = self.torrent.url_yields
                 if type(self.torrent.url) is ParseResult:
@@ -86,7 +87,6 @@ class Tracker:
                     self.http_send()
 
         except StopIteration:
-            print("gone over all the trackers")
             pass
         except Exception as e:
             print(f'Error: {e}')
@@ -121,7 +121,7 @@ class Tracker:
             self.http_send()
 
     def listen(self):
-        ret = self.sock.recv(1024)
+        ret = self.sock.recv(self.__BUF)
         try:
             self.TCP_IP_PORT = pickle.loads(ret)
         except:
@@ -166,16 +166,14 @@ class Tracker:
 
     def find_local_tracker(self):
         interfaces = getaddrinfo(host=gethostname(), port=None, family=AF_INET)
-        allips = [ip[-1][0] for ip in interfaces]
         msg = b'FIND LOCAL TRACKER'
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         sock.settimeout(2)
         sock.bind(("0.0.0.0", 0))
-        for _ in allips:
-            sock.sendto(msg, ("255.255.255.255", 55555))
+        sock.sendto(msg, ("255.255.255.255", 55555))
         try:
-            data = sock.recv(1024)
+            data = sock.recv(self.__BUF)
             try:
                 ip = pickle.loads(data)
                 test_open = sock.connect_ex(ip)
@@ -197,6 +195,7 @@ class Tracker:
             return self.recv_files()
         except KeyboardInterrupt:
             print("program ended")
+
     def recv_files(self):
         data = None
         try:
@@ -209,6 +208,7 @@ class Tracker:
             if filename[-8:] != ".torrent":
                 print("file is not torrent")
                 return
+            self.file_name = filename
             with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
                 w.write(b"")
 
@@ -226,6 +226,13 @@ class Tracker:
         except Exception as e:
             print(e)
             return
+
+    def done_downloading(self):
+        self.sock.sendto(f"DONE DOWNLOADING {self.file_name}".encode(),self.local_tracker)
+        data = self.sock.recv(self.__BUF)
+        if data == b"UPDATED":
+            print("Tracker was informed of downloaded file")
+
 
 
 

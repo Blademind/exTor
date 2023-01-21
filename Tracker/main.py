@@ -90,8 +90,32 @@ class Tracker:
                 except:
                     datacontent = ""
 
-                if data == b'FIND LOCAL TRACKER':
+                if datacontent == "FIND LOCAL TRACKER":
                     sock.sendto(pickle.dumps((gethostbyname(gethostname()), 55555)), addr)
+
+                elif datacontent[:17] == "DONE DOWNLOADING ":
+                    torrent_files = os.listdir("torrents")
+                    file_name = datacontent[17:]
+                    if file_name in torrent_files:
+                        # create a local file
+                        if not os.path.exists(f"torrents\\{file_name[:-8]}_LOC.torrent"):
+                            with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "wb") as w:
+                                with open(f"torrents\\{file_name}", "rb") as f:
+                                    torrent = bencode.bdecode(f.read())
+                                    torrent["announce"] = ""
+                                    torrent["announce-list"] = [addr]
+                                    w.write(bencode.bencode(torrent))
+                        else:
+                            with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "rb+") as f:
+                                torrent = bencode.bdecode(f.read())
+                                if addr not in torrent["announce-list"]:
+                                    torrent["announce-list"].append(addr)
+                                f.write(bencode.bencode(torrent))
+                            # add peer to already created local file
+                        sock.sendto(b"UPDATED", addr)
+
+                    else:
+                        print("given file name not in the torrents dir")
 
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")
