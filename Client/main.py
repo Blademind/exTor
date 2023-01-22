@@ -13,7 +13,12 @@ import message_handler as message
 import bitstring
 import peers_manager as manager
 import asyncio
-
+"""
+=====IMPORTANT=====
+TRACKER SENDS THE CLIENT BOTH THE LOCAL AND THE NORMAL TORRENT FILE TOGETHER, NOT ONLY THE LOCAL FILE
+THE CLIENT DECIDES TO CONTACT THE NORMAL TORRENT FILE GIVEN THE PEERS IN THE LOCAL TORRENT FILE ARE NOT RESPONDING
+OR PIECES ARE MISSING.
+"""
 def create_new_sock():
     """
     Creates a TCP socket
@@ -30,50 +35,45 @@ class Handler:
         """
         Create Handler object
         """
-        try:
-            self.tracker = Tracker()
-            self.peers = list(set(self.tracker.peers))
-            self.torrent = self.tracker.torrent
+        self.tracker = Tracker()
+        self.peers = list(set([tuple(peer) for peer in self.tracker.peers]))
+        self.torrent = self.tracker.torrent
 
-            manager.down = manager.Downloader(self.torrent, self.tracker)
+        manager.down = manager.Downloader(self.torrent, self.tracker)
 
-            self.peer_list = []
+        self.peer_list = []
 
-            self.peer_thread = {}
-            self.pieces = {}
-            for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
-                self.pieces[i] = []
-            self.rarest_piece(self.peers, self.tracker)
-            self.currently_connected = []
-            # for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
-            #     print(key, end=" ")
+        self.peer_thread = {}
+        self.pieces = {}
+        for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
+            self.pieces[i] = []
+        self.rarest_piece(self.peers, self.tracker)
+        self.currently_connected = []
+        # for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
+        #     print(key, end=" ")
 
 
-            # start error check
-            # threading.Thread(target=self.check_errors).start()
+        # start error check
+        # threading.Thread(target=self.check_errors).start()
 
-            self.go_over_pieces()
+        self.go_over_pieces()
 
-            while len(manager.currently_connected) != 0:
-                time.sleep(1)
-            manager.DONE = True
+        while len(manager.currently_connected) != 0:
+            time.sleep(1)
+        manager.DONE = True
 
-            manager.down.bytes_file.close()  # closes the bytes file
-            os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
+        manager.down.bytes_file.close()  # closes the bytes file
+        os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
 
-            print("Completed Download!")
+        print("Completed Download!")
 
-            self.tracker.done_downloading()
-            # for peer, thread in self.peer_thread.items():
-            #     thread.join()
+        self.tracker.done_downloading()
+        # for peer, thread in self.peer_thread.items():
+        #     thread.join()
 
-            while self.peer_list:
-                obj = self.peer_list.pop(0)
-                del obj
-
-        except Exception as e:
-            print(e)
-            pass
+        while self.peer_list:
+            obj = self.peer_list.pop(0)
+            del obj
 
     def go_over_pieces(self):
         """

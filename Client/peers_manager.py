@@ -8,6 +8,7 @@ from socket import *
 import message_handler as message
 
 
+
 def reset_have(num_of_pieces):
     """
     resets have
@@ -57,7 +58,7 @@ class Downloader:
 
         self.error_queue = []  # queue for errors from peers calls
 
-        threading.Thread(target=self.calculate_have_bitfield2).start()
+        threading.Thread(target=self.calculate_have_bitfield).start()
         self.generate_progress_bar()
         print(self.have)
         print(self.bitstring_to_bytes(self.have))
@@ -325,58 +326,79 @@ class Downloader:
     #                 time.sleep(0.1)
     #             self.recursive_peers(peer, k)
 
-    # def calculate_have_bitfield(self):
-    #     time.sleep(0.5)
-    #     if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-    #         base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
-    #         files = sorted(base_files,
-    #                        key=self.file_names.index)  # ordered file names
-    #         read = 0  # whats left to next piece
-    #         left = b""  # lasting bytes to next piece
-    #         piece_number = 0  # what piece are we at?
-    #         for file in files:
-    #             with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
-    #                 fs_raw = left + f.read(self.piece_length - read)
-    #                 file_length = os.path.getsize(f"torrents\\files\\{self.torrent_name}\\{file}")
-    #                 if len(fs_raw) == self.piece_length:
-    #                     # while file_length - (self.piece_length + read) > 0:
-    #                     #     last =
-    #                     if hashlib.sha1(fs_raw).digest() == self.pieces[piece_number * 20: 20 * piece_number + 20]:
-    #                         temp = list(self.have)
-    #                         temp[piece_number] = "1"
-    #                         self.have = "".join(temp)
-    #                         # print(f"validated piece #{piece_number}, current bitfield progress:")
-    #                         self.add_bytes(piece_number, fs_raw)
-    #                         self.check_files()
-    #                         self.bar()
-    #                     while len(fs_raw) == self.piece_length:
-    #                         # print("here")
-    #                         fs_raw = f.read(self.piece_length)
-    #                         if len(fs_raw) == self.piece_length:
-    #                             piece_number += 1
-    #                             if hashlib.sha1(fs_raw).digest() == self.pieces[
-    #                                                                 piece_number * 20: 20 * piece_number + 20]:
-    #                                 temp = list(self.have)
-    #                                 temp[piece_number] = "1"
-    #                                 self.have = "".join(temp)
-    #                                 # print(piece_number)
-    #                                 self.add_bytes(piece_number, fs_raw)
-    #                                 self.check_files()
-    #                                 self.bar()
-    #
-    #                                 # print(f"validated piece #{piece_number}, current bitfield progress:")
-    #                                 # print(self.have)
-    #                         else:
-    #                             if len(fs_raw) < self.piece_length:
-    #                                 read = len(fs_raw)
-    #                                 left = fs_raw
-    #                             else:
-    #                                 read = 0
-    #                     piece_number += 1
-    #                 else:
-    #                     read = len(fs_raw)
-    #                     left = fs_raw
-    #     self.progress_flag = False
+    def calculate_have_bitfield(self):
+        time.sleep(0.5)
+        file_piece = {}
+        for file in os.listdir(f"torrents\\files\\{self.torrent_name}"):
+            if file != "bytes_file":
+                file_piece[file] = {}
+        if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+            base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
+            files = sorted(base_files,
+                           key=self.file_names.index)  # ordered file names
+            read = 0  # whats left to next piece
+            left = b""  # lasting bytes to next piece
+            piece_number = 0  # what piece are we at?
+            size = self.torrent.size()
+            flag = True
+            for file in files:
+                with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+                    total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+                    fs_raw = left + f.read(total_current_piece_length - read)
+                    if len(fs_raw) == total_current_piece_length:
+                        # while file_length - (self.piece_length + read) > 0:
+                        #     last =
+                        if hashlib.sha1(fs_raw).digest() == self.pieces[piece_number * 20: 20 * piece_number + 20]:
+                            temp = list(self.have)
+                            temp[piece_number] = "1"
+                            self.have = "".join(temp)
+                            # print(f"validated piece #{piece_number}, current bitfield progress:")
+                            self.add_bytes(piece_number, fs_raw)
+                            file_piece[file][piece_number] = len(fs_raw) - len(left)
+                            left = b""  # lasting bytes to next piece
+
+                            combined_sum = 0
+                            self.check_files()
+                            self.bar()
+                            flag = True
+
+                        while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
+                            # print("here")
+                            fs_raw = f.read(total_current_piece_length)
+                            piece_number += 1
+                            total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+
+                            if len(fs_raw) == total_current_piece_length:
+                                if hashlib.sha1(fs_raw).digest() == self.pieces[
+                                                                    piece_number * 20: 20 * piece_number + 20]:
+                                    temp = list(self.have)
+                                    temp[piece_number] = "1"
+                                    self.have = "".join(temp)
+                                    self.add_bytes(piece_number, fs_raw)
+                                    file_piece[file][piece_number] = len(fs_raw) - len(left)
+                                    left = b""  # lasting bytes to next piece
+
+                                    combined_sum = 0
+                                    self.check_files()
+                                    self.bar()
+                                    flag = True
+                            else:
+                                if len(fs_raw) < total_current_piece_length:
+                                    read = len(fs_raw)
+                                    file_piece[file][piece_number] = read - len(left)
+                                    left = fs_raw
+                                    flag = False
+
+                        if flag:
+                            piece_number += 1
+                    else:
+                        read = len(fs_raw)
+                        file_piece[file][piece_number] = read - len(left)
+
+                        left = fs_raw
+
+            # print(file_piece)
+        self.progress_flag = False
 # end region
 
 testing_lock = threading.Lock()

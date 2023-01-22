@@ -36,6 +36,8 @@ class Tracker:
         self.file_name = None
         self.__BUF = 1024
         self.local_tracker = self.find_local_tracker()
+        self.torrent = Torrent()
+
         if self.local_tracker:
 
             self.tran_id = None  # the transaction id (later use)
@@ -43,7 +45,6 @@ class Tracker:
             self.id = generate_peer_id()  # peer_id
             self.peers = []
 
-            self.torrent = Torrent()
             self.sock = socket(AF_INET, SOCK_DGRAM)
             self.sock.bind(("0.0.0.0", self.torrent.port))
             self.sock.settimeout(5)
@@ -51,26 +52,29 @@ class Tracker:
             file_name = self.fetch_torrent_file()
             # if not os.path.exists(f"torrents\\files\\{file_name}"):
             #     os.mkdir(f"torrents\\files\\{file_name}")
+            self.torrent.init_torrent_seq(file_name)
 
             # the torrent file is not local torrent
             if file_name[-12: -8] != "_LOC":
-                self.torrent.init_torrent_seq(file_name)
+                self.sock.settimeout(1)  # going over trackers, less timeout for more speed
+                try:
+                    self.yields = self.torrent.url_yields
+                    if type(self.torrent.url) is ParseResult:
+                        # Udp tracker
+                        self.udp_send(build_conn_req())
+                    else:
+                        # Http tracker
+                        self.http_send()
+                except AttributeError:
+                    pass
 
             else:
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
-                pass
-
-            self.sock.settimeout(1)  # going over trackers, less timeout for more speed
-            try:
-                self.yields = self.torrent.url_yields
-                if type(self.torrent.url) is ParseResult:
-                    # Udp tracker
-                    self.udp_send(build_conn_req())
-                else:
-                    # Http tracker
-                    self.http_send()
-            except AttributeError:
-                pass
+                print("LOCAL FILE")
+                with open(f"torrents\\info_hashes\\{file_name}", "rb") as f:
+                    peers = bencode.bdecode(f.read())["announce-list"]
+                print(peers)
+                self.peers = peers
 
     def udp_send(self, message):
         print(self.torrent.url)

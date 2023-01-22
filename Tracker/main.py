@@ -13,6 +13,7 @@ from difflib import get_close_matches
 from py1337x import py1337x
 import bencode
 
+
 class Tracker:
     def __init__(self):
         """
@@ -106,11 +107,7 @@ class Tracker:
                                     torrent["announce-list"] = [addr]
                                     w.write(bencode.bencode(torrent))
                         else:
-                            with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "rb+") as f:
-                                torrent = bencode.bdecode(f.read())
-                                if addr not in torrent["announce-list"]:
-                                    torrent["announce-list"].append(addr)
-                                f.write(bencode.bencode(torrent))
+                            self.add_peer_to_LOC(f"{file_name[:-8]}_LOC.torrent", addr)
                             # add peer to already created local file
                         sock.sendto(b"UPDATED", addr)
 
@@ -121,7 +118,8 @@ class Tracker:
                     torrent_files = os.listdir("torrents")
                     matches = get_close_matches(datacontent[4:], torrent_files)
                     if matches:
-                        locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
+                        # locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
+                        locals_ = get_close_matches(f"{datacontent[4:]}_LOC", torrent_files)
                         if locals_:
                             file_name = locals_[0]
                             threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
@@ -185,12 +183,13 @@ class Tracker:
         :return: None
         """
         with open(f"torrents\\{file_name}", "rb") as f:
-            torrent_data = bencode.bdecode(f.read())
+            torrent = bencode.bdecode(f.read())
 
-        torrent_data["announce-list"].append(f"{addr[0]}:{addr[1]}")
+        if addr not in torrent["announce-list"]:
+            torrent["announce-list"].append(addr)
 
         with open(f"torrents\\{file_name}", "wb") as f:
-            f.write(bencode.bencode(torrent_data))
+            f.write(bencode.bencode(torrent))
 
     def send_torrent_file(self, file_name, addr):
         """
