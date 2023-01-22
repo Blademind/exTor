@@ -248,6 +248,7 @@ class Peer:
             self.s_bytes += data
 
             # data received for block must be requested block length
+            print(len(data), self.block_len)
             if len(data) == self.block_len:
                 self.s += len(data)
             else:

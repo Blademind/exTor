@@ -73,8 +73,8 @@ class Tracker:
                 print("LOCAL FILE")
                 with open(f"torrents\\info_hashes\\{file_name}", "rb") as f:
                     peers = bencode.bdecode(f.read())["announce-list"]
-                print(peers)
-                self.peers = peers
+                self.peers = [tuple(peer) for peer in peers]
+                print(self.peers)
 
     def udp_send(self, message):
         print(self.torrent.url)

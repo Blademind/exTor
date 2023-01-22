@@ -36,13 +36,12 @@ class Handler:
         Create Handler object
         """
         self.tracker = Tracker()
-        self.peers = list(set([tuple(peer) for peer in self.tracker.peers]))
+        self.peers = list(set(self.tracker.peers))
         self.torrent = self.tracker.torrent
 
         manager.down = manager.Downloader(self.torrent, self.tracker)
 
         self.peer_list = []
-
         self.peer_thread = {}
         self.pieces = {}
         for i in range(len(self.torrent.torrent["info"]["pieces"]) // 20):
