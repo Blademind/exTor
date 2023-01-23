@@ -217,6 +217,7 @@ class Peer:
                     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
 
                 else:
+                    time.sleep(1)
                     with manager.lock:
                         if self.peer in manager.currently_connected:
                             manager.currently_connected.remove(self.peer)
@@ -261,9 +262,10 @@ class Peer:
                 if self.c_piece == self.num_of_pieces - 1:
                     if hashlib.sha1(self.s_bytes).digest() == self.pieces[self.c_piece * 20: self.c_piece * 20 + 20]:
                         print(f"success piece #{self.c_piece}, last piece", self.peer)
+                        threading.Thread(target=manager.down.add_piece_data, args=(self.c_piece, self.s_bytes)).start()
                         with manager.lock:
-                            manager.down.add_bytes(self.c_piece, self.s_bytes)  # adds bytes of current piece to manager
-                            manager.down.download_files()  # takes care of files
+                            # manager.down.add_bytes(self.c_piece, self.s_bytes)  # adds bytes of current piece to manager
+                            # manager.down.download_files()  # takes care of files
 
                             # reset buffer, sum, and bytes sum
                             self.buf = 4
@@ -295,9 +297,13 @@ class Peer:
                 if hashlib.sha1(self.s_bytes).digest() == self.pieces[
                                                           self.c_piece * 20: 20 * self.c_piece + 20]:
                     print(f"success piece #{self.c_piece}, total --> {self.s}", self.peer)
+                    threading.Thread(target=manager.down.add_piece_data, args=(self.c_piece, self.s_bytes)).start()
+
                     with manager.lock:
-                        manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
-                        manager.down.download_files()  # take care of files
+                        # manager.down.add_piece_data(self.c_piece, self.s_bytes)
+
+                        # manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
+                        # manager.down.download_files()  # take care of files
 
                         # reset buffer, sum, and bytes sum
                         self.buf = 4

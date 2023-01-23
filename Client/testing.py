@@ -69,8 +69,19 @@
 # th.join(1)
 # print("done")
 
-with open("test.txt", "w") as f:
-    f.seek(1)
-    f.write("TEST")
-    f.seek(0)
-    f.write("S")
+# with open("test.txt", "w") as f:
+#     f.seek(1)
+#     f.write("TEST")
+#     f.seek(0)
+#     f.write("S")
+
+import threading
+
+def a(pointer):
+    file.seek(pointer)
+    file.write(b"*")
+
+file = open("test.txt", "wb")
+for i in range(100000):
+    threading.Thread(target=a, args=(i,)).start()
+

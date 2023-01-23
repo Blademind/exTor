@@ -167,6 +167,12 @@ class Tracker:
         message += port.to_bytes(2, byteorder='big')
         return message
 
+    def get_ip_addr(self):
+        s = socket(AF_INET, SOCK_DGRAM)
+        s.connect(('8.8.8.8',53))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
 
     def find_local_tracker(self):
         interfaces = getaddrinfo(host=gethostname(), port=None, family=AF_INET)
@@ -174,7 +180,8 @@ class Tracker:
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         sock.settimeout(2)
-        sock.bind(("0.0.0.0", 0))
+        sock.bind((self.get_ip_addr(), 0))
+
         sock.sendto(msg, ("255.255.255.255", 55555))
         try:
             data = sock.recv(self.__BUF)

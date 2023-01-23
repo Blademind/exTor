@@ -71,8 +71,15 @@ class Tracker:
         """
         server_sock = socket(AF_INET, SOCK_DGRAM)
         server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        server_sock.bind(("0.0.0.0", port))
+        server_sock.bind((self.get_ip_addr(), port))
         return server_sock
+
+    def get_ip_addr(self):
+        s = socket(AF_INET, SOCK_DGRAM)
+        s.connect(('8.8.8.8',53))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
 
     def listen_udp(self):
         """
@@ -92,7 +99,7 @@ class Tracker:
                     datacontent = ""
 
                 if datacontent == "FIND LOCAL TRACKER":
-                    sock.sendto(pickle.dumps((gethostbyname(gethostname()), 55555)), addr)
+                    sock.sendto(pickle.dumps((sock.getsockname()[0], 55555)), addr)
 
                 elif datacontent[:17] == "DONE DOWNLOADING ":
                     torrent_files = os.listdir("torrents")

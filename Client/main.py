@@ -64,15 +64,14 @@ class Handler:
         manager.down.bytes_file.close()  # closes the bytes file
         os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
 
+        for name, file in manager.down.files_data.items():
+            file.close()
+
         print("Completed Download!")
 
         self.tracker.done_downloading()
         # for peer, thread in self.peer_thread.items():
         #     thread.join()
-
-        while self.peer_list:
-            obj = self.peer_list.pop(0)
-            del obj
 
     def go_over_pieces(self):
         """
