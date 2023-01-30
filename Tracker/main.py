@@ -12,7 +12,8 @@ from torrents_handler import info_torrent
 from difflib import get_close_matches
 from py1337x import py1337x
 import bencode
-
+import sys
+import signal
 
 class Tracker:
     def __init__(self):
@@ -28,7 +29,7 @@ class Tracker:
 
         self.connection_ids = {}  # list of all connected clients
         self.ip_addresses = {}
-        self.reset_ip_addresses()  # reset lists of ip addresses
+        # self.reset_ip_addresses()  # reset lists of ip addresses
 
         _thread.start_new_thread(self.deleter_timer, ())  # remove peer after set time
         self.listen_udp()  # listen
@@ -38,7 +39,7 @@ class Tracker:
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 3600
+        timer = 10
         while 1:
             size_changed = False
             # adds all ips-times into one list
@@ -46,9 +47,21 @@ class Tracker:
                 if len(torrent) != 0:
                     for ip in torrent:
                         if time.time() - ip[1] >= timer:
+                            file_name = list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]
                             self.ip_addresses[
                                 list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(
                                 ip)
+                            with open(f"torrents\\{file_name}", "rb") as f:
+                                torrent_data = bencode.bdecode(f.read())
+
+                            for i in torrent_data["announce-list"]:
+                                if list(ip[0]) == i:
+                                    torrent_data["announce-list"].remove(i)
+                                    break
+
+                            with open(f"torrents\\{file_name}", "wb") as f:
+                                f.write(bencode.bencode(torrent_data))
+
                             size_changed = True
                             break
                 if size_changed:
@@ -102,19 +115,25 @@ class Tracker:
                     sock.sendto(pickle.dumps((sock.getsockname()[0], 55555)), addr)
 
                 elif datacontent[:17] == "DONE DOWNLOADING ":
+
                     torrent_files = os.listdir("torrents")
                     file_name = datacontent[17:]
+
                     if file_name in torrent_files:
                         # create a local file
-                        if not os.path.exists(f"torrents\\{file_name[:-8]}_LOC.torrent"):
-                            with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "wb") as w:
-                                with open(f"torrents\\{file_name}", "rb") as f:
-                                    torrent = bencode.bdecode(f.read())
-                                    torrent["announce"] = ""
-                                    torrent["announce-list"] = [addr]
-                                    w.write(bencode.bencode(torrent))
+                        if file_name[-12:-8] == "_LOC":
+                            self.add_peer_to_LOC(file_name,addr)
+
                         else:
-                            self.add_peer_to_LOC(f"{file_name[:-8]}_LOC.torrent", addr)
+                            if not os.path.exists(f"torrents\\{file_name[:-8]}_LOC.torrent"):
+                                self.ip_addresses[f"{file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
+                                with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "wb") as w:
+                                    with open(f"torrents\\{file_name}", "rb") as f:
+                                        torrent = bencode.bdecode(f.read())
+                                        torrent["announce"] = ""
+                                        torrent["announce-list"] = [addr]
+                                        w.write(bencode.bencode(torrent))
+
                             # add peer to already created local file
                         sock.sendto(b"UPDATED", addr)
 
@@ -129,30 +148,37 @@ class Tracker:
                         locals_ = get_close_matches(f"{datacontent[4:]}_LOC", torrent_files)
                         if locals_:
                             file_name = locals_[0]
-                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                            file_name2 = None
+                            for file in matches:
+                                if file != file_name:
+                                    file_name2 = file
+                                    break
+
+                            if not file_name2:
+                                query = datacontent[4:]
+                                self.torrent_from_web(query, addr)
+
+                                for file in get_close_matches(query, torrent_files):
+                                    if file != file_name:
+                                        file_name2 = file
+                                        break
+
+                            print(file_name, file_name2)
+
+                            threading.Thread(target=self.send_files, args=(file_name, file_name2, addr)).start()
+
                             self.add_peer_to_LOC(file_name, addr)
                             # add the client inside loc file after sending the file
                         else:
                             file_name = matches[0]
-                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+                            threading.Thread(target=self.send_torrent_files, args=(file_name, addr)).start()
                             # send the client the file via udp
 
                     else:
                         # search 1337x for a torrent matching request, get the torrent and send it to the client
                         query = datacontent[4:]
-                        try:
-                            url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
-                            show = requests.get(url, headers={'User-Agent': 'Chrome'})
-                            bdecoded_torrent = bencode.bdecode(show.content)
-                            file_name = f"{bdecoded_torrent['info']['name']}.torrent"
-                            with open(f"torrents\\{file_name}", "wb") as w:
-                                w.write(show.content)
+                        self.torrent_from_web(query, addr)
 
-                            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
-                        except IndexError:
-                            print("no torrents matching query found")
-
-                        pass
 
                 # # request must be at least 16 bytes long
                 # if len(data) >= 16:
@@ -182,6 +208,26 @@ class Tracker:
                 #         print(e)
                 #         print("received unparsable data")
 
+    def send_files(self, file_name, file_name2, addr):
+        self.send_torrent_files(file_name, addr)
+        time.sleep(1)
+        print(file_name2)
+        self.send_torrent_files(file_name2, addr)
+
+    def torrent_from_web(self, query, addr):
+        # search 1337x for a torrent matching request, get the torrent and send it to the client
+        try:
+            url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
+            show = requests.get(url, headers={'User-Agent': 'Chrome'})
+            bdecoded_torrent = bencode.bdecode(show.content)
+            file_name = f"{bdecoded_torrent['info']['name']}.torrent"
+            with open(f"torrents\\{file_name}", "wb") as w:
+                w.write(show.content)
+
+            threading.Thread(target=self.send_torrent_files, args=(file_name, addr)).start()
+        except IndexError:
+            print("no torrents matching query found")
+
     def add_peer_to_LOC(self, file_name, addr):
         """
         Adds given peer to a local torrent file
@@ -189,6 +235,8 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
+        self.ip_addresses[file_name].append((addr, time.time()))
+
         with open(f"torrents\\{file_name}", "rb") as f:
             torrent = bencode.bdecode(f.read())
 
@@ -198,7 +246,7 @@ class Tracker:
         with open(f"torrents\\{file_name}", "wb") as f:
             f.write(bencode.bencode(torrent))
 
-    def send_torrent_file(self, file_name, addr):
+    def send_torrent_files(self, file_name, addr):
         """
         Sends available torrent file to a peer requesting it
         :param file_name: file name
@@ -208,20 +256,31 @@ class Tracker:
         print(f"Now sending torrent file to {addr}")
         sock = self.init_udp_sock(0)
         sock.sendto(file_name.encode(), addr)
+        print("SENT")
         data = sock.recv(self.__BUF)
-
+        sock.settimeout(1)
         if data == b"FLOW":
             length = os.path.getsize(f"torrents\\{file_name}")
             sock.sendto(pickle.dumps(length), addr)
             with open(f"torrents\\{file_name}", "rb") as f:
-                sock.sendto(f.readline(self.__BUF), addr)
-                while f:
-                    data = sock.recv(self.__BUF)
-                    if data == b"FLOW":
-                        sock.sendto(f.readline(self.__BUF), addr)
-                    else:
-                        print(f"Error sending torrent file to {addr}")
+
+                data_to_send = f.read(self.__BUF)
+                sock.sendto(data_to_send, addr)
+
+                while len(data_to_send) != 0:
+                    try:
+                        data = sock.recv(self.__BUF)
+                        if data == b"FLOW":
+                            data_to_send = f.read(self.__BUF)
+                            sock.sendto(data_to_send, addr)
+                        else:
+                            print(f"Error sending torrent file to {addr}")
+                            break
+                    except Exception as e:
+                        print("Error file sending:",e)
                         break
+
+
         else:
             print("did not receive what was expected")
 
@@ -266,6 +325,20 @@ class Tracker:
         message += msg.encode()
         return message
 
+def exit_function():
+    try:
+        while 1:
+            input()
+    except UnicodeDecodeError:
+        for torrent in os.listdir(f"torrents"):
+            if torrent[-12:-8] == "_LOC":
+                os.remove(f"torrents\\{torrent}")
+
+
+
 if __name__ == '__main__':
     threading.Thread(target=TrackerTCP).start()
+    threading.Thread(target=exit_function).start()
     Tracker()
+
+

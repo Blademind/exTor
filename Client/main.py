@@ -1,18 +1,18 @@
-import os
+# import os
 import socket
 import threading
 import time
-from socket import *
-import bencode
-from urllib.parse import urlparse
+# from socket import *
+# import bencode
+# from urllib.parse import urlparse
 from socket import *
 from tracker import Tracker
-from torrent import Torrent
+# from torrent import Torrent
 from peers import Peer
 import message_handler as message
 import bitstring
 import peers_manager as manager
-import asyncio
+# import asyncio
 """
 =====IMPORTANT=====
 TRACKER SENDS THE CLIENT BOTH THE LOCAL AND THE NORMAL TORRENT FILE TOGETHER, NOT ONLY THE LOCAL FILE
@@ -35,10 +35,29 @@ class Handler:
         """
         Create Handler object
         """
-        self.tracker = Tracker()
-        self.peers = list(set(self.tracker.peers))
-        self.torrent = self.tracker.torrent
+        self.currently_connected = None
+        self.pieces = None
+        self.peer_thread = None
+        self.peer_list = None
+        try:
+            self.tracker = Tracker()
+            self.peers = list(set(self.tracker.peers))
+            self.torrent = self.tracker.torrent
+            self.download()
+        except Exception as e:
 
+            if self.tracker.local:
+                self.tracker.contact_trackers()
+                self.peers = list(set(self.tracker.peers))
+                self.torrent = self.tracker.torrent
+                self.download()
+            else:
+                if manager.down.files_data:
+                    for name, file in manager.down.files_data.items():
+                        file.close()
+                print(e)
+
+    def download(self):
         manager.down = manager.Downloader(self.torrent, self.tracker)
 
         self.peer_list = []
@@ -51,7 +70,6 @@ class Handler:
         # for key in sorted(self.pieces, key=lambda k: len(self.pieces[k])):
         #     print(key, end=" ")
 
-
         # start error check
         # threading.Thread(target=self.check_errors).start()
 
@@ -61,8 +79,8 @@ class Handler:
             time.sleep(1)
         manager.DONE = True
 
-        manager.down.bytes_file.close()  # closes the bytes file
-        os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
+        # manager.down.bytes_file.close()  # closes the bytes file
+        # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
 
         for name, file in manager.down.files_data.items():
             file.close()
@@ -70,15 +88,12 @@ class Handler:
         print("Completed Download!")
 
         self.tracker.done_downloading()
-        # for peer, thread in self.peer_thread.items():
-        #     thread.join()
-
     def go_over_pieces(self):
         """
         Goes over all the piece
         :return:
         """
-        for piece, k in enumerate(sorted(self.pieces, key=lambda p: p)):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
+        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
             if manager.down.have[k] == "0":
                 print(f"currently working on: {k}#")
                 self.peer_list.append(Peer(self.tracker))

@@ -1,24 +1,24 @@
-import _thread
-import random
+# import _thread
+# import random
 import socket
 import time
 
-import select
+# import select
 import threading
-from socket import *
-import bencode
-from urllib.parse import urlparse
+# from socket import *
+# import bencode
+# from urllib.parse import urlparse
 from socket import *
 
-from alive_progress import alive_bar
+# from alive_progress import alive_bar
 
-from torrent import Torrent
+# from torrent import Torrent
 import message_handler as message
 import bitstring
 import hashlib
-import os
+# import os
 import peers_manager as manager
-from tracker import Tracker
+# from tracker import Tracker
 
 """
 Made by Alon Levy
@@ -72,13 +72,16 @@ class Peer:
             self.files = self.torrent.torrent['info']
         self.torrent_name = self.torrent.torrent['info']['name']
         self.left = [0, 0, b'']  # total / len / data
-        self.listen_sock = socket(AF_INET, SOCK_STREAM)
-        self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.listen_sock.bind(('0.0.0.0', self.torrent.port))
-        self.listen_sock.listen(5)
+
+        # self.listen_sock = socket(AF_INET, SOCK_STREAM)
+        # self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        # self.listen_sock.bind(('0.0.0.0', self.torrent.port))
+        # self.listen_sock.listen(5)
+
         # print(f"my port is: {self.listen_sock.getsockname()[1]}")
+
         self.peers = tracker.peers
-        self.readable, self.writable = [self.listen_sock], []
+        # self.readable, self.writable = [self.listen_sock], []
         # self.current_piece_peers = []
         self.piece_error = False
         self.create_new_sock()
@@ -381,66 +384,30 @@ class Peer:
                 self.buf = msg_len
                 print("next msg len:", msg_len, self.c_piece)
 
-    def listen_to_peers(self):
 
-        print("Now listening to incoming connections...")
+    # def send_piece(self, data, sock):
+    #     """Send given piece to a peer"""
+    #     index = int.from_bytes(data[1: 5], "big")
+    #     begin = int.from_bytes(data[5: 9], "big")
+    #     length = int.from_bytes(data[9: 13], "big")
+    #
+    #     if self.have[index]:
+    #         with manager.lock:
+    #             piece_to_send = manager.down.pieces_bytes[index][begin:]
+    #             sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
-        while 1:
-            read, write, [] = select.select(self.readable, self.writable, [])
-            for sock in read:
-                if self.listen_sock == sock:
-                    conn, addr = self.listen_sock.accept()
-                    print(f"Connected to {addr}")
-                    self.readable.append(conn)
-                else:
-                    data = sock.recv(self.__BUF)
-                    if not data:
-                        if sock in self.readable:
-                            self.readable.remove(sock)
-                        break
-
-                    if not message.is_handshake(data):
-                        data_len = int.from_bytes(data, 'big')
-                        print("data length:", data_len)
-                        data = sock.recv(data_len)
-                        print(data)
-                        if message.server_msg_type(data) == 'interested':  # message is interested
-                            if len(self.readable) != 5:
-                                sock.send(message.build_choke())
-                            else:
-                                sock.send(message.build_unchoke())
-                        elif message.server_msg_type(data) == 'request':
-                            self.send_piece(data, sock)
-
-                    elif message.is_handshake(data):
-                        print(f'handshake received')
-                        sock.send(message.build_handshake(self.tracker))
-                        sock.send(message.build_bitfield(self.have))
-                        self.__BUF = 4
-
-    def send_piece(self, data, sock):
-        """Send given piece to a peer"""
-        index = int.from_bytes(data[1: 5], "big")
-        begin = int.from_bytes(data[5: 9], "big")
-        length = int.from_bytes(data[9: 13], "big")
-
-        if self.have[index]:
-            with manager.lock:
-                piece_to_send = manager.down.pieces_bytes[index][begin:]
-                sock.send(message.build_piece(index, begin, piece_to_send[:length]))
-
-    def have_msg(self):
-        """
-        TODO: SEND HAVE MESSAGE TO ALL CONNECTED PEERS ON ALL SOCKETS
-        :return:
-        """
-        temp = list(self.have)
-        temp[self.c_piece] = "1"
-        self.have = "".join(temp)
-        conn = self.listen_sock.getpeername()
-        print(conn)
-        if conn:
-            pass
+    # def have_msg(self):
+    #     """
+    #     TODO: SEND HAVE MESSAGE TO ALL CONNECTED PEERS ON ALL SOCKETS
+    #     :return:
+    #     """
+    #     temp = list(self.have)
+    #     temp[self.c_piece] = "1"
+    #     self.have = "".join(temp)
+    #     conn = self.listen_sock.getpeername()
+    #     print(conn)
+    #     if conn:
+    #         pass
 
 
 # region TRASH
@@ -694,4 +661,41 @@ class Peer:
     #             else:
     #                 files_raw = files_raw[1:]
     #         self.progress_flag = False
+    # def listen_to_peers(self):
+    #
+    #     print("Now listening to incoming connections...")
+    #
+    #     while 1:
+    #         read, write, [] = select.select(self.readable, self.writable, [])
+    #         for sock in read:
+    #             if self.listen_sock == sock:
+    #                 conn, addr = self.listen_sock.accept()
+    #                 print(f"Connected to {addr}")
+    #                 self.readable.append(conn)
+    #             else:
+    #                 data = sock.recv(self.__BUF)
+    #                 if not data:
+    #                     if sock in self.readable:
+    #                         self.readable.remove(sock)
+    #                     break
+    #
+    #                 if not message.is_handshake(data):
+    #                     data_len = int.from_bytes(data, 'big')
+    #                     print("data length:", data_len)
+    #                     data = sock.recv(data_len)
+    #                     print(data)
+    #                     if message.server_msg_type(data) == 'interested':  # message is interested
+    #                         if len(self.readable) != 5:
+    #                             sock.send(message.build_choke())
+    #                         else:
+    #                             sock.send(message.build_unchoke())
+    #                     elif message.server_msg_type(data) == 'request':
+    #                         self.send_piece(data, sock)
+    #
+    #                 elif message.is_handshake(data):
+    #                     print(f'handshake received')
+    #                     sock.send(message.build_handshake(self.tracker))
+    #                     sock.send(message.build_bitfield(self.have))
+    #                     self.__BUF = 4
+
 #endregion

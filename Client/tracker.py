@@ -1,7 +1,8 @@
-import os.path
+# import os.path
 import pickle
 import socket
-import time
+# import time
+
 from random import randbytes
 from socket import *
 from urllib.parse import ParseResult
@@ -33,15 +34,38 @@ def generate_peer_id():
 
 class Tracker:
     def __init__(self):
+        self.peers = None
+        self.yields = None
+        self.sock = None
+        self.id = None
+        self.local = None
         self.file_name = None
+        self.tran_id = None  # the transaction id (later use)
+        self.conn_id = None  # the connection id (later use)
         self.__BUF = 1024
         self.local_tracker = self.find_local_tracker()
         self.torrent = Torrent()
+        self.contact_trackers()
 
-        if self.local_tracker:
+    def contact_trackers(self):
+        if self.local:
+            self.torrent.init_torrent_seq(self.local)
+            self.sock.settimeout(1)  # going over trackers, less timeout for more speed
+            try:
+                self.yields = self.torrent.url_yields
+                if type(self.torrent.url) is ParseResult:
+                    # Udp tracker
+                    self.udp_send(build_conn_req())
+                else:
+                    # Http tracker
+                    self.http_send()
+            except AttributeError:
+                pass
 
-            self.tran_id = None  # the transaction id (later use)
-            self.conn_id = None  # the connection id (later use)
+
+
+        elif self.local_tracker:
+
             self.id = generate_peer_id()  # peer_id
             self.peers = []
 
@@ -50,6 +74,7 @@ class Tracker:
             self.sock.settimeout(5)
 
             file_name = self.fetch_torrent_file()
+
             # if not os.path.exists(f"torrents\\files\\{file_name}"):
             #     os.mkdir(f"torrents\\files\\{file_name}")
             self.torrent.init_torrent_seq(file_name)
@@ -70,12 +95,12 @@ class Tracker:
 
             else:
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
+                self.local = self.recv_files()
                 print("LOCAL FILE")
                 with open(f"torrents\\info_hashes\\{file_name}", "rb") as f:
                     peers = bencode.bdecode(f.read())["announce-list"]
                 self.peers = [tuple(peer) for peer in peers]
                 print(self.peers)
-
     def udp_send(self, message):
         print(self.torrent.url)
         try:
@@ -92,6 +117,7 @@ class Tracker:
 
         except StopIteration:
             pass
+
         except Exception as e:
             print(f'Error: {e}')
             self.torrent.url = self.torrent.url_yields.__next__()
@@ -174,8 +200,14 @@ class Tracker:
         s.close()
         return ip
 
+    def init_tcp_sock(self):
+        file_sock = socket(AF_INET, SOCK_STREAM)
+        file_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        file_sock.bind(("0.0.0.0", self.torrent.port))
+        file_sock.listen(5)
+        return file_sock
+
     def find_local_tracker(self):
-        interfaces = getaddrinfo(host=gethostname(), port=None, family=AF_INET)
         msg = b'FIND LOCAL TRACKER'
         sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
@@ -210,12 +242,14 @@ class Tracker:
     def recv_files(self):
         data = None
         try:
-            data, addr = self.sock.recvfrom(self.__BUF)
+            while not data:
+                data, addr = self.sock.recvfrom(self.__BUF)
         except:
             print("file name was not received on time")
         try:
             datacontent = data.decode()
             filename = datacontent
+            print(filename)
             if filename[-8:] != ".torrent":
                 print("file is not torrent")
                 return
@@ -239,7 +273,7 @@ class Tracker:
             return
 
     def done_downloading(self):
-        self.sock.sendto(f"DONE DOWNLOADING {self.file_name}".encode(),self.local_tracker)
+        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(),self.local_tracker)
         data = self.sock.recv(self.__BUF)
         if data == b"UPDATED":
             print("Tracker was informed of downloaded file")

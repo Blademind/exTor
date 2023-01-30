@@ -1,14 +1,14 @@
-import _thread
+# import _thread
 import os.path
 import pickle
 import threading
-import time
+# import time
 from random import randbytes
 from socket import *
 
 import bencode
 
-from torrents_handler import info_torrent
+# from torrents_handler import info_torrent
 
 import select
 
