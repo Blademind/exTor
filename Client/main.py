@@ -86,7 +86,7 @@ class Handler:
             file.close()
 
         print("Completed Download!")
-
+        manager.down.progress_flag = False
         self.tracker.done_downloading()
     def go_over_pieces(self):
         """
@@ -95,7 +95,7 @@ class Handler:
         """
         for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
             if manager.down.have[k] == "0":
-                print(f"currently working on: {k}#")
+                # print(f"currently working on: {k}#")
                 self.peer_list.append(Peer(self.tracker))
                 peer = self.peer_list[-1]  # create a peer object
                 current_piece_peers = self.pieces[k]

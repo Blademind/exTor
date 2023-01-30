@@ -25,6 +25,7 @@ def reset_have(num_of_pieces):
 
 class Downloader:
     def __init__(self, torrent, tracker):
+        self.count_bar = 0
         # self.written = b""
         self.s_bytes = b""
         self.torrent = torrent
@@ -74,6 +75,8 @@ class Downloader:
         threading.Thread(target=self.calculate_have_bitfield2).start()
         self.generate_progress_bar()
         threading.Thread(target=self.listen_to_peers).start()
+        threading.Thread(target=self.generate_progress_bar).start()
+
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
@@ -113,7 +116,6 @@ class Downloader:
                         self.BUFS[sock] = 4
 
     def add_piece_data(self, piece_number, data):
-
         file_name, begin_piece, size = self.find_begin_piece_index(piece_number)
         file = self.files_data[file_name]
         total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * piece_number
@@ -136,6 +138,7 @@ class Downloader:
                 file.seek(begin_piece)
                 file.write(data[:current_size])
             data = data[current_size:]
+        threading.Thread(target=self.bar).start()
 
     def send_piece(self, data, sock):
         """Send given piece to a peer"""
@@ -186,7 +189,8 @@ class Downloader:
         Generates on-screen progress bar when checking pieces the user owns
         :return:
         """
-        with alive_bar(self.num_of_pieces, force_tty=True) as self.bar:
+        self.progress_flag = True
+        with alive_bar(self.num_of_pieces - self.count_bar, force_tty=True) as self.bar:
             while self.progress_flag:
                 time.sleep(0.1)
 
@@ -218,6 +222,7 @@ class Downloader:
                         left = b""  # lasting bytes to next piece
                         # self.check_files()
                         self.bar()
+                        self.count_bar += 1
                         flag = True
 
                         while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
@@ -237,6 +242,7 @@ class Downloader:
 
                                     # self.check_files()
                                     self.bar()
+                                    self.count_bar += 1
                                     flag = True
                             else:
                                 if len(fs_raw) < total_current_piece_length:
@@ -285,6 +291,8 @@ class Downloader:
                         temp[piece] = "1"
                         self.have = "".join(temp)
                         self.bar()
+                        self.count_bar += 1
+
                 err = False
 
             # print(file_piece)

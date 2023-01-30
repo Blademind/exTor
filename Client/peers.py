@@ -252,7 +252,7 @@ class Peer:
             self.s_bytes += data
 
             # data received for block must be requested block length
-            print(len(data), self.block_len)
+            # print(len(data), self.block_len)
             if len(data) == self.block_len:
                 self.s += len(data)
             else:
@@ -325,7 +325,7 @@ class Peer:
                         # self.have_msg()  # send have message to all connected peers
         # message is handshake
         elif message.is_handshake(data):
-            print("handshake", self.peer)
+            # print("handshake", self.peer)
             self.buf = 4
             if self.is_handshake_hash(data):
                 print("hash matches")
@@ -333,7 +333,7 @@ class Peer:
 
         # message is bitfield
         elif message_type == "bitfield":
-            print("bitfield")
+            # print("bitfield")
             while len(data) != self.buf:
                 data += self.sock.recv(self.buf)
             data = bitstring.BitArray(data[1:])
@@ -343,7 +343,7 @@ class Peer:
 
         # message is unchoke
         elif message_type == "unchoke":
-            print("unchoke")
+            # print("unchoke")
             if not self.in_progress:
                 # last piece algo
                 if self.c_piece == self.num_of_pieces - 1:
@@ -364,17 +364,17 @@ class Peer:
 
         # message is choke
         elif message_type == "choke":
-            print("choke")
+            # print("choke")
             raise Exception("choked")
 
         # message is have
         elif message_type == "have":
-            print("have")
+            # print("have")
             self.buf = 4
 
         # message is keep-alive
         elif message_type == "keep-alive" and self.buf == 4:
-            print("keep-alive")
+            # print("keep-alive")
             pass
 
         # message is next message length (no id)
@@ -382,7 +382,7 @@ class Peer:
             if len(data) != 0:
                 msg_len = int.from_bytes(data, "big")
                 self.buf = msg_len
-                print("next msg len:", msg_len, self.c_piece)
+                # print("next msg len:", msg_len, self.c_piece)
 
 
     # def send_piece(self, data, sock):
