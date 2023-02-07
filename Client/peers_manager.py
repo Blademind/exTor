@@ -97,9 +97,8 @@ class Downloader:
                         break
                     if not message.is_handshake(data):
                         data_len = int.from_bytes(data, 'big')
-                        print("data length:", data_len)
+                        # print("data length:", data_len)
                         data = sock.recv(data_len)
-                        print(data)
                         if message.server_msg_type(data) == 'interested':  # message is interested
                             print("interested")
                             if len(self.readable) > 5:
@@ -145,7 +144,7 @@ class Downloader:
         index = int.from_bytes(data[1: 5], "big")
         begin = int.from_bytes(data[5: 9], "big")
         length = int.from_bytes(data[9: 13], "big")
-
+        print(f"sending piece #{index} to {sock.getpeername()}")
         if self.have[index]:
             file_name, begin_piece, size = self.find_begin_piece_index(index)
             total_current_piece_length = self.piece_length if index != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * index
@@ -189,10 +188,12 @@ class Downloader:
         Generates on-screen progress bar when checking pieces the user owns
         :return:
         """
-        self.progress_flag = True
+        # start a new progress bar
+        if not self.progress_flag:
+            self.progress_flag = True
         with alive_bar(self.num_of_pieces - self.count_bar, force_tty=True) as self.bar:
             while self.progress_flag:
-                time.sleep(0.1)
+                time.sleep(1)
 
     def generate_info_hashes(self):
         ret = []

@@ -1,7 +1,5 @@
-# import os.path
 import pickle
 import socket
-# import time
 
 from random import randbytes
 from socket import *

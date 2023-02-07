@@ -1,12 +1,7 @@
 import hashlib
-import os
 import random
-from socket import *
 import bencode
 from urllib.parse import urlparse
-from socket import *
-
-import bencodepy.exceptions
 
 
 class Torrent:

@@ -1,18 +1,13 @@
-# import os
 import socket
 import threading
 import time
-# from socket import *
-# import bencode
-# from urllib.parse import urlparse
 from socket import *
 from tracker import Tracker
-# from torrent import Torrent
 from peers import Peer
 import message_handler as message
 import bitstring
 import peers_manager as manager
-# import asyncio
+
 """
 =====IMPORTANT=====
 TRACKER SENDS THE CLIENT BOTH THE LOCAL AND THE NORMAL TORRENT FILE TOGETHER, NOT ONLY THE LOCAL FILE

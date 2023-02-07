@@ -1,6 +1,0 @@
-====== THINGS I SHOULD ADD ======
-
-Tracker websocket support (?)
-
-support upload .torrent file to tracker from a client
-

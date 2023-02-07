@@ -1,44 +1,15 @@
-# import _thread
-# import random
 import socket
 import time
-
-# import select
 import threading
-# from socket import *
-# import bencode
-# from urllib.parse import urlparse
 from socket import *
-
-# from alive_progress import alive_bar
-
-# from torrent import Torrent
 import message_handler as message
 import bitstring
 import hashlib
-# import os
 import peers_manager as manager
-# from tracker import Tracker
 
 """
 Made by Alon Levy
 """
-
-
-def bitstring_to_bytes(s):
-    return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
-
-
-def reset_have(num_of_pieces):
-    """
-    resets have
-    :return:
-    """
-    have = ""
-    for i in range(num_of_pieces):
-        have += "0"
-    return have
-
 
 class Peer:
     def __init__(self, tracker):
@@ -70,6 +41,7 @@ class Peer:
             self.files = self.torrent.torrent['info']['files']
         except:
             self.files = self.torrent.torrent['info']
+
         self.torrent_name = self.torrent.torrent['info']['name']
         self.left = [0, 0, b'']  # total / len / data
 
@@ -87,7 +59,7 @@ class Peer:
         self.create_new_sock()
         # self.have = reset_have(self.num_of_pieces)  # what pieces I have
         # self.info_hashes = self.generate_info_hashes()
-        self.buf = 68
+        self.buf = 68  # initial buffer size 68 for BitTorrent handshake message
         # self.progress_flag = True
         # threading.Thread(target=self.calculate_have_bitfield).start()
         # self.generate_progress_bar()
@@ -178,9 +150,9 @@ class Peer:
                 manager.currently_connected.remove(self.peer)
                 manager.down.error_queue.append((self.peer, self.c_piece))
             self.peer_removed = True
-
     def listen_to_server(self):
         while 1:
+            # start_time = time.time()
             try:
                 data = self.sock.recv(self.buf)
                 if not data:
@@ -229,9 +201,11 @@ class Peer:
                     print(f"peer {self.peer} Actually removed")
 
                     break
+            # print("--- %s seconds ---" % (time.time() - start_time))
 
         if self.sock:
             self.sock.close()
+
         # print(self.sock.getpeername())
 
     def message_handler(self, data):
@@ -284,7 +258,6 @@ class Peer:
 
                             return
 
-                if self.c_piece == self.num_of_pieces - 1:
                     if self.total_current_piece_length >= self.block_len:
                         if self.total_current_piece_length - len(self.s_bytes) < self.block_len:
                             self.sock.send(message.build_request(self.c_piece, self.s,
@@ -293,8 +266,8 @@ class Peer:
                             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
                     else:
                         self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
-                else:
-                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+
+                self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
             else:
                 # checks if downloaded piece matches current piece hash
                 if hashlib.sha1(self.s_bytes).digest() == self.pieces[
@@ -396,18 +369,16 @@ class Peer:
     #             piece_to_send = manager.down.pieces_bytes[index][begin:]
     #             sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
-    # def have_msg(self):
-    #     """
-    #     TODO: SEND HAVE MESSAGE TO ALL CONNECTED PEERS ON ALL SOCKETS
-    #     :return:
-    #     """
-    #     temp = list(self.have)
-    #     temp[self.c_piece] = "1"
-    #     self.have = "".join(temp)
-    #     conn = self.listen_sock.getpeername()
-    #     print(conn)
-    #     if conn:
-    #         pass
+    def have_msg(self):
+        """
+        TODO: SEND HAVE MESSAGE TO ALL CONNECTED PEERS ON ALL SOCKETS
+        :return:
+        """
+        have_str = manager.down.have
+        conn = self.listen_sock.getpeername()
+        print(conn)
+        if conn:
+            pass
 
 
 # region TRASH

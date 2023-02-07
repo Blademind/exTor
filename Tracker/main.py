@@ -12,15 +12,15 @@ from torrents_handler import info_torrent
 from difflib import get_close_matches
 from py1337x import py1337x
 import bencode
-import sys
-import signal
+import urllib3
+
 
 class Tracker:
     def __init__(self):
         """
         Create a Tracker object
         """
-        self.torrents_search_object = py1337x()
+        self.torrents_search_object = py1337x(proxy="1337xx.to")
 
         self.server_sock = self.init_udp_sock(55555)  # udp socket with given port
         self.__BUF = 1024
@@ -39,7 +39,7 @@ class Tracker:
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 10
+        timer = 3600
         while 1:
             size_changed = False
             # adds all ips-times into one list
@@ -117,18 +117,18 @@ class Tracker:
                 elif datacontent[:17] == "DONE DOWNLOADING ":
 
                     torrent_files = os.listdir("torrents")
-                    file_name = datacontent[17:]
+                    local_file_name = datacontent[17:]
 
-                    if file_name in torrent_files:
+                    if local_file_name in torrent_files:
                         # create a local file
-                        if file_name[-12:-8] == "_LOC":
-                            self.add_peer_to_LOC(file_name,addr)
+                        if local_file_name[-12:-8] == "_LOC":
+                            self.add_peer_to_LOC(local_file_name,addr)
 
                         else:
-                            if not os.path.exists(f"torrents\\{file_name[:-8]}_LOC.torrent"):
-                                self.ip_addresses[f"{file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
-                                with open(f"torrents\\{file_name[:-8]}_LOC.torrent", "wb") as w:
-                                    with open(f"torrents\\{file_name}", "rb") as f:
+                            if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
+                                self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
+                                with open(f"torrents\\{local_file_name[:-8]}_LOC.torrent", "wb") as w:
+                                    with open(f"torrents\\{local_file_name}", "rb") as f:
                                         torrent = bencode.bdecode(f.read())
                                         torrent["announce"] = ""
                                         torrent["announce-list"] = [addr]
@@ -144,34 +144,36 @@ class Tracker:
                     torrent_files = os.listdir("torrents")
                     matches = get_close_matches(datacontent[4:], torrent_files)
                     if matches:
-                        # locals_ = [match for match in matches if match[-12:-8] == "_LOC"]
-                        locals_ = get_close_matches(f"{datacontent[4:]}_LOC", torrent_files)
+                        locals_ = get_close_matches(f"{datacontent[4:]}_LOC.torrent", torrent_files)
+                        locals_ = [local for local in locals_ if "_LOC.torrent" in local]
+                        print(locals_)
                         if locals_:
-                            file_name = locals_[0]
-                            file_name2 = None
+                            local_file_name = locals_[0]
+                            global_file_name = None
+
                             for file in matches:
-                                if file != file_name:
-                                    file_name2 = file
+                                if file != local_file_name:
+                                    global_file_name = file
                                     break
 
-                            if not file_name2:
+                            if not global_file_name:
                                 query = datacontent[4:]
                                 self.torrent_from_web(query, addr)
 
                                 for file in get_close_matches(query, torrent_files):
-                                    if file != file_name:
-                                        file_name2 = file
+                                    if file != local_file_name:
+                                        global_file_name = file
                                         break
 
-                            print(file_name, file_name2)
+                            print(local_file_name, global_file_name)
 
-                            threading.Thread(target=self.send_files, args=(file_name, file_name2, addr)).start()
+                            threading.Thread(target=self.send_files, args=(local_file_name, global_file_name, addr)).start()
+                            # adds the client to the local file after sending the file
+                            self.add_peer_to_LOC(local_file_name, addr)
 
-                            self.add_peer_to_LOC(file_name, addr)
-                            # add the client inside loc file after sending the file
                         else:
-                            file_name = matches[0]
-                            threading.Thread(target=self.send_torrent_files, args=(file_name, addr)).start()
+                            local_file_name = matches[0]
+                            threading.Thread(target=self.send_torrent_files, args=(local_file_name, addr)).start()
                             # send the client the file via udp
 
                     else:
@@ -218,7 +220,12 @@ class Tracker:
         # search 1337x for a torrent matching request, get the torrent and send it to the client
         try:
             url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
-            show = requests.get(url, headers={'User-Agent': 'Chrome'})
+            proxy_url = "http://9bcfa6c85ff72b1ee029179b6537c5ae064abd85:@proxy.zenrows.com:8001"
+            proxy = {
+                "http": proxy_url,
+                "https": proxy_url
+            }
+            show = requests.get(url, headers={'User-Agent': 'Chrome'}, proxies=proxy, verify=False)
             bdecoded_torrent = bencode.bdecode(show.content)
             file_name = f"{bdecoded_torrent['info']['name']}.torrent"
             with open(f"torrents\\{file_name}", "wb") as w:
@@ -227,6 +234,7 @@ class Tracker:
             threading.Thread(target=self.send_torrent_files, args=(file_name, addr)).start()
         except IndexError:
             print("no torrents matching query found")
+
 
     def add_peer_to_LOC(self, file_name, addr):
         """
@@ -253,10 +261,10 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
-        print(f"Now sending torrent file to {addr}")
+        print(f"Now sending {file_name} file to {addr}")
         sock = self.init_udp_sock(0)
         sock.sendto(file_name.encode(), addr)
-        print("SENT")
+        print(f"{file_name} file was sent to {addr}")
         data = sock.recv(self.__BUF)
         sock.settimeout(1)
         if data == b"FLOW":
@@ -337,6 +345,7 @@ def exit_function():
 
 
 if __name__ == '__main__':
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     threading.Thread(target=TrackerTCP).start()
     threading.Thread(target=exit_function).start()
     Tracker()
