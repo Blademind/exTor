@@ -40,11 +40,17 @@ class Handler:
             self.torrent = self.tracker.torrent
             self.download()
         except Exception as e:
+            manager.down.progress_flag = False
+            if manager.down.files_data:
+                for name, file in manager.down.files_data.items():
+                    file.close()
+            manager.DONE = True
 
             if self.tracker.local:
                 self.tracker.contact_trackers()
                 self.peers = list(set(self.tracker.peers))
                 self.torrent = self.tracker.torrent
+                manager.reset_to_default()
                 self.download()
             else:
                 if manager.down.files_data:
@@ -89,7 +95,9 @@ class Handler:
         :return:
         """
         for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
+            # print(piece, "here")
             if manager.down.have[k] == "0":
+                # print(piece, " I AM HERE")
                 # print(f"currently working on: {k}#")
                 self.peer_list.append(Peer(self.tracker))
                 peer = self.peer_list[-1]  # create a peer object
@@ -143,8 +151,11 @@ class Handler:
         for p in current_piece_peers:
             if p not in manager.currently_connected:
                 if p in self.peer_thread.keys():
+                    # print("THREADED")
                     threading.Thread(target=self.peer_thread[p].request_piece, args=(k,)).start()
                 else:
+                    # print("THREADED2")
+
                     manager.currently_connected.append(p)
                     self.peer_thread[p] = peer
                     threading.Thread(target=peer.download, args=(p, k)).start()

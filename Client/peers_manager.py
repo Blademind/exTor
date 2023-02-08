@@ -90,7 +90,12 @@ class Downloader:
                     self.BUFS[conn] = 68
                     self.readable.append(conn)
                 else:
-                    data = sock.recv(self.BUFS[sock])
+                    try:
+                        data = sock.recv(self.BUFS[sock])
+                    except:
+                        if sock in self.readable:
+                            self.readable.remove(sock)
+                        break
                     if not data:
                         if sock in self.readable:
                             self.readable.remove(sock)
@@ -106,7 +111,11 @@ class Downloader:
                             else:
                                 sock.send(message.build_unchoke())
                         elif message.server_msg_type(data) == 'request':
-                            self.send_piece(data, sock)
+                            try:
+                                self.send_piece(data, sock)
+                            except:
+                                print("Exception occurred on piece sending")
+                                pass
 
                     elif message.is_handshake(data):
                         print(f'handshake received')
@@ -144,7 +153,7 @@ class Downloader:
         index = int.from_bytes(data[1: 5], "big")
         begin = int.from_bytes(data[5: 9], "big")
         length = int.from_bytes(data[9: 13], "big")
-        print(f"sending piece #{index} to {sock.getpeername()}")
+        print(f"sending block {begin}:{begin+length} in piece #{index} to {sock.getpeername()}")
         if self.have[index]:
             file_name, begin_piece, size = self.find_begin_piece_index(index)
             total_current_piece_length = self.piece_length if index != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * index
@@ -405,6 +414,11 @@ class Downloader:
                     left = fs_raw
         shutil.rmtree(f"torrents\\files\\{self.torrent_name}\\temp")
         return file_piece
+
+def reset_to_default():
+    global currently_connected, DONE
+    currently_connected = []
+    DONE = False
 
 # region TRASH
     # def bytes_file_length(self):

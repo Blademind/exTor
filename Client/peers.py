@@ -84,7 +84,9 @@ class Peer:
 
     def request_piece(self, piece_number):
         try:
+            # print("HEEEEY")
             if self.in_progress:
+                # print("SELF.PROGRESS IS TRUE")
                 # self.piece_request_timeout+=0.01
                 # piece_request_timeout = self.piece_request_timeout
 
@@ -98,6 +100,7 @@ class Peer:
                         raise Exception(f"Peer {self.peer} Removed")
                     # print("STUCK", self.peer)
                     time.sleep(0.01)
+                # print("IS IT FINE?")
 
                 # manager.peer_request.remove(self.peer)
                 # time.sleep(piece_request_timeout)
@@ -111,7 +114,7 @@ class Peer:
                     self.c_piece = piece_number
                     # print(f"THIS REQUEST IS PIECE #=>{self.c_piece}")
                     self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
-
+                    # print("PIECE IS REQUESTING")
                     if self.c_piece == self.num_of_pieces - 1:
                         if self.total_current_piece_length >= self.block_len:
                             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
@@ -154,11 +157,13 @@ class Peer:
         while 1:
             # start_time = time.time()
             try:
+                # print("NOW LISTENING, IS THIS WORKING?")
                 data = self.sock.recv(self.buf)
                 if not data:
                     raise Exception("data length 0", self.c_piece)
 
                 if manager.DONE:
+                    # print("MANAGER IS DONE?")
                     break
                 # start_time = time.time()
                 self.message_handler(data)
@@ -266,8 +271,8 @@ class Peer:
                             self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
                     else:
                         self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
-
-                self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                else:
+                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
             else:
                 # checks if downloaded piece matches current piece hash
                 if hashlib.sha1(self.s_bytes).digest() == self.pieces[
