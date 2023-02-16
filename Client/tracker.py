@@ -1,5 +1,6 @@
 import pickle
 import socket
+import threading
 
 from random import randbytes
 from socket import *
@@ -32,22 +33,45 @@ def generate_peer_id():
 
 class Tracker:
     def __init__(self):
+        self.global_flag = False
         self.peers = None
         self.yields = None
         self.sock = None
         self.id = None
-        self.local = None
+        self.global_file = None
         self.file_name = None
         self.tran_id = None  # the transaction id (later use)
         self.conn_id = None  # the connection id (later use)
         self.__BUF = 1024
-        self.local_tracker = self.find_local_tracker()
-        self.torrent = Torrent()
-        self.contact_trackers()
+        self.local_tracker = self.find_local_tracker()  # find local tracker
+        self.torrent = Torrent()  # create a torrent object
+        self.file_name = None
+
+        self.id = generate_peer_id()  # peer_id
+        self.peers = []
+
+        self.sock = socket(AF_INET, SOCK_DGRAM)
+        self.sock.bind(("0.0.0.0", self.torrent.port))
+        self.sock.settimeout(5)
+
+        self.file_name = self.fetch_torrent_file()
+        self.file_names()
+
+        # threading.Thread(target=self.contact_trackers, args=(file_name,)).start()
+        # self.contact_trackers()
+    def file_names(self):
+        if self.file_name[-12: -8] == "_LOC":
+            self.global_file = self.recv_files()
+            self.torrent.init_torrent_seq(self.file_name, True)
+        else:
+
+            self.torrent.init_torrent_seq(self.file_name, False)
+
 
     def contact_trackers(self):
-        if self.local:
-            self.torrent.init_torrent_seq(self.local)
+        # previous methods did not prove useful to get pieces, time to contact global trackers for peers
+        if self.global_flag:
+            self.torrent.init_torrent_seq(self.file_name, False)
             self.sock.settimeout(1)  # going over trackers, less timeout for more speed
             try:
                 self.yields = self.torrent.url_yields
@@ -60,25 +84,24 @@ class Tracker:
             except AttributeError:
                 pass
 
-
-
         elif self.local_tracker:
-
-            self.id = generate_peer_id()  # peer_id
-            self.peers = []
-
-            self.sock = socket(AF_INET, SOCK_DGRAM)
-            self.sock.bind(("0.0.0.0", self.torrent.port))
-            self.sock.settimeout(5)
-
-            file_name = self.fetch_torrent_file()
-
-            # if not os.path.exists(f"torrents\\files\\{file_name}"):
-            #     os.mkdir(f"torrents\\files\\{file_name}")
-            self.torrent.init_torrent_seq(file_name)
+            #
+            # self.id = generate_peer_id()  # peer_id
+            # self.peers = []
+            #
+            # self.sock = socket(AF_INET, SOCK_DGRAM)
+            # self.sock.bind(("0.0.0.0", self.torrent.port))
+            # self.sock.settimeout(5)
+            #
+            # file_name = self.fetch_torrent_file()
+            #
+            # # if not os.path.exists(f"torrents\\files\\{file_name}"):
+            # #     os.mkdir(f"torrents\\files\\{file_name}")
+            # self.torrent.init_torrent_seq(file_name)
 
             # the torrent file is not local torrent
-            if file_name[-12: -8] != "_LOC":
+            if self.file_name[-12: -8] != "_LOC":
+                self.torrent.init_torrent_seq(self.file_name, False)
                 self.sock.settimeout(1)  # going over trackers, less timeout for more speed
                 try:
                     self.yields = self.torrent.url_yields
@@ -90,15 +113,17 @@ class Tracker:
                         self.http_send()
                 except AttributeError:
                     pass
-
             else:
+                self.torrent.init_torrent_seq(self.global_file, True)
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
-                self.local = self.recv_files()
+                self.global_flag = True  # used in case the program is unable to retrieve pieces from local network
+                # self.global_file = self.recv_files()
                 print("LOCAL FILE")
-                with open(f"torrents\\info_hashes\\{file_name}", "rb") as f:
+                with open(f"torrents\\info_hashes\\{self.file_name}", "rb") as f:
                     peers = bencode.bdecode(f.read())["announce-list"]
                 self.peers = [tuple(peer) for peer in peers]
                 print(self.peers)
+
     def udp_send(self, message):
         print(self.torrent.url)
         try:
@@ -252,10 +277,12 @@ class Tracker:
                 print("file is not torrent")
                 return
             self.file_name = filename
+
+            # creates a clean file with given file name
             with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
                 w.write(b"")
 
-            self.sock.sendto(b"FLOW", addr)
+            self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
             s = 0
             length = int(pickle.loads(self.sock.recv(self.__BUF)))
             while s != length:
@@ -263,7 +290,8 @@ class Tracker:
                 s += len(data)
                 with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
                     f.write(data)
-                self.sock.sendto(b"FLOW", addr)
+                self.sock.sendto(b"FLOW", addr)  # continue flow of metadata content
+
             print("received torrent file from local tracker")
             return filename
         except Exception as e:

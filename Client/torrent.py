@@ -5,6 +5,9 @@ from urllib.parse import urlparse
 
 
 class Torrent:
+    """
+    The Torrent object, everything regarding the torrent is located here
+    """
     def __init__(self):
         self.url = None
         self.url_yields = None
@@ -16,21 +19,21 @@ class Torrent:
         #     print(torrents.index(torrent), torrent)
         # index = input("what torrent would you like to download? ->\t")
 
-    def init_torrent_seq(self, file_name):
+    def init_torrent_seq(self, file_name, local):
+        print(file_name)
         with open(f'torrents\\info_hashes\\{file_name}', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
-        print(self.torrent["announce-list"] is not None)
+        # print(self.torrent["announce-list"] is not None)
 
-
-
-        try:
-            self.announce_list = self.torrent["announce-list"]
-        except:
-            self.announce_list = []
-        self.announce_list.insert(0, [self.torrent["announce"]])
-        self.url_yields = self.next_tracker()
-        self.url = self.url_yields.__next__()
+        if not local:
+            try:
+                self.announce_list = self.torrent["announce-list"]
+            except:
+                self.announce_list = []
+            self.announce_list.insert(0, [self.torrent["announce"]])  # there is usually one more tracker in announce whether than in announce list, pop him in
+            self.url_yields = self.next_tracker()
+            self.url = self.url_yields.__next__()
 
     def generate_info_hash(self):
         info = bencode.encode(self.torrent['info'])

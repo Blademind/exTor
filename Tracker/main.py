@@ -172,8 +172,8 @@ class Tracker:
                             self.add_peer_to_LOC(local_file_name, addr)
 
                         else:
-                            local_file_name = matches[0]
-                            threading.Thread(target=self.send_torrent_files, args=(local_file_name, addr)).start()
+                            on_disk_file_name = matches[0]
+                            threading.Thread(target=self.send_torrent_file, args=(on_disk_file_name, addr)).start()
                             # send the client the file via udp
 
                     else:
@@ -211,10 +211,18 @@ class Tracker:
                 #         print("received unparsable data")
 
     def send_files(self, file_name, file_name2, addr):
-        self.send_torrent_files(file_name, addr)
+        """
+        send 2 files, the first is local metadata file, the second is global metadata file
+        :param file_name: local metadata file
+        :param file_name2: global metadata file
+        :param addr: address to send to
+        :return: None
+        """
+
+        self.send_torrent_file(file_name, addr)
         time.sleep(1)
         print(file_name2)
-        self.send_torrent_files(file_name2, addr)
+        self.send_torrent_file(file_name2, addr)
 
     def torrent_from_web(self, query, addr):
         # search 1337x for a torrent matching request, get the torrent and send it to the client
@@ -231,7 +239,7 @@ class Tracker:
             with open(f"torrents\\{file_name}", "wb") as w:
                 w.write(show.content)
 
-            threading.Thread(target=self.send_torrent_files, args=(file_name, addr)).start()
+            threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
         except IndexError:
             print("no torrents matching query found")
 
@@ -254,7 +262,7 @@ class Tracker:
         with open(f"torrents\\{file_name}", "wb") as f:
             f.write(bencode.bencode(torrent))
 
-    def send_torrent_files(self, file_name, addr):
+    def send_torrent_file(self, file_name, addr):
         """
         Sends available torrent file to a peer requesting it
         :param file_name: file name
@@ -267,6 +275,8 @@ class Tracker:
         print(f"{file_name} file was sent to {addr}")
         data = sock.recv(self.__BUF)
         sock.settimeout(1)
+
+        # wait for client's "FLOW" message to start sending content
         if data == b"FLOW":
             length = os.path.getsize(f"torrents\\{file_name}")
             sock.sendto(pickle.dumps(length), addr)
@@ -278,12 +288,15 @@ class Tracker:
                 while len(data_to_send) != 0:
                     try:
                         data = sock.recv(self.__BUF)
+
+                        # wait for client's "FLOW" message to continue sending content
                         if data == b"FLOW":
                             data_to_send = f.read(self.__BUF)
                             sock.sendto(data_to_send, addr)
                         else:
                             print(f"Error sending torrent file to {addr}")
                             break
+
                     except Exception as e:
                         print("Error file sending:",e)
                         break

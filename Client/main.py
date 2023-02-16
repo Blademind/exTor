@@ -36,17 +36,33 @@ class Handler:
         self.peer_list = None
         try:
             self.tracker = Tracker()
-            self.peers = list(set(self.tracker.peers))
             self.torrent = self.tracker.torrent
-            self.download()
+
+            manager.down = manager.Downloader(self.torrent, self.tracker)
+
+            # There are pieces which can be downloaded
+            if manager.down.num_of_pieces - manager.down.count_bar != 0:
+                self.tracker.contact_trackers()
+
+                self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
+                manager.down.listen_seq()  # listen to peers (for pieces sharing)
+                manager.down.generate_download_bar()  #
+                self.download()
+
+            # All pieces present on disk
+            else:
+                manager.down.listen_seq() # listen to peers (for pieces sharing)
+                self.tracker.done_downloading()
+
         except Exception as e:
+            print(e)
             manager.down.progress_flag = False
             if manager.down.files_data:
                 for name, file in manager.down.files_data.items():
                     file.close()
             manager.DONE = True
 
-            if self.tracker.local:
+            if self.tracker.global_flag:
                 self.tracker.contact_trackers()
                 self.peers = list(set(self.tracker.peers))
                 self.torrent = self.tracker.torrent
@@ -59,8 +75,6 @@ class Handler:
                 print(e)
 
     def download(self):
-        manager.down = manager.Downloader(self.torrent, self.tracker)
-
         self.peer_list = []
         self.peer_thread = {}
         self.pieces = {}

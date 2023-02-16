@@ -34,8 +34,9 @@ class Downloader:
             self.files = self.torrent.torrent['info']['files']
             self.file_names = [list(self.files[i].items())[1][1][0] for i in range(len(self.files))]
         except Exception as e:
-            print(e)
+            print("exception:",e)
             self.files = self.torrent.torrent['info']
+
         self.listen_sock = socket(AF_INET, SOCK_STREAM)
         self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.listen_sock.bind(('0.0.0.0', self.torrent.port))
@@ -72,11 +73,21 @@ class Downloader:
         # print(f"{self.check_piece_instances(1)}\n")
         # print(f"{self.check_piece_instances(986)}\n")
 
+        self.calculate_bitfield()
+
+    def calculate_bitfield(self):
+        """
+        calls a function which calculates what pieces are present on disk
+        :return:
+        """
         threading.Thread(target=self.calculate_have_bitfield2).start()
         self.generate_progress_bar()
-        threading.Thread(target=self.listen_to_peers).start()
-        threading.Thread(target=self.generate_progress_bar).start()
 
+    def listen_seq(self):
+        threading.Thread(target=self.listen_to_peers).start()
+
+    def generate_download_bar(self):
+        threading.Thread(target=self.generate_progress_bar).start()
 
     def listen_to_peers(self):
         print("Now listening to incoming connections...")
@@ -236,7 +247,6 @@ class Downloader:
                         flag = True
 
                         while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
-                            # print("here")
                             fs_raw = f.read(total_current_piece_length)
                             piece_number += 1
                             total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
