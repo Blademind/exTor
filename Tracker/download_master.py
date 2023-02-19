@@ -109,7 +109,7 @@ class TrackerTCP:
                         f.write(data)
                     if length != s:
                         sock.send("FLOW".encode())
-                print(f"DONE {filename}")
+                print(f"Done downloading {filename}")
                 sock.send("DONE".encode())
                 self.check_newly_added_file(filename, sock)
             else:

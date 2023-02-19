@@ -1,37 +1,47 @@
 import pickle
 import socket
+import threading
 import time
 from socket import *
 import os
-
+from main import Handler
+import tracker_init_contact
 import bencode
 
-print("Welcome to exTorrent upload service\n"
-      "Here you can upload your own file to a tracker\n"
-      "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
+# print("Welcome to exTorrent upload service\n"
+#       "Here you can upload your own file to a tracker\n"
+#       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
 
 
 class Upload:
     def __init__(self):
-        c = 0
-        torrents = os.listdir("torrents\\info_hashes")
-        for t in torrents:
-            print(c, t)
-            c += 1
-        choice = int(input("what torrent would you like to send?\n"))
-        while choice >= len(torrents):
-            print("invalid choice, try again")
-            choice = int(input("what torrent would you like to send?\n"))
-        self.torrent = torrents[choice]
-        print(self.torrent, "chosen")
-        self.sock = socket(AF_INET, SOCK_STREAM)
+        self.local_tracker = tracker_init_contact.find_local_tracker()
         try:
-            self.sock.connect(("127.0.0.1", 55556))  # tracker upload ip
-            self.sock.send(self.torrent.encode())
-            self.__BUF = 1024
-            self.listen()
-        except:
-            print("Error connecting to server")
+            if self.local_tracker:
+                c = 0
+                torrents = os.listdir("torrents\\info_hashes")
+                for t in torrents:
+                    print(c, t)
+                    c += 1
+
+                choice = input("what torrent would you like to send? -> ")
+                while not choice.isnumeric() or int(choice) >= len(torrents):
+                    print("invalid choice, try again")
+                    choice = input("what torrent would you like to send? -> ")
+
+                self.torrent = torrents[int(choice)]
+                print(self.torrent, "chosen")
+
+                self.sock = socket(AF_INET, SOCK_STREAM)
+                try:
+                    self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)
+                    self.sock.send(self.torrent.encode())
+                    self.__BUF = 1024
+                    self.listen()
+                except:
+                    print("Error connecting to Tracker")
+        except Exception as e:
+            print(e)
 
     def listen(self):
         while 1:
@@ -54,12 +64,16 @@ class Upload:
                             self.sock.send(file_data)
                         elif datacontent == "DONE":
                             break
+
                         datacontent = self.sock.recv(self.__BUF).decode()
+
             elif datacontent == "FILE_EXISTS":
-                print("file already exists on tracker . . .")
+                print("file already exists on tracker")
                 break
+
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
+                threading.Thread(target=Handler, args = (self.torrent,)).start()
                 break
 
 

@@ -179,7 +179,7 @@ class Tracker:
                     else:
                         # search 1337x for a torrent matching request, get the torrent and send it to the client
                         query = datacontent[4:]
-                        self.torrent_from_web(query, addr)
+                        self.torrent_from_web(query, addr, sock)
 
 
                 # # request must be at least 16 bytes long
@@ -224,7 +224,7 @@ class Tracker:
         print(file_name2)
         self.send_torrent_file(file_name2, addr)
 
-    def torrent_from_web(self, query, addr):
+    def torrent_from_web(self, query, addr, sock):
         # search 1337x for a torrent matching request, get the torrent and send it to the client
         try:
             url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
@@ -241,8 +241,8 @@ class Tracker:
 
             threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
         except IndexError:
-            print("no torrents matching query found")
-
+            print(f"no torrents matching {query} found",addr)
+            sock.sendto(b"NO TORRENTS FOUND", addr)
 
     def add_peer_to_LOC(self, file_name, addr):
         """
@@ -354,6 +354,8 @@ def exit_function():
         for torrent in os.listdir(f"torrents"):
             if torrent[-12:-8] == "_LOC":
                 os.remove(f"torrents\\{torrent}")
+        print("\nprogram ended")
+
 
 
 

@@ -11,6 +11,7 @@ import requests
 
 from torrent import Torrent
 
+import tracker_init_contact
 
 def resp_type(ret):
     if int.from_bytes(ret[:4], 'big') == 0:
@@ -32,34 +33,48 @@ def generate_peer_id():
 
 
 class Tracker:
-    def __init__(self):
-        self.global_flag = False
-        self.peers = None
-        self.yields = None
-        self.sock = None
-        self.id = None
-        self.global_file = None
-        self.file_name = None
-        self.tran_id = None  # the transaction id (later use)
-        self.conn_id = None  # the connection id (later use)
-        self.__BUF = 1024
-        self.local_tracker = self.find_local_tracker()  # find local tracker
-        self.torrent = Torrent()  # create a torrent object
-        self.file_name = None
+    def __init__(self, given_name=None):
+        self.given_name = given_name
+        self.local_tracker = None  # set local_tracker to none (was not yet found)
+        if not given_name:
+            self.local_tracker = tracker_init_contact.find_local_tracker()  # find local tracker
 
-        self.id = generate_peer_id()  # peer_id
-        self.peers = []
+        if self.local_tracker or given_name:  # local tracker was found or a name was given
+            self.global_flag = False
+            self.peers = None
+            self.yields = None
+            self.sock = None
+            self.id = None
+            self.global_file = None
+            self.file_name = None
+            self.tran_id = None  # the transaction id (later use)
+            self.conn_id = None  # the connection id (later use)
+            self.__BUF = 1024
+            self.torrent = Torrent()  # create a torrent object
+            self.file_name = None
 
-        self.sock = socket(AF_INET, SOCK_DGRAM)
-        self.sock.bind(("0.0.0.0", self.torrent.port))
-        self.sock.settimeout(5)
+            self.id = generate_peer_id()  # peer_id
+            self.peers = []
 
-        self.file_name = self.fetch_torrent_file()
-        self.file_names()
+            self.sock = socket(AF_INET, SOCK_DGRAM)
+            self.sock.bind(("0.0.0.0", self.torrent.port))
+            self.sock.settimeout(5)
+
+            if not given_name:
+                self.file_name = self.fetch_torrent_file()
+                self.file_names()
+
+            else:
+                self.file_name = given_name
+                self.torrent.init_torrent_seq(self.file_name, True)
 
         # threading.Thread(target=self.contact_trackers, args=(file_name,)).start()
         # self.contact_trackers()
     def file_names(self):
+        """
+        Takes care of local and global metadata files
+        :return:
+        """
         if self.file_name[-12: -8] == "_LOC":
             self.global_file = self.recv_files()
             self.torrent.init_torrent_seq(self.file_name, True)
@@ -71,7 +86,7 @@ class Tracker:
     def contact_trackers(self):
         # previous methods did not prove useful to get pieces, time to contact global trackers for peers
         if self.global_flag:
-            self.torrent.init_torrent_seq(self.file_name, False)
+            # self.torrent.init_torrent_seq(self.file_name, False)
             self.sock.settimeout(1)  # going over trackers, less timeout for more speed
             try:
                 self.yields = self.torrent.url_yields
@@ -84,7 +99,7 @@ class Tracker:
             except AttributeError:
                 pass
 
-        elif self.local_tracker:
+        elif self.local_tracker or self.given_name:
             #
             # self.id = generate_peer_id()  # peer_id
             # self.peers = []
@@ -101,7 +116,7 @@ class Tracker:
 
             # the torrent file is not local torrent
             if self.file_name[-12: -8] != "_LOC":
-                self.torrent.init_torrent_seq(self.file_name, False)
+                # self.torrent.init_torrent_seq(self.file_name, False)
                 self.sock.settimeout(1)  # going over trackers, less timeout for more speed
                 try:
                     self.yields = self.torrent.url_yields
@@ -114,7 +129,7 @@ class Tracker:
                 except AttributeError:
                     pass
             else:
-                self.torrent.init_torrent_seq(self.global_file, True)
+                # self.torrent.init_torrent_seq(self.global_file, True)
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
                 self.global_flag = True  # used in case the program is unable to retrieve pieces from local network
                 # self.global_file = self.recv_files()
@@ -216,13 +231,6 @@ class Tracker:
         message += port.to_bytes(2, byteorder='big')
         return message
 
-    def get_ip_addr(self):
-        s = socket(AF_INET, SOCK_DGRAM)
-        s.connect(('8.8.8.8',53))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-
     def init_tcp_sock(self):
         file_sock = socket(AF_INET, SOCK_STREAM)
         file_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -230,37 +238,14 @@ class Tracker:
         file_sock.listen(5)
         return file_sock
 
-    def find_local_tracker(self):
-        msg = b'FIND LOCAL TRACKER'
-        sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        sock.settimeout(2)
-        sock.bind((self.get_ip_addr(), 0))
-
-        sock.sendto(msg, ("255.255.255.255", 55555))
-        try:
-            data = sock.recv(self.__BUF)
-            try:
-                ip = pickle.loads(data)
-                test_open = sock.connect_ex(ip)
-                if test_open != 0:
-                    print("tracker is not connectable")
-                    return
-                print("found local tracker")
-                return ip
-            except KeyError:
-                print("fatal error while searching for local tracker")
-        except TimeoutError:
-            print("no response from local tracker")
-            return
-
     def fetch_torrent_file(self):
         try:
             file_name = input("What torrent would you like to download? -> ")
             self.sock.sendto(f"GET {file_name}".encode(), self.local_tracker)
             return self.recv_files()
+
         except KeyboardInterrupt:
-            print("program ended")
+            print("\nprogram ended")
 
     def recv_files(self):
         data = None
@@ -269,31 +254,36 @@ class Tracker:
                 data, addr = self.sock.recvfrom(self.__BUF)
         except:
             print("file name was not received on time")
+
         try:
             datacontent = data.decode()
-            filename = datacontent
-            print(filename)
-            if filename[-8:] != ".torrent":
-                print("file is not torrent")
-                return
-            self.file_name = filename
+            if datacontent == "NO TORRENTS FOUND":
+                raise Exception("no torrents matching query found on tracker")
+            else:
+                # matching query found, proceed to download it
+                filename = datacontent
+                print(filename)
+                if filename[-8:] != ".torrent":
+                    print("file is not torrent")
+                    return
+                self.file_name = filename
 
-            # creates a clean file with given file name
-            with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
-                w.write(b"")
+                # creates a clean file with given file name
+                with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
+                    w.write(b"")
 
-            self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
-            s = 0
-            length = int(pickle.loads(self.sock.recv(self.__BUF)))
-            while s != length:
-                data = self.sock.recv(self.__BUF)
-                s += len(data)
-                with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
-                    f.write(data)
-                self.sock.sendto(b"FLOW", addr)  # continue flow of metadata content
+                self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
+                s = 0
+                length = int(pickle.loads(self.sock.recv(self.__BUF)))
+                while s != length:
+                    data = self.sock.recv(self.__BUF)
+                    s += len(data)
+                    with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
+                        f.write(data)
+                    self.sock.sendto(b"FLOW", addr)  # continue flow of metadata content
 
-            print("received torrent file from local tracker")
-            return filename
+                print("received torrent file from local tracker")
+                return filename
         except Exception as e:
             print(e)
             return

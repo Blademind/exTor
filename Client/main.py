@@ -26,7 +26,7 @@ def create_new_sock():
 
 
 class Handler:
-    def __init__(self):
+    def __init__(self, given_name=None):
         """
         Create Handler object
         """
@@ -35,25 +35,36 @@ class Handler:
         self.peer_thread = None
         self.peer_list = None
         try:
-            self.tracker = Tracker()
-            self.torrent = self.tracker.torrent
-
-            manager.down = manager.Downloader(self.torrent, self.tracker)
-
-            # There are pieces which can be downloaded
-            if manager.down.num_of_pieces - manager.down.count_bar != 0:
-                self.tracker.contact_trackers()
-
-                self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
-                manager.down.listen_seq()  # listen to peers (for pieces sharing)
-                manager.down.generate_download_bar()  #
-                self.download()
-
-            # All pieces present on disk
+            if not given_name:
+                print("not given name")
+                self.tracker = Tracker()
             else:
-                manager.down.listen_seq() # listen to peers (for pieces sharing)
-                self.tracker.done_downloading()
+                print("given name")
+                self.tracker = Tracker(given_name = given_name)
 
+            if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a name of a file which already is present on disk was given)
+                self.torrent = self.tracker.torrent
+
+                manager.down = manager.Downloader(self.torrent, self.tracker)
+
+                # There are pieces which can be downloaded
+                if manager.down.num_of_pieces - manager.down.count_bar != 0:
+                    self.tracker.contact_trackers()
+
+                    self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
+                    print(self.peers)
+                    manager.down.listen_seq()  # listen to peers (for pieces sharing)
+                    manager.down.generate_download_bar()  #
+                    self.download()
+
+                # All pieces present on disk
+                else:
+                    manager.down.listen_seq() # listen to peers (for pieces sharing)
+                    self.tracker.done_downloading()
+
+        except TypeError:
+            # a name of file was not given before program was closed by the user
+            pass
         except Exception as e:
             print(e)
             manager.down.progress_flag = False
