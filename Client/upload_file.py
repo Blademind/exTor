@@ -7,32 +7,43 @@ import os
 from main import Handler
 import tracker_init_contact
 import bencode
-
+import hashlib
+from torf import Torrent
+import shutil
 # print("Welcome to exTorrent upload service\n"
 #       "Here you can upload your own file to a tracker\n"
 #       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
 
+def get_ip_addr():
+    s = socket(AF_INET, SOCK_DGRAM)
+    s.connect(('8.8.8.8',53))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
 
 class Upload:
     def __init__(self):
         self.local_tracker = tracker_init_contact.find_local_tracker()
+        self.sock = socket(AF_INET, SOCK_STREAM)
+        self.sock.bind((get_ip_addr(), 0))
         try:
             if self.local_tracker:
-                c = 0
-                torrents = os.listdir("torrents\\info_hashes")
-                for t in torrents:
-                    print(c, t)
-                    c += 1
+                # c = 0
+                # torrents = os.listdr("torrents\\info_hashes")
+                # for t in torrents:
+                #     print(c, t)
+                #     c += 1
 
-                choice = input("what torrent would you like to send? -> ")
-                while not choice.isnumeric() or int(choice) >= len(torrents):
-                    print("invalid choice, try again")
-                    choice = input("what torrent would you like to send? -> ")
+                self.path = input("Enter the path of the file\s you would like to upload -> ")
+                self.torrent = self.create_metadata_file(self.path)
+                while self.torrent is None:
+                    print("torrent could not be created on this path, try again")
+                    self.path = input("Enter the path of the file\s you would like to upload -> ")
+                    self.torrent = self.create_metadata_file(self.path)
 
-                self.torrent = torrents[int(choice)]
-                print(self.torrent, "chosen")
+                # self.torrent = torrents[int(choice)]
+                # print(self.torrent, "chosen")
 
-                self.sock = socket(AF_INET, SOCK_STREAM)
                 try:
                     self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)
                     self.sock.send(self.torrent.encode())
@@ -43,6 +54,22 @@ class Upload:
         except Exception as e:
             print(e)
 
+    def create_metadata_file(self, path):
+        try:
+            t = Torrent(
+                path=path,
+                trackers=[],
+                comment='This file was created using the upload file algorithm')
+            t.generate()
+            torrent_name = f"{os.path.split(os.path.basename(path))[1]}_UPLOAD.torrent"
+            print(torrent_name)
+            t.write(f"torrents\\info_hashes\\{torrent_name}")
+
+            return torrent_name
+
+        except Exception as e:
+            print(e)
+            return
     def listen(self):
         while 1:
             data = self.sock.recv(self.__BUF)
@@ -73,7 +100,7 @@ class Upload:
 
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
-                threading.Thread(target=Handler, args = (self.torrent,)).start()
+                threading.Thread(target=Handler, args = (self.torrent,self.path)).start()
                 break
 
 

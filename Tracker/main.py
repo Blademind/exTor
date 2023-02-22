@@ -124,6 +124,8 @@ class Tracker:
                         if local_file_name[-12:-8] == "_LOC":
                             self.add_peer_to_LOC(local_file_name,addr)
 
+                        elif local_file_name[-15:-8] == "_UPLOAD":
+                            self.add_peer_to_LOC(local_file_name, addr)
                         else:
                             if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
                                 self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
@@ -142,11 +144,16 @@ class Tracker:
 
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")
-                    matches = get_close_matches(datacontent[4:], torrent_files)
+                    matches = get_close_matches(f"{datacontent[4:]}.torrent", torrent_files)
                     if matches:
                         locals_ = get_close_matches(f"{datacontent[4:]}_LOC.torrent", torrent_files)
                         locals_ = [local for local in locals_ if "_LOC.torrent" in local]
+
+                        uploads = get_close_matches(f"{datacontent[4:]}_UPLOAD.torrent", torrent_files)
+                        uploads = [upload for upload in uploads if "_UPLOAD.torrent" in uploads]
+
                         print(locals_)
+
                         if locals_:
                             local_file_name = locals_[0]
                             global_file_name = None
@@ -158,7 +165,7 @@ class Tracker:
 
                             if not global_file_name:
                                 query = datacontent[4:]
-                                self.torrent_from_web(query, addr)
+                                self.torrent_from_web(query, addr, sock)
 
                                 for file in get_close_matches(query, torrent_files):
                                     if file != local_file_name:
@@ -170,6 +177,12 @@ class Tracker:
                             threading.Thread(target=self.send_files, args=(local_file_name, global_file_name, addr)).start()
                             # adds the client to the local file after sending the file
                             self.add_peer_to_LOC(local_file_name, addr)
+
+                        elif uploads:
+                            upload_file_name = uploads[0]
+                            threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr)).start()
+
+                            self.add_peer_to_LOC(upload_file_name, addr)
 
                         else:
                             on_disk_file_name = matches[0]
@@ -240,6 +253,9 @@ class Tracker:
                 w.write(show.content)
 
             threading.Thread(target=self.send_torrent_file, args=(file_name, addr)).start()
+        except Exception as e:
+            print(e)
+
         except IndexError:
             print(f"no torrents matching {query} found",addr)
             sock.sendto(b"NO TORRENTS FOUND", addr)
@@ -352,8 +368,9 @@ def exit_function():
             input()
     except UnicodeDecodeError:
         for torrent in os.listdir(f"torrents"):
-            if torrent[-12:-8] == "_LOC":
+            if torrent[-12:-8] == "_LOC" or torrent[-15:-8] == "_UPLOAD":
                 os.remove(f"torrents\\{torrent}")
+
         print("\nprogram ended")
 
 

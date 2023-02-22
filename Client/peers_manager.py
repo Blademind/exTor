@@ -30,6 +30,7 @@ class Downloader:
         self.s_bytes = b""
         self.torrent = torrent
         self.tracker = tracker
+        self.path = self.tracker.path
         try:
             self.files = self.torrent.torrent['info']['files']
             self.file_names = [list(self.files[i].items())[1][1][0] for i in range(len(self.files))]
@@ -55,9 +56,9 @@ class Downloader:
         self.buf = 68
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.progress_flag = True
-
-        if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-            os.makedirs(f"torrents\\files\\{self.torrent_name}")
+        if not self.path:
+            if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+                os.makedirs(f"torrents\\files\\{self.torrent_name}")
 
         # self.bytes_file = open(f"torrents\\files\\{self.torrent_name}\\bytes_file", "wb+")
         # self.bytes_file_length = 0
@@ -65,9 +66,16 @@ class Downloader:
         self.error_queue = []  # queue for errors from peers calls
         self.file_piece = self.calculate_file_piece()
 
-        self.files_data = {file_name: open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb+") if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{file_name}") else open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "wb") for file_name in self.file_names}
+        if not self.path:
+            self.files_data = {file_name: open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb+") if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{file_name}") else open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "wb") for file_name in self.file_names}
+            self.file_piece = OrderedDict([(el, self.file_piece[el]) for el in self.file_names if
+                                           os.path.exists(f"torrents\\files\\{self.torrent_name}\\{el}")])
 
-        self.file_piece = OrderedDict([(el, self.file_piece[el]) for el in self.file_names if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{el}")])
+
+        else:
+            self.files_data = {file_name: open(f"{self.path}\\{file_name}", "rb+") if os.path.exists(f"{self.path}\\{file_name}") else open(f"{self.path}\\{file_name}", "wb") for file_name in self.file_names}
+            self.file_piece = OrderedDict([(el, self.file_piece[el]) for el in self.file_names if
+                                           os.path.exists(f"{self.path}\\{el}")])
 
         # print(f"{self.check_piece_instances(0)}\n")
         # print(f"{self.check_piece_instances(1)}\n")
@@ -168,10 +176,14 @@ class Downloader:
         if self.have[index]:
             file_name, begin_piece, size = self.find_begin_piece_index(index)
             total_current_piece_length = self.piece_length if index != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * index
-
-            with open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb") as f:
-                f.seek(begin_piece)
-                piece_data = f.read(size)
+            if not self.path:
+                with open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb") as f:
+                    f.seek(begin_piece)
+                    piece_data = f.read(size)
+            else:
+                with open(f"{self.path}\\{file_name}", "rb") as f:
+                    f.seek(begin_piece)
+                    piece_data = f.read(size)
 
             while size != total_current_piece_length:
                 file_name = self.file_names[self.file_names.index(file_name) + 1]
@@ -183,9 +195,15 @@ class Downloader:
                         current_size = s
                         break
                     begin_piece += s
-                with open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb") as f:
-                    f.seek(begin_piece)
-                    piece_data += f.read(current_size)
+                if not self.path:
+                    with open(f"torrents\\files\\{self.torrent_name}\\{file_name}", "rb") as f:
+                        f.seek(begin_piece)
+                        piece_data += f.read(current_size)
+
+                else:
+                    with open(f"{self.path}\\{file_name}", "rb") as f:
+                        f.seek(begin_piece)
+                        piece_data += f.read(current_size)
 
             piece_to_send = piece_data[begin:]
             sock.send(message.build_piece(index, begin, piece_to_send[:length]))
@@ -221,99 +239,135 @@ class Downloader:
             ret.append(self.pieces[i: i + 20])
         return ret
 
-    def calculate_have_bitfield(self):
-        time.sleep(0.5)
-        if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-            base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
-            files = sorted(base_files,
-                           key=self.file_names.index)  # ordered file names
-            read = 0  # whats left to next piece
-            left = b""  # lasting bytes to next piece
-            piece_number = 0  # what piece are we at?
-            size = self.torrent.size()
-            for file in files:
-                with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
-                    total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
-                    fs_raw = left + f.read(total_current_piece_length - read)
-                    if len(fs_raw) == total_current_piece_length:
-                        temp = list(self.have)
-                        temp[piece_number] = "1"
-                        self.have = "".join(temp)
-                        # self.add_bytes(piece_number, fs_raw)
-                        left = b""  # lasting bytes to next piece
-                        # self.check_files()
-                        self.bar()
-                        self.count_bar += 1
-                        flag = True
-
-                        while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
-                            fs_raw = f.read(total_current_piece_length)
-                            piece_number += 1
-                            total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
-
-                            if len(fs_raw) == total_current_piece_length:
-                                if hashlib.sha1(fs_raw).digest() == self.pieces[
-                                                                    piece_number * 20: 20 * piece_number + 20]:
-                                    temp = list(self.have)
-                                    temp[piece_number] = "1"
-                                    self.have = "".join(temp)
-                                    # self.add_bytes(piece_number, fs_raw)
-                                    left = b""  # lasting bytes to next piece
-
-                                    # self.check_files()
-                                    self.bar()
-                                    self.count_bar += 1
-                                    flag = True
-                            else:
-                                if len(fs_raw) < total_current_piece_length:
-                                    read = len(fs_raw)
-                                    left = fs_raw
-                                    flag = False
-
-                        if flag:
-                            piece_number += 1
-                    else:
-                        read = len(fs_raw)
-                        left = fs_raw
-
-            # print(file_piece)
-        self.progress_flag = False
+    # def calculate_have_bitfield(self):
+    #     time.sleep(0.5)
+    #     if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
+    #         base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
+    #         files = sorted(base_files,
+    #                        key=self.file_names.index)  # ordered file names
+    #         read = 0  # whats left to next piece
+    #         left = b""  # lasting bytes to next piece
+    #         piece_number = 0  # what piece are we at?
+    #         size = self.torrent.size()
+    #         for file in files:
+    #             with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+    #                 total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+    #                 fs_raw = left + f.read(total_current_piece_length - read)
+    #                 if len(fs_raw) == total_current_piece_length:
+    #                     temp = list(self.have)
+    #                     temp[piece_number] = "1"
+    #                     self.have = "".join(temp)
+    #                     # self.add_bytes(piece_number, fs_raw)
+    #                     left = b""  # lasting bytes to next piece
+    #                     # self.check_files()
+    #                     self.bar()
+    #                     self.count_bar += 1
+    #                     flag = True
+    #
+    #                     while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
+    #                         fs_raw = f.read(total_current_piece_length)
+    #                         piece_number += 1
+    #                         total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+    #
+    #                         if len(fs_raw) == total_current_piece_length:
+    #                             if hashlib.sha1(fs_raw).digest() == self.pieces[
+    #                                                                 piece_number * 20: 20 * piece_number + 20]:
+    #                                 temp = list(self.have)
+    #                                 temp[piece_number] = "1"
+    #                                 self.have = "".join(temp)
+    #                                 # self.add_bytes(piece_number, fs_raw)
+    #                                 left = b""  # lasting bytes to next piece
+    #
+    #                                 # self.check_files()
+    #                                 self.bar()
+    #                                 self.count_bar += 1
+    #                                 flag = True
+    #                         else:
+    #                             if len(fs_raw) < total_current_piece_length:
+    #                                 read = len(fs_raw)
+    #                                 left = fs_raw
+    #                                 flag = False
+    #
+    #                     if flag:
+    #                         piece_number += 1
+    #                 else:
+    #                     read = len(fs_raw)
+    #                     left = fs_raw
+    #
+    #         # print(file_piece)
+    #     self.progress_flag = False
 
     def calculate_have_bitfield2(self):
         time.sleep(0.5)
-        if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
-            err = False
-            for piece in range(self.num_of_pieces):
-                piece_instances = self.check_piece_instances(piece)
-                piece_data = b""
-                # print(piece,piece_instances.keys())
-                for file in piece_instances.keys():
-                    if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{file}"):
-                        begin = piece_instances[file][0]
-                        length = piece_instances[file][1]
-                        # print(begin,length)
-                        with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
-                            f.seek(begin)
-
-                            data_to_add = f.read(length)
-                            if len(data_to_add) == length:
-                                piece_data += data_to_add
-                            else:
-                                err = True
-                                break
-                    else:
-                        err = True
-                        break
-                if not err:
-                    if hashlib.sha1(piece_data).digest() == self.pieces[
-                                                                    piece * 20: 20 * piece + 20]:
-                        temp = list(self.have)
-                        temp[piece] = "1"
-                        self.have = "".join(temp)
-                        self.bar()
-                        self.count_bar += 1
-
+        if not self.path:
+            if os.path.exists(f"torrents\\files\\{self.torrent_name}"):
                 err = False
+                for piece in range(self.num_of_pieces):
+                    piece_instances = self.check_piece_instances(piece)
+                    piece_data = b""
+                    # print(piece,piece_instances.keys())
+                    for file in piece_instances.keys():
+                        if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{file}"):
+                            begin = piece_instances[file][0]
+                            length = piece_instances[file][1]
+                            # print(begin,length)
+                            with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+                                f.seek(begin)
+
+                                data_to_add = f.read(length)
+                                if len(data_to_add) == length:
+                                    piece_data += data_to_add
+                                else:
+                                    err = True
+                                    break
+                        else:
+                            err = True
+                            break
+                    if not err:
+                        if hashlib.sha1(piece_data).digest() == self.pieces[
+                                                                        piece * 20: 20 * piece + 20]:
+                            temp = list(self.have)
+                            temp[piece] = "1"
+                            self.have = "".join(temp)
+                            self.bar()
+                            self.count_bar += 1
+
+                    err = False
+        else:
+            if os.path.exists(f"{self.path}"):
+                print("EXISTS")
+                err = False
+                for piece in range(self.num_of_pieces):
+                    piece_instances = self.check_piece_instances(piece)
+                    piece_data = b""
+                    # print(piece,piece_instances.keys())
+                    for file in piece_instances.keys():
+                        if os.path.exists(f"{self.path}\\{file}"):
+                            begin = piece_instances[file][0]
+                            length = piece_instances[file][1]
+                            # print(begin,length)
+                            with open(f"{self.path}\\{file}", "rb") as f:
+                                f.seek(begin)
+
+                                data_to_add = f.read(length)
+                                if len(data_to_add) == length:
+                                    piece_data += data_to_add
+                                else:
+                                    err = True
+                                    break
+                        else:
+                            err = True
+                            break
+                    if not err:
+                        if hashlib.sha1(piece_data).digest() == self.pieces[
+                                                                        piece * 20: 20 * piece + 20]:
+                            temp = list(self.have)
+                            temp[piece] = "1"
+                            self.have = "".join(temp)
+                            self.bar()
+                            self.count_bar += 1
+
+                    err = False
 
             # print(file_piece)
         self.progress_flag = False
@@ -373,57 +427,114 @@ class Downloader:
             file_piece[file] = {}
 
         files = self.file_names
-        if not os.path.exists(f"torrents\\files\\{self.torrent_name}\\temp"):
-            os.makedirs(f"torrents\\files\\{self.torrent_name}\\temp")
-        files_dummy = {file_name: open(f"torrents\\files\\{self.torrent_name}\\temp\\{file_name}", "wb") for file_name in self.file_names}
-        read = 0  # whats left to next piece
-        left = b""  # lasting bytes to next piece
-        piece_number = 0  # what piece are we at?
-        size = self.torrent.size()
-        c = 0
-        for file_name, file in files_dummy.items():
-            data = b"*" * self.files[c]["length"]
-            file.write(data)
-            c+=1
+        if not self.path:
+            if not os.path.exists(f"torrents\\files\\{self.torrent_name}\\temp"):
+                os.makedirs(f"torrents\\files\\{self.torrent_name}\\temp")
 
-        for file_name, f in files_dummy.items():
-            f.close()
+            files_dummy = {file_name: open(f"torrents\\files\\{self.torrent_name}\\temp\\{file_name}", "wb") for
+                           file_name in self.file_names}
+            read = 0  # whats left to next piece
+            left = b""  # lasting bytes to next piece
+            piece_number = 0  # what piece are we at?
+            size = self.torrent.size()
+            c = 0
+            for file_name, file in files_dummy.items():
+                data = b"*" * self.files[c]["length"]
+                file.write(data)
+                c += 1
 
-        for file in files:
-            with open(f"torrents\\files\\{self.torrent_name}\\temp\\{file}", "rb") as f:
-                total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
-                fs_raw = left + f.read(total_current_piece_length - read)
-                if len(fs_raw) == total_current_piece_length:
-                    file_piece[file][piece_number] = len(fs_raw) - len(left)
-                    left = b""  # lasting bytes to next piece
+            for file_name, f in files_dummy.items():
+                f.close()
 
-                    flag = True
+            for file in files:
+                with open(f"torrents\\files\\{self.torrent_name}\\temp\\{file}", "rb") as f:
+                    total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+                    fs_raw = left + f.read(total_current_piece_length - read)
+                    if len(fs_raw) == total_current_piece_length:
+                        file_piece[file][piece_number] = len(fs_raw) - len(left)
+                        left = b""  # lasting bytes to next piece
 
-                    while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
-                        fs_raw = f.read(total_current_piece_length)
-                        piece_number += 1
-                        total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+                        flag = True
 
-                        if len(fs_raw) == total_current_piece_length:
-                            file_piece[file][piece_number] = len(fs_raw) - len(left)
-                            left = b""  # lasting bytes to next piece
-                            flag = True
-                        else:
-                            if len(fs_raw) < total_current_piece_length:
-                                read = len(fs_raw)
-                                file_piece[file][piece_number] = read - len(left)
-                                left = fs_raw
-                                flag = False
+                        while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
+                            fs_raw = f.read(total_current_piece_length)
+                            piece_number += 1
+                            total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
 
-                    if flag:
-                        piece_number += 1
-                else:
-                    read = len(fs_raw)
-                    file_piece[file][piece_number] = read - len(left)
+                            if len(fs_raw) == total_current_piece_length:
+                                file_piece[file][piece_number] = len(fs_raw) - len(left)
+                                left = b""  # lasting bytes to next piece
+                                flag = True
+                            else:
+                                if len(fs_raw) < total_current_piece_length:
+                                    read = len(fs_raw)
+                                    file_piece[file][piece_number] = read - len(left)
+                                    left = fs_raw
+                                    flag = False
 
-                    left = fs_raw
-        shutil.rmtree(f"torrents\\files\\{self.torrent_name}\\temp")
-        return file_piece
+                        if flag:
+                            piece_number += 1
+                    else:
+                        read = len(fs_raw)
+                        file_piece[file][piece_number] = read - len(left)
+
+                        left = fs_raw
+            shutil.rmtree(f"torrents\\files\\{self.torrent_name}\\temp")
+            return file_piece
+        else:
+            if not os.path.exists(f"{self.path}\\temp"):
+                os.makedirs(f"{self.path}\\temp")
+            files_dummy = {file_name: open(f"{self.path}\\temp\\{file_name}", "wb") for
+                           file_name in self.file_names}
+            read = 0  # whats left to next piece
+            left = b""  # lasting bytes to next piece
+            piece_number = 0  # what piece are we at?
+            size = self.torrent.size()
+            c = 0
+            for file_name, file in files_dummy.items():
+                data = b"*" * self.files[c]["length"]
+                file.write(data)
+                c += 1
+
+            for file_name, f in files_dummy.items():
+                f.close()
+
+            for file in files:
+                with open(f"{self.path}\\temp\\{file}", "rb") as f:
+                    total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+                    fs_raw = left + f.read(total_current_piece_length - read)
+                    if len(fs_raw) == total_current_piece_length:
+                        file_piece[file][piece_number] = len(fs_raw) - len(left)
+                        left = b""  # lasting bytes to next piece
+
+                        flag = True
+
+                        while len(fs_raw) == total_current_piece_length and piece_number != self.num_of_pieces - 1:
+                            fs_raw = f.read(total_current_piece_length)
+                            piece_number += 1
+                            total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
+
+                            if len(fs_raw) == total_current_piece_length:
+                                file_piece[file][piece_number] = len(fs_raw) - len(left)
+                                left = b""  # lasting bytes to next piece
+                                flag = True
+                            else:
+                                if len(fs_raw) < total_current_piece_length:
+                                    read = len(fs_raw)
+                                    file_piece[file][piece_number] = read - len(left)
+                                    left = fs_raw
+                                    flag = False
+
+                        if flag:
+                            piece_number += 1
+                    else:
+                        read = len(fs_raw)
+                        file_piece[file][piece_number] = read - len(left)
+
+                        left = fs_raw
+            shutil.rmtree(f"{self.path}\\temp")
+            return file_piece
+
 
 def reset_to_default():
     global currently_connected, DONE

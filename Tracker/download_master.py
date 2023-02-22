@@ -111,10 +111,20 @@ class TrackerTCP:
                         sock.send("FLOW".encode())
                 print(f"Done downloading {filename}")
                 sock.send("DONE".encode())
+                with open(f'torrents\\{filename}', 'rb') as t:
+                    torrent = t.read()
+                torrent = bencode.bdecode(torrent)
+                torrent["announce-list"] = [sock.getsockname()]
+                torrent["announce"] = []
+                print(torrent["announce-list"])
+                with open(f'torrents\\{filename}', 'wb') as t:
+                    t.write(bencode.bencode(torrent))
+
                 self.check_newly_added_file(filename, sock)
             else:
                 sock.send("FILE_EXISTS".encode())
-        except:
+        except Exception as e:
+            print("Exception:",e)
             return
 
     def check_newly_added_file(self, filename, sock):

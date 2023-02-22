@@ -26,7 +26,7 @@ def create_new_sock():
 
 
 class Handler:
-    def __init__(self, given_name=None):
+    def __init__(self, given_name=None, path=None):
         """
         Create Handler object
         """
@@ -40,7 +40,7 @@ class Handler:
                 self.tracker = Tracker()
             else:
                 print("given name")
-                self.tracker = Tracker(given_name = given_name)
+                self.tracker = Tracker(given_name = given_name, path=path)
 
             if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a name of a file which already is present on disk was given)
                 self.torrent = self.tracker.torrent

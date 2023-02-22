@@ -33,8 +33,10 @@ def generate_peer_id():
 
 
 class Tracker:
-    def __init__(self, given_name=None):
+    def __init__(self, given_name=None, path=None):
         self.given_name = given_name
+        self.path = path
+        print(self.path)
         self.local_tracker = None  # set local_tracker to none (was not yet found)
         if not given_name:
             self.local_tracker = tracker_init_contact.find_local_tracker()  # find local tracker
@@ -75,9 +77,13 @@ class Tracker:
         Takes care of local and global metadata files
         :return:
         """
-        if self.file_name[-12: -8] == "_LOC":
+        if self.file_name[-12: -8] == "_LOC":  # the torrent is local metadata (which is based on global metadata)
             self.global_file = self.recv_files()
             self.torrent.init_torrent_seq(self.file_name, True)
+
+        elif self.file_name[-15:-8] == "_UPLOAD":  # the torrent was uploaded by a user, this is a local file not having global metadata
+            self.torrent.init_torrent_seq(self.file_name, True)
+
         else:
 
             self.torrent.init_torrent_seq(self.file_name, False)
@@ -115,7 +121,7 @@ class Tracker:
             # self.torrent.init_torrent_seq(file_name)
 
             # the torrent file is not local torrent
-            if self.file_name[-12: -8] != "_LOC":
+            if self.file_name[-12: -8] != "_LOC" and self.file_name[-15: -8] != "_UPLOAD":
                 # self.torrent.init_torrent_seq(self.file_name, False)
                 self.sock.settimeout(1)  # going over trackers, less timeout for more speed
                 try:
