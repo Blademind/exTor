@@ -114,7 +114,7 @@ class TrackerTCP:
                 with open(f'torrents\\{filename}', 'rb') as t:
                     torrent = t.read()
                 torrent = bencode.bdecode(torrent)
-                torrent["announce-list"] = [sock.getsockname()]
+                torrent["announce-list"] = [sock.getpeername()]
                 torrent["announce"] = []
                 print(torrent["announce-list"])
                 with open(f'torrents\\{filename}', 'wb') as t:

@@ -100,7 +100,7 @@ class Upload:
 
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
-                threading.Thread(target=Handler, args = (self.torrent,self.path)).start()
+                threading.Thread(target=Handler, args = (self.torrent,self.path, self.sock.getsockname()[1])).start()
                 break
 
 

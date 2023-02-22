@@ -8,12 +8,15 @@ class Torrent:
     """
     The Torrent object, everything regarding the torrent is located here
     """
-    def __init__(self):
+    def __init__(self, port = None):
         self.url = None
         self.url_yields = None
         self.announce_list = None
         self.torrent = None
-        self.port = random.randint(6881, 6889)
+        if not port:
+            self.port = random.randint(6881, 6889)
+        else:
+            self.port = port
         # torrents = os.listdir("torrents\\info_hashes")
         # for torrent in torrents:
         #     print(torrents.index(torrent), torrent)

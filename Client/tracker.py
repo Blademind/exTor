@@ -33,7 +33,7 @@ def generate_peer_id():
 
 
 class Tracker:
-    def __init__(self, given_name=None, path=None):
+    def __init__(self, given_name=None, path=None, port = None):
         self.given_name = given_name
         self.path = path
         print(self.path)
@@ -52,7 +52,7 @@ class Tracker:
             self.tran_id = None  # the transaction id (later use)
             self.conn_id = None  # the connection id (later use)
             self.__BUF = 1024
-            self.torrent = Torrent()  # create a torrent object
+            self.torrent = Torrent(port = port)  # create a torrent object
             self.file_name = None
 
             self.id = generate_peer_id()  # peer_id
