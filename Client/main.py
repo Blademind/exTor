@@ -14,6 +14,8 @@ TRACKER SENDS THE CLIENT BOTH THE LOCAL AND THE NORMAL TORRENT FILE TOGETHER, NO
 THE CLIENT DECIDES TO CONTACT THE NORMAL TORRENT FILE GIVEN THE PEERS IN THE LOCAL TORRENT FILE ARE NOT RESPONDING
 OR PIECES ARE MISSING.
 """
+
+
 def create_new_sock():
     """
     Creates a TCP socket
@@ -26,7 +28,7 @@ def create_new_sock():
 
 
 class Handler:
-    def __init__(self, given_name=None, path=None, port = None):
+    def __init__(self, given_name=None, path=None, port=None):
         """
         Create Handler object
         """
@@ -40,9 +42,10 @@ class Handler:
                 self.tracker = Tracker()
             else:
                 print("given name")
-                self.tracker = Tracker(given_name=given_name, path=path, port = port)
+                self.tracker = Tracker(given_name=given_name, path=path, port=port)
 
-            if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a name of a file which already is present on disk was given)
+            if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a
+                # name of a file which already is present on disk was given)
                 self.torrent = self.tracker.torrent
 
                 manager.down = manager.Downloader(self.torrent, self.tracker)
@@ -59,7 +62,7 @@ class Handler:
 
                 # All pieces present on disk
                 else:
-                    manager.down.listen_seq() # listen to peers (for pieces sharing)
+                    manager.down.listen_seq()  # listen to peers (for pieces sharing)
                     self.tracker.done_downloading()
 
         except TypeError:
@@ -114,12 +117,15 @@ class Handler:
         print("Completed Download!")
         manager.down.progress_flag = False
         self.tracker.done_downloading()
+
     def go_over_pieces(self):
         """
         Goes over all the piece
         :return:
         """
-        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p])))
+        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(
+            # self.pieces, key=lambda p: len(self.pieces[p])))
+
             # print(piece, "here")
             if manager.down.have[k] == "0":
                 # print(piece, " I AM HERE")
@@ -207,7 +213,7 @@ class Handler:
                 if message.msg_type(data) == 'bitfield':
                     # print(data)
                     data = bitstring.BitArray(data[1:])
-                    print("BITFIELD", data , peers[current_peer])
+                    print("BITFIELD", data, peers[current_peer])
 
                     # print(bitstring_to_bytes(data.bin))
                     # print(data.bin)
@@ -226,7 +232,7 @@ class Handler:
         :return:
         """
         # asyncio.run(self.peer_instances(peers, tracker))
-        socks = [create_new_sock() for i in range(len(peers))]
+        socks = [create_new_sock() for _ in range(len(peers))]
         if len(socks) != 0:  # at least one peer is in swarms
             a = []
             current_peer = 0

@@ -1,6 +1,7 @@
 from socket import *
 import pickle
 
+
 def find_local_tracker():
     msg = b'FIND LOCAL TRACKER'
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
@@ -21,7 +22,7 @@ def find_local_tracker():
             return ip
         except KeyError:
             print("fatal error while searching for local tracker")
-    except TimeoutError:
+    except:
         print("no response from local tracker")
         return
 
