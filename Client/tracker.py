@@ -33,7 +33,7 @@ def generate_peer_id():
 
 
 class Tracker:
-    def __init__(self, given_name=None, path=None, port = None):
+    def __init__(self, given_name=None, path=None, port=None):
         self.given_name = given_name
         self.path = path
         print(self.path)
@@ -52,8 +52,7 @@ class Tracker:
             self.tran_id = None  # the transaction id (later use)
             self.conn_id = None  # the connection id (later use)
             self.__BUF = 1024
-            self.torrent = Torrent(port = port)  # create a torrent object
-            self.file_name = None
+            self.torrent = Torrent(port=port)  # create a torrent object
 
             self.id = generate_peer_id()  # peer_id
             self.peers = []
@@ -78,20 +77,23 @@ class Tracker:
         :return:
         """
         if self.file_name[-12: -8] == "_LOC":  # the torrent is local metadata (which is based on global metadata)
+            print("local file")
             self.global_file = self.recv_files()
             self.torrent.init_torrent_seq(self.file_name, True)
 
         elif self.file_name[-15:-8] == "_UPLOAD":  # the torrent was uploaded by a user, this is a local file not having global metadata
+            print("upload file")
             self.torrent.init_torrent_seq(self.file_name, True)
 
         else:
-
+            print("global file")
             self.torrent.init_torrent_seq(self.file_name, False)
 
 
     def contact_trackers(self):
         # previous methods did not prove useful to get pieces, time to contact global trackers for peers
         if self.global_flag:
+            self.torrent.init_torrent_seq(self.global_file, False)
             # self.torrent.init_torrent_seq(self.file_name, False)
             self.sock.settimeout(1)  # going over trackers, less timeout for more speed
             try:
@@ -134,7 +136,7 @@ class Tracker:
                         self.http_send()
                 except AttributeError:
                     pass
-            else:
+            elif self.file_name != "_UPLOAD":
                 # self.torrent.init_torrent_seq(self.global_file, True)
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
                 self.global_flag = True  # used in case the program is unable to retrieve pieces from local network
@@ -144,6 +146,8 @@ class Tracker:
                     peers = bencode.bdecode(f.read())["announce-list"]
                 self.peers = [tuple(peer) for peer in peers]
                 print(self.peers)
+            else:
+                print("cannot download")
 
     def udp_send(self, message):
         print(self.torrent.url)
@@ -272,7 +276,7 @@ class Tracker:
                 if filename[-8:] != ".torrent":
                     print("file is not torrent")
                     return
-                self.file_name = filename
+                file_name = filename
 
                 # creates a clean file with given file name
                 with open(f"torrents\\info_hashes\\{filename}", "wb") as w:

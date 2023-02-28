@@ -57,11 +57,15 @@ class Handler:
                     self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
                     print(self.peers)
                     manager.down.listen_seq()  # listen to peers (for pieces sharing)
-                    manager.down.generate_download_bar()  #
+                    manager.down.generate_download_bar()
                     self.download()
 
                 # All pieces present on disk
                 else:
+                    for name, file in manager.down.files_data.items():
+                        file.close()
+                    manager.down.progress_flag = False
+
                     manager.down.listen_seq()  # listen to peers (for pieces sharing)
                     self.tracker.done_downloading()
 
@@ -69,19 +73,27 @@ class Handler:
             # a name of file was not given before program was closed by the user
             pass
         except Exception as e:
-            print(e)
+            print("Exception (at main):", e)
             manager.down.progress_flag = False
-            if manager.down.files_data:
-                for name, file in manager.down.files_data.items():
-                    file.close()
+
             manager.DONE = True
 
             if self.tracker.global_flag:
-                self.tracker.contact_trackers()
-                self.peers = list(set(self.tracker.peers))
-                self.torrent = self.tracker.torrent
-                manager.reset_to_default()
-                self.download()
+                try:
+                    self.tracker.contact_trackers()
+                    self.peers = list(set(self.tracker.peers))
+                    self.torrent = self.tracker.torrent
+                    manager.reset_to_default()
+                    manager.down.generate_download_bar()
+                    self.download()
+                except:
+                    manager.down.progress_flag = False
+
+                    manager.DONE = True
+                    if manager.down.files_data:
+                        for name, file in manager.down.files_data.items():
+                            file.close()
+                    print(e)
             else:
                 if manager.down.files_data:
                     for name, file in manager.down.files_data.items():
@@ -101,12 +113,10 @@ class Handler:
 
         # start error check
         # threading.Thread(target=self.check_errors).start()
-
         self.go_over_pieces()
 
         while len(manager.currently_connected) != 0:
             time.sleep(1)
-        manager.DONE = True
 
         # manager.down.bytes_file.close()  # closes the bytes file
         # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
@@ -114,7 +124,9 @@ class Handler:
         for name, file in manager.down.files_data.items():
             file.close()
 
+        manager.DONE = True
         print("Completed Download!")
+
         manager.down.progress_flag = False
         self.tracker.done_downloading()
 
@@ -123,29 +135,69 @@ class Handler:
         Goes over all the piece
         :return:
         """
-        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):  # enumerate(sorted(
-            # self.pieces, key=lambda p: len(self.pieces[p])))
+        for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):
+            print(piece)
 
-            # print(piece, "here")
             if manager.down.have[k] == "0":
-                # print(piece, " I AM HERE")
-                # print(f"currently working on: {k}#")
                 self.peer_list.append(Peer(self.tracker))
                 peer = self.peer_list[-1]  # create a peer object
                 current_piece_peers = self.pieces[k]
                 # no peers holding current piece
                 if len(current_piece_peers) == 0:
                     raise Exception("no peers holding piece")
+                print(piece)
                 # go over all piece holders
                 try:
-                    self.peer_piece_assignment(peer, k, current_piece_peers)
+                    if manager.down.num_of_pieces - manager.down.count_bar - manager.down.count_download_bar != 1:
+                        self.peer_piece_assignment(peer, k, current_piece_peers)
+                    else:
+                        print("BEHOLD! LAST PIECE REACHED")
+                        self.peer_piece_assignment(peer, k, current_piece_peers, last_piece=True)
+                        break
+                    manager.down.count_download_bar += 1
+
                 except:
                     time.sleep(0.5)
                     raise Exception("operation stopped by user")
 
-    def peer_piece_assignment(self, peer, k, current_piece_peers):
+    def check_errors(self):
+        if manager.down.error_queue:
+            while manager.down.error_queue:
+                peer_piece = manager.down.error_queue.pop(0)
+                peer_ip_port, piece = peer_piece[0], peer_piece[1]
+                print(piece)
+                self.peer_list.append(Peer(self.tracker))
+                peer_error_object = self.peer_list[-1]  # create a peer object
+                # deletes all peer instances
+                for piece_number, peers_list in self.pieces.items():
+                    if peer_ip_port in peers_list:
+                        self.pieces[piece_number].remove(peer_ip_port)
+
+                piece_peers = self.pieces[piece]
+
+                for piece_peer in piece_peers:
+                    if piece_peer not in manager.currently_connected:
+                        if piece_peer in self.peer_thread.keys():
+                            threading.Thread(target=self.peer_thread[piece_peer].request_piece,
+                                             args=(piece,)).start()
+                        else:
+                            manager.currently_connected.append(piece_peer)
+                            self.peer_thread[piece_peer] = peer_error_object
+                            threading.Thread(target=peer_error_object.download, args=(piece_peer, piece)).start()
+                        break
+                    else:
+                        threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
+                        break
+
+            while len(manager.currently_connected) != 0:
+                time.sleep(1)
+
+            self.check_errors()
+
+    def peer_piece_assignment(self, peer, k, current_piece_peers, last_piece=False):
         """
         goes over peers in order to get a piece downloaded
+        :param last_piece: piece is last piece
         :param peer:
         :param k:
         :param current_piece_peers: the peers assigned to this piece
@@ -183,13 +235,19 @@ class Handler:
             if p not in manager.currently_connected:
                 if p in self.peer_thread.keys():
                     # print("THREADED")
-                    threading.Thread(target=self.peer_thread[p].request_piece, args=(k,)).start()
+                    if not last_piece:
+                        threading.Thread(target=self.peer_thread[p].request_piece, args=(k,)).start()
+                    else:
+                        self.peer_thread[p].request_piece(k)
                 else:
-                    # print("THREADED2")
-
                     manager.currently_connected.append(p)
                     self.peer_thread[p] = peer
-                    threading.Thread(target=peer.download, args=(p, k)).start()
+                    if not last_piece:
+                        threading.Thread(target=peer.download, args=(p, k)).start()
+                    else:
+                        print("THIS IS LAST, I PROMISE!")
+                        peer.download(p, k)
+                self.check_errors()
                 break
 
             # last peer and was not caught beforehand - all conns in use
@@ -246,6 +304,7 @@ class Handler:
             a[-1].join()  # last thread has ended
 
         time.sleep(0.5)  # some peers are slow, gives them some time to delete client's instance from them
+
 # region ASYNC SOLUTION
 #     async def conn_task(self, peers, current_peer, tracker):
 #         try:

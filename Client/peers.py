@@ -153,6 +153,7 @@ class Peer:
                 manager.currently_connected.remove(self.peer)
                 manager.down.error_queue.append((self.peer, self.c_piece))
             self.peer_removed = True
+
     def listen_to_server(self):
         while 1:
             # start_time = time.time()
@@ -170,12 +171,13 @@ class Peer:
                 # print("--- %s seconds ---" % (time.time() - start_time))
 
             except TimeoutError:
-                print("Timeout", self.c_piece)
-                with manager.lock:
-                    if self.peer in manager.currently_connected:
-                        manager.currently_connected.remove(self.peer)
-                    manager.down.error_queue.append((self.peer, self.c_piece))
-                self.peer_removed = True
+                if not self.done_piece_download:
+                    print("Timeout", self.c_piece)
+                    with manager.lock:
+                        if self.peer in manager.currently_connected:
+                            manager.currently_connected.remove(self.peer)
+                        manager.down.error_queue.append((self.peer, self.c_piece))
+                    self.peer_removed = True
 
                 # if self.retry_peer:
                 #     manager.currently_connected.remove(self.peer)
@@ -189,9 +191,23 @@ class Peer:
                 #     self.in_progress = True
                 break
 
+            except timeout:
+                print("TIMEOUT")
+                if not self.done_piece_download:
+                    with manager.lock:
+                        if self.peer in manager.currently_connected:
+                            manager.currently_connected.remove(self.peer)
+                        manager.down.error_queue.append((self.peer, self.c_piece))
+                    self.peer_removed = True
+                    break
+                else:
+                    self.peer_removed = True
+                    with manager.lock:
+                        if self.peer in manager.currently_connected:
+                            manager.currently_connected.remove(self.peer)
+                    break
             except Exception as e:
-                print("peer exception:",e)
-
+                print("peer exception:", type(e).__name__)
                 # inside error, try another request
                 if e == "data length mismatch":
                     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
@@ -245,23 +261,18 @@ class Peer:
                     if hashlib.sha1(self.s_bytes).digest() == self.pieces[self.c_piece * 20: self.c_piece * 20 + 20]:
                         print(f"success piece #{self.c_piece}, last piece", self.peer)
                         threading.Thread(target=manager.down.add_piece_data, args=(self.c_piece, self.s_bytes)).start()
-                        with manager.lock:
-                            # manager.down.add_bytes(self.c_piece, self.s_bytes)  # adds bytes of current piece to manager
-                            # manager.down.download_files()  # takes care of files
 
-                            # reset buffer, sum, and bytes sum
-                            self.buf = 4
-                            self.s = 0
-                            self.s_bytes = b""
+                        # reset buffer, sum, and bytes sum
+                        self.buf = 4
+                        self.s = 0
+                        self.s_bytes = b""
 
-                            temp = list(manager.down.have)
-                            temp[self.c_piece] = "1"
-                            manager.down.have = "".join(temp)
+                        self.done_piece_download = True
 
-                            self.done_piece_download = True
-                            manager.currently_connected.remove(self.peer)
+                        threading.Thread(target=manager.down.update_have, args=(self.c_piece,)).start()  # updates "have"
+                        threading.Thread(target=manager.remove_peer, args=(self.peer,)).start()  # removes peer from currently connected
 
-                            return
+                        return
 
                     if self.total_current_piece_length >= self.block_len:
                         if self.total_current_piece_length - len(self.s_bytes) < self.block_len:
@@ -280,27 +291,19 @@ class Peer:
                     print(f"success piece #{self.c_piece}, total --> {self.s}", self.peer)
                     threading.Thread(target=manager.down.add_piece_data, args=(self.c_piece, self.s_bytes)).start()
 
-                    with manager.lock:
-                        # manager.down.add_piece_data(self.c_piece, self.s_bytes)
+                    # reset buffer, sum, and bytes sum
+                    self.buf = 4
+                    self.s = 0
+                    self.s_bytes = b""
 
-                        # manager.down.add_bytes(self.c_piece, self.s_bytes)  # add bytes of current piece
-                        # manager.down.download_files()  # take care of files
+                    self.done_piece_download = True
 
-                        # reset buffer, sum, and bytes sum
-                        self.buf = 4
-                        self.s = 0
-                        self.s_bytes = b""
+                    threading.Thread(target=manager.down.update_have, args=(self.c_piece,)).start()  # updates "have"
+                    threading.Thread(target=manager.remove_peer,
+                                     args=(self.peer,)).start()  # removes peer from currently connected
 
-                        temp = list(manager.down.have)
-                        temp[self.c_piece] = "1"
-                        manager.down.have = "".join(temp)
-
-                        self.done_piece_download = True
-
-                        manager.currently_connected.remove(self.peer)
-
-                        return
-                        # self.have_msg()  # send have message to all connected peers
+                    return
+                    # self.have_msg()  # send have message to all connected peers
         # message is handshake
         elif message.is_handshake(data):
             # print("handshake", self.peer)

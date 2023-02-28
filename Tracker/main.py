@@ -22,7 +22,7 @@ class Tracker:
         """
         self.torrents_search_object = py1337x(proxy="1337xx.to")
 
-        self.server_sock = self.init_udp_sock(55555)  # udp socket with given port
+        self.server_sock = self.init_udp_sock(12345)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
 
@@ -112,7 +112,7 @@ class Tracker:
                     datacontent = ""
 
                 if datacontent == "FIND LOCAL TRACKER":
-                    sock.sendto(pickle.dumps((sock.getsockname()[0], 55555)), addr)
+                    sock.sendto(pickle.dumps((sock.getsockname()[0], 12345)), addr)
 
                 elif datacontent[:17] == "DONE DOWNLOADING ":
 

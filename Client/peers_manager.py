@@ -31,6 +31,7 @@ def bitstring_to_bytes(s):
 class Downloader:
     def __init__(self, torrent, tracker):
         self.count_bar = 0
+        self.count_download_bar = 0
         # self.written = b""
         self.s_bytes = b""
         self.torrent = torrent
@@ -93,6 +94,12 @@ class Downloader:
         # print(f"{self.check_piece_instances(986)}\n")
 
         self.calculate_bitfield()
+
+    def update_have(self, piece):
+        with lock:
+            temp = list(self.have)
+            temp[piece] = "1"
+            self.have = "".join(temp)
 
     def calculate_bitfield(self):
         """
@@ -215,7 +222,6 @@ class Downloader:
                     with open(f"{self.path}\\{file_name}", "rb") as f:
                         f.seek(begin_piece)
                         piece_data += f.read(current_size)
-
             piece_to_send = piece_data[begin:]
             sock.send(message.build_piece(index, begin, piece_to_send[:length]))
 
@@ -244,7 +250,6 @@ class Downloader:
         for i in range(0, len(self.pieces), 20):
             ret.append(self.pieces[i: i + 20])
         return ret
-
 
     def calculate_have_bitfield2(self):
         time.sleep(0.5)
@@ -489,6 +494,11 @@ def reset_to_default():
     global currently_connected, DONE
     currently_connected = []
     DONE = False
+
+
+def remove_peer(peer):
+    with lock:
+        currently_connected.remove(peer)
 
 
 # region TRASH

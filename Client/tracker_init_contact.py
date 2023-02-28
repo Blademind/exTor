@@ -9,7 +9,7 @@ def find_local_tracker():
     sock.settimeout(2)
     sock.bind((get_ip_addr(), 0))
 
-    sock.sendto(msg, ("255.255.255.255", 55555))
+    sock.sendto(msg, ("255.255.255.255", 12345))
     try:
         data = sock.recv(1024)
         try:
