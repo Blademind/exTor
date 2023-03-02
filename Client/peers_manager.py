@@ -31,7 +31,7 @@ def bitstring_to_bytes(s):
 class Downloader:
     def __init__(self, torrent, tracker):
         self.count_bar = 0
-        self.count_download_bar = 0
+        # self.count_download_bar = 0
         # self.written = b""
         self.s_bytes = b""
         self.torrent = torrent

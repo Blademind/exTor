@@ -128,7 +128,7 @@ class Peer:
                     raise Exception(f"Peer {self.peer} Removed")
         except Exception as e:
             print("Error piece request:", e)
-            time.sleep(1)
+            time.sleep(0.5)
             with manager.lock:
                 if self.peer in manager.currently_connected:
                     manager.currently_connected.remove(self.peer)

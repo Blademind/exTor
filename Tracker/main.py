@@ -66,7 +66,7 @@ class Tracker:
                             break
                 if size_changed:
                     break
-            time.sleep(1)
+            time.sleep(0.5)
 
     def reset_ip_addresses(self):
         """
@@ -223,6 +223,7 @@ class Tracker:
                 #         print(e)
                 #         print("received unparsable data")
 
+
     def send_files(self, file_name, file_name2, addr):
         """
         send 2 files, the first is local metadata file, the second is global metadata file
@@ -233,7 +234,7 @@ class Tracker:
         """
 
         self.send_torrent_file(file_name, addr)
-        time.sleep(1)
+        time.sleep(0.5)
         print(file_name2)
         self.send_torrent_file(file_name2, addr)
 
