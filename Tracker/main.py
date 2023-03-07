@@ -13,6 +13,7 @@ from difflib import get_close_matches
 from py1337x import py1337x
 import bencode
 import urllib3
+import sqlite3
 
 
 class Tracker:
@@ -22,6 +23,8 @@ class Tracker:
         """
         self.torrents_search_object = py1337x(proxy="1337xx.to")
 
+        self.conn = sqlite3.connect("database\\torrent_swarms.db")
+        self.curr = self.conn.cursor()
         self.server_sock = self.init_udp_sock(12345)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
@@ -39,34 +42,60 @@ class Tracker:
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 3600
+        timer = 5
+        conn2 = sqlite3.connect("database\\torrent_swarms.db")
+        curr = conn2.cursor()
         while 1:
-            size_changed = False
+            # size_changed = False
             # adds all ips-times into one list
-            for torrent in self.ip_addresses.values():
-                if len(torrent) != 0:
-                    for ip in torrent:
-                        if time.time() - ip[1] >= timer:
-                            file_name = list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]
-                            self.ip_addresses[
-                                list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(
-                                ip)
-                            with open(f"torrents\\{file_name}", "rb") as f:
+            curr.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            table_names = curr.fetchall()
+            for file_name in table_names:
+                curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
+                records = curr.fetchall()
+
+                for raw_addr, time_added in records:
+                    addr = pickle.loads(raw_addr)
+                    if time.time() - time_added >= timer:
+                        curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
+                        conn2.commit()
+                        if os.path.exists(f"torrents\\{file_name[0]}"):
+                            print(f"removed {addr} from {file_name[0]}")
+                            with open(f"torrents\\{file_name[0]}", "rb") as f:
                                 torrent_data = bencode.bdecode(f.read())
 
                             for i in torrent_data["announce-list"]:
-                                if list(ip[0]) == i:
+                                if list(addr) == i:
                                     torrent_data["announce-list"].remove(i)
                                     break
 
-                            with open(f"torrents\\{file_name}", "wb") as f:
+                            with open(f"torrents\\{file_name[0]}", "wb") as f:
                                 f.write(bencode.bencode(torrent_data))
-
-                            size_changed = True
-                            break
-                if size_changed:
-                    break
-            time.sleep(0.5)
+            #
+            # for torrent in self.ip_addresses.values():
+            #     if len(torrent) != 0:
+            #         for ip in torrent:
+            #             if time.time() - ip[1] >= timer:
+            #                 file_name = list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]
+            #                 self.ip_addresses[
+            #                     list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(
+            #                     ip)
+            #                 with open(f"torrents\\{file_name}", "rb") as f:
+            #                     torrent_data = bencode.bdecode(f.read())
+            #
+            #                 for i in torrent_data["announce-list"]:
+            #                     if list(ip[0]) == i:
+            #                         torrent_data["announce-list"].remove(i)
+            #                         break
+            #
+            #                 with open(f"torrents\\{file_name}", "wb") as f:
+            #                     f.write(bencode.bencode(torrent_data))
+            #
+            #                 size_changed = True
+            #                 break
+            #     if size_changed:
+            #         break
+            time.sleep(5)
 
     def reset_ip_addresses(self):
         """
@@ -121,14 +150,20 @@ class Tracker:
 
                     if local_file_name in torrent_files:
                         # create a local file
-                        if local_file_name[-12:-8] == "_LOC":
-                            self.add_peer_to_LOC(local_file_name,addr)
-
-                        elif local_file_name[-15:-8] == "_UPLOAD":
+                        if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":  # file is type local or upload
                             self.add_peer_to_LOC(local_file_name, addr)
-                        else:
+                        else:  # local file was not already created
+                            print(local_file_name[:-8])
+                            self.curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
+                             (address BLOB, time REAL)""")
+
+                            self.curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES 
+                            (?, ?)""", (pickle.dumps(addr), time.time()))
+                            self.conn.commit()
+
                             if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
-                                self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
+                                # self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
+
                                 with open(f"torrents\\{local_file_name[:-8]}_LOC.torrent", "wb") as w:
                                     with open(f"torrents\\{local_file_name}", "rb") as f:
                                         torrent = bencode.bdecode(f.read())
@@ -194,35 +229,24 @@ class Tracker:
                         query = datacontent[4:]
                         self.torrent_from_web(query, addr, sock)
 
+    def add_peer_to_LOC(self, file_name, addr):
+        """
+        Adds given peer to a local torrent file
+        :param file_name: local file name
+        :param addr: address of peer
+        :return: None
+        """
+        self.curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?""", (pickle.dumps(addr), time.time()))
+        # self.ip_addresses[file_name].append((addr, time.time()))
+        self.conn.commit()
+        with open(f"torrents\\{file_name}", "rb") as f:
+            torrent = bencode.bdecode(f.read())
 
-                # # request must be at least 16 bytes long
-                # if len(data) >= 16:
-                #     try:
-                #         action = int.from_bytes(data[8:12], byteorder="big")  # action type
-                #         # action is connect
-                #         if action == 0:
-                #             print(f"New connection from {addr}")
-                #             sock.sendto(self.build_connect_response(), addr)  # send a connect response
-                #
-                #         # action is announce
-                #         elif action == 1:
-                #             connection_id = data[:8]  # connection id
-                #             # 2 minutes must have not passed from connect request to announce request
-                #             try:
-                #                 if 0 <= int(time.time() - self.connection_ids[connection_id]) <= 120:
-                #                     torrent_name = info_torrent[data[16:36]]
-                #                     self.ip_addresses[torrent_name].append((addr, time.time()))
-                #                     sock.sendto(self.build_announce_response(file_name, addr), addr)
-                #                 else:
-                #                     sock.sendto(self.build_error_response("announce timeout"), addr)
-                #
-                #                 del self.connection_ids[connection_id]  # action is announce, remove connection id
-                #             except Exception as e:
-                #                 print("sent connection id was not found")
-                #     except Exception as e:
-                #         print(e)
-                #         print("received unparsable data")
+        if addr not in torrent["announce-list"]:
+            torrent["announce-list"].append(addr)
 
+        with open(f"torrents\\{file_name}", "wb") as f:
+            f.write(bencode.bencode(torrent))
 
     def send_files(self, file_name, file_name2, addr):
         """
@@ -243,6 +267,7 @@ class Tracker:
         try:
             url = f'https://itorrents.org/torrent/{self.torrents_search_object.info(link=self.torrents_search_object.search(query)["items"][0]["link"])["infoHash"]}.torrent'
             proxy_url = "http://9bcfa6c85ff72b1ee029179b6537c5ae064abd85:@proxy.zenrows.com:8001"
+            proxy_url = ""
             proxy = {
                 "http": proxy_url,
                 "https": proxy_url
@@ -260,24 +285,6 @@ class Tracker:
         except IndexError:
             print(f"no torrents matching {query} found",addr)
             sock.sendto(b"NO TORRENTS FOUND", addr)
-
-    def add_peer_to_LOC(self, file_name, addr):
-        """
-        Adds given peer to a local torrent file
-        :param file_name: local file name
-        :param addr: address of peer
-        :return: None
-        """
-        self.ip_addresses[file_name].append((addr, time.time()))
-
-        with open(f"torrents\\{file_name}", "rb") as f:
-            torrent = bencode.bdecode(f.read())
-
-        if addr not in torrent["announce-list"]:
-            torrent["announce-list"].append(addr)
-
-        with open(f"torrents\\{file_name}", "wb") as f:
-            f.write(bencode.bencode(torrent))
 
     def send_torrent_file(self, file_name, addr):
         """
@@ -334,10 +341,12 @@ class Tracker:
         message += (0).to_bytes(4, byteorder='big')  # interval - 0 so none
         message += (0).to_bytes(4, byteorder='big')  # leechers (TO DO)
         message += (0).to_bytes(4, byteorder='big')  # seeders (TO DO)
-        for ip_port in self.ip_addresses[file_name]:
-            if addr != ip_port[0]:
-                message += inet_aton(ip_port[0][0])  # ip
-                message += ip_port[0][1].to_bytes(2, byteorder='big')  # port
+        records = self.curr.fetchall()
+        for raw_ip_port, _ in records:
+            ip_port = pickle.loads(raw_ip_port)
+            if addr != ip_port:
+                message += inet_aton(ip_port[0])  # ip
+                message += ip_port[1].to_bytes(2, byteorder='big')  # port
         return message
 
     def build_connect_response(self):

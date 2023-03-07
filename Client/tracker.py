@@ -299,7 +299,7 @@ class Tracker:
             return
 
     def done_downloading(self):
-        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(),self.local_tracker)
+        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
         data = self.sock.recv(self.__BUF)
         if data == b"UPDATED":
             print("Tracker was informed of downloaded file")
