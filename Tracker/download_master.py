@@ -11,6 +11,7 @@ import bencode
 # from torrents_handler import info_torrent
 
 import select
+import sqlite3
 
 
 def build_error_response(msg):
@@ -33,9 +34,14 @@ def ban_ip(ip, banned_ips):
     :param banned_ips: the banned ips list
     :return: None
     """
-    if ip[0] not in banned_ips:
-        with open("banned_ips.txt", "a") as f:
-            f.write(f"{ip[0]}\n")
+    conn = sqlite3.connect("databases\\banned_ips.db")
+    curr = conn.cursor()
+    curr.execute("INSERT INTO BannedIPs VALUES (?)", ip[0])
+    conn.close()
+
+    # if ip[0] not in banned_ips:
+    #     with open("banned_ips.txt", "a") as f:
+    #         f.write(f"{ip[0]}\n")
 
 
 class TrackerTCP:
@@ -50,6 +56,12 @@ class TrackerTCP:
         self.__BUF = 1024
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
+        conn = sqlite3.connect("databases\\banned_ips.db")
+        curr = conn.cursor()
+        curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
+         (address TEXT)""")
+        conn.close()
+
         threading.Thread(target=self.listen_tcp).start()
 
     def init_tcp_sock(self):
@@ -63,23 +75,28 @@ class TrackerTCP:
 
     def listen_tcp(self):
         print("TCP Server is now listening\n")
-        agree = True
         while 1:
             readable, writeable, ex = select.select(self.read_tcp, self.write_tcp, [])
             for sock in readable:
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
-                    with open("banned_ips.txt", "r") as f:
-                        self.banned_ips = f.read().split("\n")
+
+                    conn_db = sqlite3.connect("databases\\banned_ips.db")
+                    curr = conn_db.cursor()
+                    curr.execute("SELECT * FROM BannedIPs")
+                    self.banned_ips = curr.fetchall()
+                    conn_db.close()
+                    print("banned ips:",self.banned_ips)
+                    # with open("banned_ips.txt", "r") as f:
+                    #     self.banned_ips = f.read().split("\n")
                     if addr[0] in self.banned_ips:
                         conn.close()
-                        agree = False
-                    if agree:
-                        print(f"Connection from {addr}")
-                        conn.settimeout(5.0)
-                        readable.append(conn)
-                    else:
-                        agree = True
+                        break
+
+                    print(f"Connection from {addr}")
+                    conn.settimeout(5.0)
+                    readable.append(conn)
+
                 else:
                     try:
                         data = sock.recv(self.__BUF)

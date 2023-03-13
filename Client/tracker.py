@@ -264,48 +264,45 @@ class Tracker:
                 data, addr = self.sock.recvfrom(self.__BUF)
         except:
             print("file name was not received on time")
-
-        try:
-            datacontent = data.decode()
-            if datacontent == "NO TORRENTS FOUND":
-                raise Exception("no torrents matching query found on tracker")
-            else:
-                # matching query found, proceed to download it
-                filename = datacontent
-                print(filename)
-                if filename[-8:] != ".torrent":
-                    print("file is not torrent")
-                    return
-                file_name = filename
-
-                # creates a clean file with given file name
-                with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
-                    w.write(b"")
-
-                self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
-                s = 0
-                length = int(pickle.loads(self.sock.recv(self.__BUF)))
-                while s != length:
-                    data = self.sock.recv(self.__BUF)
-                    s += len(data)
-                    with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
-                        f.write(data)
-                    self.sock.sendto(b"FLOW", addr)  # continue flow of metadata content
-
-                print("received torrent file from local tracker")
-                return filename
-        except Exception as e:
-            print(e)
             return
 
+        # try:
+        datacontent = data.decode()
+        if datacontent == "NO TORRENTS FOUND":
+            raise Exception("no torrents matching query found on tracker")
+        else:
+            # matching query found, proceed to download it
+            filename = datacontent
+            print(filename)
+            if filename[-8:] != ".torrent":
+                print("file is not torrent")
+                return
+
+            # creates a clean file with given file name
+            with open(f"torrents\\info_hashes\\{filename}", "wb") as w:
+                w.write(b"")
+
+            self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
+            s = 0
+            length = int(pickle.loads(self.sock.recv(self.__BUF)))
+            while s != length:
+                data = self.sock.recv(self.__BUF)
+                s += len(data)
+                with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
+                    f.write(data)
+                self.sock.sendto(b"FLOW", addr)  # continue flow of metadata content
+
+            print("received torrent file from local tracker")
+            return filename
+        # except Exception as e:
+        #     print(e)
+        #     return
+
     def done_downloading(self):
-        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(),self.local_tracker)
+        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
         data = self.sock.recv(self.__BUF)
         if data == b"UPDATED":
             print("Tracker was informed of downloaded file")
-
-
-
 
 
 if __name__ == '__main__':

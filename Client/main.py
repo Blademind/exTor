@@ -114,7 +114,8 @@ class Handler:
         # start error check
         # threading.Thread(target=self.check_errors).start()
         self.go_over_pieces()
-
+        while len(manager.currently_connected) != 0:
+            time.sleep(0.5)
         self.check_errors()
         # manager.down.bytes_file.close()  # closes the bytes file
         # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
@@ -151,8 +152,6 @@ class Handler:
                     raise Exception("operation stopped by user")
 
     def check_errors(self):
-        while len(manager.currently_connected) != 0:
-            time.sleep(0.5)
 
         if manager.down.error_queue:
             while manager.down.error_queue:
@@ -229,6 +228,7 @@ class Handler:
                     manager.currently_connected.append(p)
                     self.peer_thread[p] = peer
                     threading.Thread(target=peer.download, args=(p, k)).start()
+
                 self.check_errors()
                 break
 
