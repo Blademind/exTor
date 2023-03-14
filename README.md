@@ -1,2 +1,2 @@
-# exBittorrent
-an Extended BitTorrent implementation, more information soon.
+# exTor
+an Extended BitTorrent implementation project, more information soon.
