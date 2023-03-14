@@ -12,8 +12,8 @@ import bencode
 
 import select
 import sqlite3
-
-
+import ssl
+import time
 def build_error_response(msg):
     """
     Builds error response, sent when error has occurred
@@ -34,7 +34,7 @@ def ban_ip(ip, banned_ips):
     :param banned_ips: the banned ips list
     :return: None
     """
-    conn = sqlite3.connect("databases\\banned_ips.db")
+    conn = sqlite3.connect("databases\\users.db")
     curr = conn.cursor()
     curr.execute("INSERT INTO BannedIPs VALUES (?)", ip[0])
     conn.close()
@@ -56,7 +56,7 @@ class TrackerTCP:
         self.__BUF = 1024
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
-        conn = sqlite3.connect("databases\\banned_ips.db")
+        conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
          (address TEXT)""")
@@ -69,6 +69,7 @@ class TrackerTCP:
         self.server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.server_sock.bind(("0.0.0.0", 55556))
         self.server_sock.listen(5)
+        self.server_sock = ssl.wrap_socket(self.server_sock, server_side=True, keyfile='private-key.pem', certfile='cert.pem')
 
     def get_ip_port(self):
         return gethostbyname(gethostname()), self.server_sock.getsockname()[1]
@@ -81,7 +82,7 @@ class TrackerTCP:
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
 
-                    conn_db = sqlite3.connect("databases\\banned_ips.db")
+                    conn_db = sqlite3.connect("databases\\users.db")
                     curr = conn_db.cursor()
                     curr.execute("SELECT * FROM BannedIPs")
                     self.banned_ips = curr.fetchall()
@@ -108,9 +109,11 @@ class TrackerTCP:
                         break
                     datacontent = data.decode()
                     print(datacontent)
-                    # file upload immense
+                    # file upload immensing
                     if datacontent[-8:] == ".torrent":
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
+                    elif datacontent == "ADMIN":
+                        sock.send(b"FUCK YOU ADMIN!")
 
     def recv_files(self, sock, filename):
         try:
@@ -137,11 +140,20 @@ class TrackerTCP:
                 with open(f'torrents\\{filename}', 'wb') as t:
                     t.write(bencode.bencode(torrent))
 
+                conn = sqlite3.connect("databases\\torrent_swarms.db")
+                curr = conn.cursor()
+                curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
+                 (address BLOB, time REAL)""")
+
+                curr.execute(f"""INSERT INTO "{filename}" VALUES 
+                (?, ?)""", (pickle.dumps(sock.getpeername()), time.time()))
+                conn.commit()
+                conn.close()
                 self.check_newly_added_file(filename, sock)
             else:
                 sock.send("FILE_EXISTS".encode())
         except Exception as e:
-            print("Exception:",e)
+            print("Exception:", e)
             return
 
     def check_newly_added_file(self, filename, sock):
@@ -152,6 +164,13 @@ class TrackerTCP:
                 print(filename, "is corrupted, removing")
                 f.close()
                 os.remove(f"torrents\\{filename}")
+
+                conn = sqlite3.connect("databases\\torrent_swarms.db")
+                curr = conn.cursor()
+                curr.execute(f"""DELETE FROM "{filename}" WHERE address=?""", (sock.getpeername(),))
+                conn.commit()
+                conn.close()
+
                 print(filename, "removed")
                 print("Banning", sock.getpeername()[0])
                 ban_ip(sock.getpeername(), self.banned_ips)

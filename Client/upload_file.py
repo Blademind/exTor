@@ -9,6 +9,7 @@ import tracker_init_contact
 import bencode
 import hashlib
 from torf import Torrent
+import ssl
 import shutil
 # print("Welcome to exTorrent upload service\n"
 #       "Here you can upload your own file to a tracker\n"
@@ -26,6 +27,8 @@ class Upload:
         self.local_tracker = tracker_init_contact.find_local_tracker()
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.bind((get_ip_addr(), 0))
+        self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+
         try:
             if self.local_tracker:
                 # c = 0

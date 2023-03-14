@@ -1,3 +1,4 @@
+import os
 import socket
 import threading
 import time
@@ -7,7 +8,7 @@ from peers import Peer
 import message_handler as message
 import bitstring
 import peers_manager as manager
-
+import atexit
 """
 =====IMPORTANT=====
 TRACKER SENDS THE CLIENT BOTH THE LOCAL AND THE NORMAL TORRENT FILE TOGETHER, NOT ONLY THE LOCAL FILE
@@ -337,5 +338,15 @@ class Handler:
 # endregion
 
 
+def my_exit_function():
+    dir = "torrents\\files\\info_hashes"
+    info_hashes = os.listdir(dir)
+    for metadata in info_hashes:
+        if metadata[-15:-8] == "_UPLOAD":
+            os.remove(f"{dir}\\{metadata}")
+
+
 if __name__ == '__main__':
+    atexit.register(my_exit_function,)
+
     Handler()

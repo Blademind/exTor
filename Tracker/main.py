@@ -19,7 +19,7 @@ import sqlite3
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
-            result = func(*args, **kwargs)
+            func(*args, **kwargs)
         except Exception as e:
             print(e)
     return wrapper
@@ -161,6 +161,7 @@ class Tracker:
                         # create a local file
                         if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":  # file is type local or upload
                             self.add_peer_to_LOC(local_file_name, addr)
+
                         else:  # local file was not already created
                             print(local_file_name[:-8])
                             self.curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
@@ -245,6 +246,8 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
+        self.curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
+         (address BLOB, time REAL)""")
         self.curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?);""", (pickle.dumps(addr), time.time()))
         # self.ip_addresses[file_name].append((addr, time.time()))
         self.conn.commit()
