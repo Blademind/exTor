@@ -63,8 +63,7 @@ class AdminLoginGui(QMainWindow):
             self.MainWindow.show()
             # continue to main window
         elif data == b"DENIED":
-            self.error_handler("User or Password were not found", close_program=False)
-        print(data)
+            self.error_handler("user or password incorrect", close_program=False)
 
     def find_local_tracker(self):
         sock = init_udp_sock()
@@ -87,6 +86,7 @@ class AdminLoginGui(QMainWindow):
                 self.error_handler("fatal error while searching for local tracker")
         except:
             self.error_handler("no response from local tracker")
+
     def error_handler(self, msg, close_program=True):
         error_dialog = QMessageBox()
         error_dialog.setWindowTitle("Error")
@@ -137,11 +137,9 @@ class AdminGui(QMainWindow):
 
     def create_graph(self):
         pg.setConfigOptions(antialias=True)
-        self.graphWidget = pg.PlotWidget()
-
+        self.graphWidget = pg.PlotWidget(title="Requests on tracker")
         axis = pg.DateAxisItem()
         self.graphWidget.setAxisItems({'bottom': axis})
-
         self.graphWidget.setLabel('left', 'Requests')
         self.graphWidget.setLabel('bottom', 'Time')
 

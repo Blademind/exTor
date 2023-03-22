@@ -114,13 +114,15 @@ class TrackerTCP:
                         readable.remove(sock)
                         break
                     datacontent = data.decode()
-                    print(datacontent)
+                    # print(datacontent)
                     # file upload immensing
+
                     if datacontent[-8:] == ".torrent":
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
+
                     elif "USER_PASSWORD" in datacontent:
                         user_password = datacontent[14:].split(" ")
-                        print(user_password)
+                        # print(user_password)
                         conn = sqlite3.connect("databases\\users.db")
                         curr = conn.cursor()
                         curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
@@ -131,14 +133,6 @@ class TrackerTCP:
                             if sock.getpeername()[0] not in settings.admin_ips:
                                 settings.admin_ips.append(sock.getpeername()[0])
                             # user was found, open a thread dedicated to him
-                        else:
-                            sock.send(b"DENIED")
-
-                    elif "FETCH_REQUESTS" == datacontent:
-                        if sock.getpeername()[0] in settings.admin_ips:
-                            print("passed")
-                            sock.send(pickle.dumps(settings.requests))
-                            settings.requests = 0
                         else:
                             sock.send(b"DENIED")
 

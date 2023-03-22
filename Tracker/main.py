@@ -34,8 +34,7 @@ class Tracker:
         settings.init()
         self.torrents_search_object = py1337x(proxy="1337xx.to")
 
-        self.conn = sqlite3.connect("databases\\torrent_swarms.db")
-        self.curr = self.conn.cursor()
+
         self.server_sock = self.init_udp_sock(12345)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
@@ -167,12 +166,15 @@ class Tracker:
 
                         else:  # local file was not already created
                             print(local_file_name[:-8])
-                            self.curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
+                            conn = sqlite3.connect("databases\\torrent_swarms.db")
+                            curr = conn.cursor()
+                            curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
                              (address BLOB, time REAL)""")
 
-                            self.curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES 
+                            curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES 
                             (?, ?)""", (pickle.dumps(addr), time.time()))
-                            self.conn.commit()
+                            conn.commit()
+                            conn.close()
 
                             if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
                                 # self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
@@ -192,7 +194,6 @@ class Tracker:
 
                 elif "FETCH_REQUESTS" == datacontent:
                     if addr[0] in settings.admin_ips:
-                        print("passed")
                         sock.sendto(pickle.dumps(settings.requests - 1), addr)
                         settings.requests = 0
                     else:
@@ -231,14 +232,10 @@ class Tracker:
                             print(local_file_name, global_file_name)
 
                             threading.Thread(target=self.send_files, args=(local_file_name, global_file_name, addr)).start()
-                            # adds the client to the local file after sending the file
-                            self.add_peer_to_LOC(local_file_name, addr)
 
                         elif uploads:
                             upload_file_name = uploads[0]
-                            threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr)).start()
-
-                            self.add_peer_to_LOC(upload_file_name, addr)
+                            threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr, True)).start()
 
                         else:
                             on_disk_file_name = matches[0]
@@ -257,11 +254,14 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
-        self.curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
+        conn = sqlite3.connect("databases\\torrent_swarms.db")
+        curr = conn.cursor()
+        curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
          (address BLOB, time REAL)""")
-        self.curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?);""", (pickle.dumps(addr), time.time()))
+        curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?);""", (pickle.dumps(addr), time.time()))
         # self.ip_addresses[file_name].append((addr, time.time()))
-        self.conn.commit()
+        conn.commit()
+        conn.close()
         with open(f"torrents\\{file_name}", "rb") as f:
             torrent = bencode.bdecode(f.read())
 
@@ -284,6 +284,9 @@ class Tracker:
         time.sleep(1)
         print(file_name2)
         self.send_torrent_file(file_name2, addr)
+
+        # adds the client to the local file after sending the file
+        self.add_peer_to_LOC(file_name, addr)
 
     def torrent_from_web(self, query, addr, sock):
         # search 1337x for a torrent matching request, get the torrent and send it to the client
@@ -309,9 +312,10 @@ class Tracker:
             sock.sendto(b"NO TORRENTS FOUND", addr)
 
     @errormng
-    def send_torrent_file(self, file_name, addr):
+    def send_torrent_file(self, file_name, addr, upload=False):
         """
         Sends available torrent file to a peer requesting it
+        :param upload:
         :param file_name: file name
         :param addr: address of peer
         :return: None
@@ -344,13 +348,16 @@ class Tracker:
                             break
 
                     except Exception as e:
-                        print("Error file sending:",e)
+                        print("Error file sending:", e)
                         break
 
 
         else:
             print("did not receive what was expected")
         print(f"{file_name} file was sent to {addr}")
+
+        if upload:
+            self.add_peer_to_LOC(file_name, addr)
 
     # region TRASH
     # def build_announce_response(self, file_name, addr):

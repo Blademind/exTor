@@ -489,6 +489,19 @@ class Downloader:
             shutil.rmtree(f"{self.path}\\temp")
             return file_piece
 
+    def add_sharing_peer(self, peer):
+        """
+        adds sharing peer to a list (then used at tracker side to validate sharing peers)
+        :param peer:
+        :return:
+        """
+        global sharing_peers
+        file_status = self.tracker.current_file_status
+        if file_status == "local file" or file_status == "upload file":
+            if peer not in sharing_peers:
+                sharing_peers.append(peer)
+                print(peer, "added to sharing_peers list")
+
 
 def reset_to_default():
     global currently_connected, DONE
@@ -499,6 +512,8 @@ def reset_to_default():
 def remove_peer(peer):
     with lock:
         currently_connected.remove(peer)
+
+
 
 
 # region TRASH
@@ -717,6 +732,9 @@ def remove_peer(peer):
 
 # end region
 
+
+
+sharing_peers = []
 testing_lock = threading.Lock()
 lock = threading.Lock()
 request_lock = threading.Lock()

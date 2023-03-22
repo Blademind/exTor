@@ -69,7 +69,7 @@ class Handler:
                     manager.down.progress_flag = False
 
                     manager.down.listen_seq()  # listen to peers (for pieces sharing)
-                    self.tracker.done_downloading()
+                    self.tracker.done_downloading(manager.sharing_peers)
 
         except TypeError:
             # a name of file was not given before program was closed by the user
@@ -129,7 +129,7 @@ class Handler:
         print("Completed Download!")
 
         manager.down.progress_flag = False
-        self.tracker.done_downloading()
+        self.tracker.done_downloading(manager.sharing_peers)
 
     def go_over_pieces(self):
         """
@@ -340,7 +340,7 @@ class Handler:
 
 
 def my_exit_function():
-    dir = "torrents\\files\\info_hashes"
+    dir = "torrents\\info_hashes"
     info_hashes = os.listdir(dir)
     for metadata in info_hashes:
         if metadata[-15:-8] == "_UPLOAD":

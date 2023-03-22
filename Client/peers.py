@@ -36,6 +36,7 @@ class Peer:
         self.pieces = self.torrent.torrent['info']['pieces']
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
+        self.downloaded_peers = []
 
         try:
             self.files = self.torrent.torrent['info']['files']
@@ -270,7 +271,11 @@ class Peer:
                         self.done_piece_download = True
 
                         threading.Thread(target=manager.down.update_have, args=(self.c_piece,)).start()  # updates "have"
-                        threading.Thread(target=manager.remove_peer, args=(self.peer,)).start()  # removes peer from currently connected
+                        threading.Thread(target=manager.remove_peer,
+                                         args=(self.peer,)).start()  # removes peer from currently connected
+
+                        threading.Thread(target=manager.down.add_sharing_peer,
+                                         args=(self.peer,)).start()  # adds peer to sharing peers list
 
                         return
 
@@ -301,6 +306,9 @@ class Peer:
                     threading.Thread(target=manager.down.update_have, args=(self.c_piece,)).start()  # updates "have"
                     threading.Thread(target=manager.remove_peer,
                                      args=(self.peer,)).start()  # removes peer from currently connected
+
+                    threading.Thread(target=manager.down.add_sharing_peer,
+                                     args=(self.peer,)).start()  # adds peer to sharing peers list
 
                     return
                     # self.have_msg()  # send have message to all connected peers

@@ -51,9 +51,9 @@ class Tracker:
             self.file_name = None
             self.tran_id = None  # the transaction id (later use)
             self.conn_id = None  # the connection id (later use)
+            self.current_file_status = None  # file status: global \ local \ upload
             self.__BUF = 1024
             self.torrent = Torrent(port=port)  # create a torrent object
-
             self.id = generate_peer_id()  # peer_id
             self.peers = []
 
@@ -76,17 +76,21 @@ class Tracker:
         Takes care of local and global metadata files
         :return:
         """
+        print("file_name:", self.file_name)
         if self.file_name[-12: -8] == "_LOC":  # the torrent is local metadata (which is based on global metadata)
             print("local file")
+            self.current_file_status = "local file"
             self.global_file = self.recv_files()
             self.torrent.init_torrent_seq(self.file_name, True)
 
         elif self.file_name[-15:-8] == "_UPLOAD":  # the torrent was uploaded by a user, this is a local file not having global metadata
             print("upload file")
+            self.current_file_status = "upload file"
             self.torrent.init_torrent_seq(self.file_name, True)
 
         else:
             print("global file")
+            self.current_file_status = "global file"
             self.torrent.init_torrent_seq(self.file_name, False)
 
 
@@ -285,8 +289,10 @@ class Tracker:
             self.sock.sendto(b"FLOW", addr)  # start flow of metadata content
             s = 0
             length = int(pickle.loads(self.sock.recv(self.__BUF)))
+            print(length)
             while s != length:
                 data = self.sock.recv(self.__BUF)
+
                 s += len(data)
                 with open(f"torrents\\info_hashes\\{filename}", "ab") as f:
                     f.write(data)
@@ -298,7 +304,8 @@ class Tracker:
         #     print(e)
         #     return
 
-    def done_downloading(self):
+    def done_downloading(self, downloaded_peers):
+        print(downloaded_peers)
         self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
         data = self.sock.recv(self.__BUF)
         if data == b"UPDATED":

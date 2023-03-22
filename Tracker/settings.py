@@ -9,7 +9,6 @@ def init():
     admin_ips = []
 
 
-
 if __name__ == '__main__':
     requests = 0
     admin_ips = []
