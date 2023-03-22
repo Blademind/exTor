@@ -93,7 +93,6 @@ class Tracker:
             self.current_file_status = "global file"
             self.torrent.init_torrent_seq(self.file_name, False)
 
-
     def contact_trackers(self):
         # previous methods did not prove useful to get pieces, time to contact global trackers for peers
         if self.global_flag:
@@ -307,8 +306,18 @@ class Tracker:
     def done_downloading(self, downloaded_peers):
         print(downloaded_peers)
         self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
+
         data = self.sock.recv(self.__BUF)
+        c = 0
+        while len(data) == 0 and c < 3:
+            data = self.sock.recv(self.__BUF)
+            print(data)
+            c += 1
+
         if data == b"UPDATED":
+            if self.current_file_status == "local file" or self.current_file_status == "upload file":
+                self.sock.sendto(pickle.dumps((f"INFORM_SHARED_PEERS {self.file_name}", downloaded_peers)),
+                                 self.local_tracker)
             print("Tracker was informed of downloaded file")
 
 

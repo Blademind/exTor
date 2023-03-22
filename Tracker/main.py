@@ -51,7 +51,7 @@ class Tracker:
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 60
+        timer = 3600
         conn2 = sqlite3.connect("databases\\torrent_swarms.db")
         curr = conn2.cursor()
         while 1:
@@ -63,7 +63,7 @@ class Tracker:
                 curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
                 records = curr.fetchall()
 
-                for raw_addr, time_added in records:
+                for raw_addr, time_added, tokens in records:
                     addr = pickle.loads(raw_addr)
                     if time.time() - time_added >= timer:
                         curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
@@ -80,30 +80,6 @@ class Tracker:
 
                             with open(f"torrents\\{file_name[0]}", "wb") as f:
                                 f.write(bencode.bencode(torrent_data))
-            #
-            # for torrent in self.ip_addresses.values():
-            #     if len(torrent) != 0:
-            #         for ip in torrent:
-            #             if time.time() - ip[1] >= timer:
-            #                 file_name = list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]
-            #                 self.ip_addresses[
-            #                     list(self.ip_addresses.keys())[list(self.ip_addresses.values()).index(torrent)]].remove(
-            #                     ip)
-            #                 with open(f"torrents\\{file_name}", "rb") as f:
-            #                     torrent_data = bencode.bdecode(f.read())
-            #
-            #                 for i in torrent_data["announce-list"]:
-            #                     if list(ip[0]) == i:
-            #                         torrent_data["announce-list"].remove(i)
-            #                         break
-            #
-            #                 with open(f"torrents\\{file_name}", "wb") as f:
-            #                     f.write(bencode.bencode(torrent_data))
-            #
-            #                 size_changed = True
-            #                 break
-            #     if size_changed:
-            #         break
             time.sleep(5)
 
     def reset_ip_addresses(self):
@@ -147,7 +123,33 @@ class Tracker:
                     datacontent = data.decode()
                     # MESSAGE FROM INFO SERVER
                 except:
-                    datacontent = ""
+                    try:
+                        datacontent = pickle.loads(data)
+                        if "INFORM_SHARED_PEERS " in datacontent[0]:
+                            sharing_peers = datacontent[1]
+                            file_name = datacontent[0][20:]
+                            conn = sqlite3.connect("databases\\torrent_swarms.db")
+                            curr = conn.cursor()
+                            curr.execute(f"""SELECT * FROM "{file_name}" """)
+                            data = curr.fetchall()
+                            peers = [pickle.loads(peer[0]) for peer in data]
+                            print(peers)
+                            print(sharing_peers)
+                            print(data)
+                            for peer in sharing_peers:
+                                if peer in peers:
+                                    curr.execute(f"""SELECT * FROM "{file_name}" WHERE address=? """, (pickle.dumps(peer), ))
+                                    print(curr.fetchall())
+                                    curr.execute(f"""UPDATE "{file_name}" SET time=? ,tokens=? WHERE address=? """,
+                                                 (time.time(), data[peers.index(peer)][2] + 1, pickle.dumps(peer)))
+
+                            conn.commit()
+                            conn.close()
+
+                    except Exception as e:
+                        print("(listen_udp) error exception handling: ", e)
+                        pass
+                    break
 
                 settings.requests += 1  # another request detected
 
@@ -169,10 +171,11 @@ class Tracker:
                             conn = sqlite3.connect("databases\\torrent_swarms.db")
                             curr = conn.cursor()
                             curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
-                             (address BLOB, time REAL)""")
+                             (address BLOB, time REAL, tokens INT)""")
 
                             curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES 
-                            (?, ?)""", (pickle.dumps(addr), time.time()))
+                            (?, ?, ?)""", (pickle.dumps(addr), time.time(), 0))
+
                             conn.commit()
                             conn.close()
 
@@ -258,7 +261,7 @@ class Tracker:
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
          (address BLOB, time REAL)""")
-        curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?);""", (pickle.dumps(addr), time.time()))
+        curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?, ?);""", (pickle.dumps(addr), time.time(), 0))
         # self.ip_addresses[file_name].append((addr, time.time()))
         conn.commit()
         conn.close()

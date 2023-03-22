@@ -15,12 +15,14 @@ import shutil
 #       "Here you can upload your own file to a tracker\n"
 #       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
 
+
 def get_ip_addr():
     s = socket(AF_INET, SOCK_DGRAM)
     s.connect(('8.8.8.8',53))
     ip = s.getsockname()[0]
     s.close()
     return ip
+
 
 class Upload:
     def __init__(self):
