@@ -14,6 +14,9 @@ import select
 import sqlite3
 import ssl
 import time
+import settings
+
+
 def build_error_response(msg):
     """
     Builds error response, sent when error has occurred
@@ -56,10 +59,13 @@ class TrackerTCP:
         self.__BUF = 1024
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
+        self.admin_ips = []
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
          (address TEXT)""")
+        curr.execute(f"""CREATE TABLE IF NOT EXISTS Admins
+        (user TEXT, password TEXT)""")
         conn.close()
 
         threading.Thread(target=self.listen_tcp).start()
@@ -112,8 +118,29 @@ class TrackerTCP:
                     # file upload immensing
                     if datacontent[-8:] == ".torrent":
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
-                    elif datacontent == "ADMIN":
-                        sock.send(b"FUCK YOU ADMIN!")
+                    elif "USER_PASSWORD" in datacontent:
+                        user_password = datacontent[14:].split(" ")
+                        print(user_password)
+                        conn = sqlite3.connect("databases\\users.db")
+                        curr = conn.cursor()
+                        curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
+                                                                                          user_password[1]))
+                        result = curr.fetchone()
+                        if result:
+                            sock.send(b"SUCCESS")
+                            if sock.getpeername()[0] not in settings.admin_ips:
+                                settings.admin_ips.append(sock.getpeername()[0])
+                            # user was found, open a thread dedicated to him
+                        else:
+                            sock.send(b"DENIED")
+
+                    elif "FETCH_REQUESTS" == datacontent:
+                        if sock.getpeername()[0] in settings.admin_ips:
+                            print("passed")
+                            sock.send(pickle.dumps(settings.requests))
+                            settings.requests = 0
+                        else:
+                            sock.send(b"DENIED")
 
     def recv_files(self, sock, filename):
         try:

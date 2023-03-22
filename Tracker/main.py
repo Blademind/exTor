@@ -14,6 +14,7 @@ from py1337x import py1337x
 import bencode
 import urllib3
 import sqlite3
+import settings
 
 
 def errormng(func):
@@ -30,6 +31,7 @@ class Tracker:
         """
         Create a Tracker object
         """
+        settings.init()
         self.torrents_search_object = py1337x(proxy="1337xx.to")
 
         self.conn = sqlite3.connect("databases\\torrent_swarms.db")
@@ -37,7 +39,6 @@ class Tracker:
         self.server_sock = self.init_udp_sock(12345)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
-
 
         self.connection_ids = {}  # list of all connected clients
         self.ip_addresses = {}
@@ -149,6 +150,8 @@ class Tracker:
                 except:
                     datacontent = ""
 
+                settings.requests += 1  # another request detected
+
                 if datacontent == "FIND LOCAL TRACKER":
                     sock.sendto(pickle.dumps((sock.getsockname()[0], 12345)), addr)
 
@@ -186,6 +189,14 @@ class Tracker:
 
                     else:
                         print("given file name not in the torrents dir")
+
+                elif "FETCH_REQUESTS" == datacontent:
+                    if addr[0] in settings.admin_ips:
+                        print("passed")
+                        sock.sendto(pickle.dumps(settings.requests - 1), addr)
+                        settings.requests = 0
+                    else:
+                        sock.sendto(b"DENIED", addr)
 
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")

@@ -1,3 +1,6 @@
+import datetime
+import random
+import threading
 import time
 import sys
 from PyQt5.QtWidgets import *
@@ -7,7 +10,12 @@ from PyQt5 import uic
 from socket import *
 import pickle
 import ssl
-
+# from PyQt5.QtChart import QValueAxis,QChart, QChartView, QLineSeries
+from pyqtgraph import PlotWidget, plot
+import pyqtgraph as pg
+import numpy as np
+import warnings
+import math
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
@@ -17,6 +25,14 @@ def errormng(func):
         except Exception as e:
             print(e)
     return wrapper
+
+
+class UI:
+    def __init__(self):
+        self.app = QApplication(sys.argv)
+        self.LoginWindow = AdminLoginGui()
+        self.LoginWindow.show()
+        sys.exit(self.app.exec_())
 
 
 class AdminLoginGui(QMainWindow):
@@ -29,17 +45,27 @@ class AdminLoginGui(QMainWindow):
         if self.local_tracker:
 
             self.setWindowTitle("exTor")
+            self.pushButton.setShortcut("Return")
             self.pushButton.clicked.connect(self.pass_password)
+
             # self.setFixedSize(1,1)
-            self.show()
 
     def pass_password(self):
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
         self.sock.connect((self.local_tracker[0], 55556))
-        self.sock.send(b"ADMIN")
+        self.sock.send(f"USER_PASSWORD {self.user.text()} {self.password.text()}".encode())
         data = self.sock.recv(1024)
+        if data == b"SUCCESS":
+            self.close()
+            self.sock.close()
+            self.MainWindow = AdminGui(self.local_tracker)
+            self.MainWindow.show()
+            # continue to main window
+        elif data == b"DENIED":
+            self.error_handler("User or Password were not found", close_program=False)
         print(data)
+
     def find_local_tracker(self):
         sock = init_udp_sock()
         msg = b'FIND LOCAL TRACKER'
@@ -61,29 +87,85 @@ class AdminLoginGui(QMainWindow):
                 self.error_handler("fatal error while searching for local tracker")
         except:
             self.error_handler("no response from local tracker")
-
-    # def tracker_connection_window(self):
-    #     win = QMainWindow(self)
-    #
-    #     win.setWindowTitle("Trying connection")
-    #     l1 = QLabel()
-    #     l1.setText("ASDASDSA")
-    #     l1.setAlignment(Qt.AlignCenter)
-    #     win.show()
-    #
-    #     #
-    #     # connection_dialog = QWidget()
-    #     # connection_dialog.setWindowTitle("Trying connection")
-    #     # connection_dialog.setText("Contacting Tracker...")
-    #     # connection_dialog.setIcon(QMessageBox.Information)
-    #     # sys.exit(connection_dialog.exec_())
-
-    def error_handler(self, msg):
+    def error_handler(self, msg, close_program=True):
         error_dialog = QMessageBox()
         error_dialog.setWindowTitle("Error")
         error_dialog.setText(msg)
         error_dialog.setIcon(QMessageBox.Critical)
-        sys.exit(error_dialog.exec_())
+        if close_program:
+            sys.exit(error_dialog.exec_())
+        else:
+            error_dialog.exec_()
+
+
+class AdminGui(QMainWindow):
+    def __init__(self, local_tracker):
+        super(AdminGui, self).__init__()
+        # uic.loadUi("mygui.ui", self)
+        self.local_tracker = local_tracker
+        self.setWindowTitle("exTor")
+        self.setGeometry(100, 100, 680, 500)
+        self.create_graph()
+
+        self.sock = init_udp_sock()
+        # self.update_plot_data()
+        self.timer = QTimer()
+        self.timer.setInterval(5000)
+        self.timer.timeout.connect(self.update_plot_data)
+        self.timer.start()
+
+    def update_plot_data(self):
+        if np.nan in self.y:
+            requests = self.fetch_requests()
+            if requests:
+                self.y[self.y.index(np.nan)] = requests
+            else:
+                self.y[self.y.index(np.nan)] = 0
+        else:
+            self.x = self.x[1:]  # Remove the first y element.
+            self.x.append(self.x[-1] + 5)  # Add a new value 1 higher than the last.
+
+            self.y = self.y[1:]  # Remove the first
+
+            requests = self.fetch_requests()
+            if requests:
+                self.y.append(requests)  # Add a new random value.
+            else:
+                self.y.append(0)
+
+        self.data_line.setData(self.x, self.y)  # Update the data.
+
+    def create_graph(self):
+        pg.setConfigOptions(antialias=True)
+        self.graphWidget = pg.PlotWidget()
+
+        axis = pg.DateAxisItem()
+        self.graphWidget.setAxisItems({'bottom': axis})
+
+        self.graphWidget.setLabel('left', 'Requests')
+        self.graphWidget.setLabel('bottom', 'Time')
+
+        self.graphWidget.showGrid(x=True, y=True)
+
+        date_list = [math.floor((datetime.datetime.today() + datetime.timedelta(seconds=i)).timestamp()) for i in range(5, 51, 5)]
+        self.x = sorted(date_list, reverse=False)  # 100 time points
+        # self.x = [_ for _ in range(5, 51, 5)]
+        self.y = [np.nan for _ in range(10)]  # 100 data points
+
+        self.setCentralWidget(self.graphWidget)
+
+        # plot data: x, y values
+        pen = pg.mkPen(width=5)
+        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen, symbol='o')
+
+    def fetch_requests(self):
+        try:
+            self.sock.sendto(b"FETCH_REQUESTS", self.local_tracker)
+            requests = pickle.loads(self.sock.recv(1024))
+            return requests
+        except Exception as e:
+            print(e)
+            return
 
 
 @errormng
@@ -110,11 +192,6 @@ def get_ip_addr():
     return ip
 
 
-def main():
-    app = QApplication([])
-    LoginWindow = AdminLoginGui()
-    app.exec_()
-
-
 if __name__ == '__main__':
-    main()
+    warnings.simplefilter("ignore", category=RuntimeWarning)
+    UI()
