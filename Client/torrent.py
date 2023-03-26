@@ -1,8 +1,11 @@
 import hashlib
 import random
+import time
+
 import bencode
 from urllib.parse import urlparse
-
+from contextlib import closing
+from socket import *
 
 class Torrent:
     """
@@ -15,12 +18,27 @@ class Torrent:
         self.torrent = None
         if not port:
             self.port = random.randint(6881, 6889)
+
+            s = socket(AF_INET, SOCK_DGRAM)
+            try:
+                s.bind(("0.0.0.0", self.port))
+            except:
+                open_port = self.find_open_port(s)
+                print("open port:", open_port)
+
+                self.port = open_port
         else:
             self.port = port
         # torrents = os.listdir("torrents\\info_hashes")
         # for torrent in torrents:
         #     print(torrents.index(torrent), torrent)
         # index = input("what torrent would you like to download? ->\t")
+
+    def find_open_port(self, s):
+        s.bind(("0.0.0.0", 0))
+        port = s.getsockname()[1]
+        s.close()
+        return port
 
     def init_torrent_seq(self, file_name, local):
         print(file_name)

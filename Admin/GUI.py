@@ -32,7 +32,12 @@ class UI:
         self.app = QApplication(sys.argv)
         self.LoginWindow = AdminLoginGui()
         self.LoginWindow.show()
-        sys.exit(self.app.exec_())
+        self.app.exec_()
+        tracker = self.LoginWindow.local_tracker
+
+        if tracker:  # resets values on tracker side once done
+            sock = init_udp_sock()
+            sock.sendto(b"DONE_ADMIN_OPERATION", tracker)
 
 
 class AdminLoginGui(QMainWindow):
@@ -116,7 +121,10 @@ class AdminGui(QMainWindow):
 
     def update_plot_data(self):
         if np.nan in self.y:
-            requests = self.fetch_requests()
+            requests_data = self.fetch_requests()
+            requests = requests_data[0]
+            print(requests_data[1])
+
             if requests:
                 self.y[self.y.index(np.nan)] = requests
             else:
@@ -127,7 +135,9 @@ class AdminGui(QMainWindow):
 
             self.y = self.y[1:]  # Remove the first
 
-            requests = self.fetch_requests()
+            requests_data = self.fetch_requests()
+            requests = requests_data[0]
+            print(requests_data[1])
             if requests:
                 self.y.append(requests)  # Add a new random value.
             else:
@@ -193,3 +203,4 @@ def get_ip_addr():
 if __name__ == '__main__':
     warnings.simplefilter("ignore", category=RuntimeWarning)
     UI()
+

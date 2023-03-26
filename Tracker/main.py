@@ -151,13 +151,16 @@ class Tracker:
                         pass
                     break
 
-                settings.requests += 1  # another request detected
+                settings.requests[0] += 1  # another request detected
+                if addr[0] in settings.requests[1]:
+                    settings.requests[1][addr[0]] += 1
+                else:
+                    settings.requests[1][addr[0]] = 1
 
                 if datacontent == "FIND LOCAL TRACKER":
                     sock.sendto(pickle.dumps((sock.getsockname()[0], 12345)), addr)
 
                 elif datacontent[:17] == "DONE DOWNLOADING ":
-
                     torrent_files = os.listdir("torrents")
                     local_file_name = datacontent[17:]
 
@@ -197,11 +200,20 @@ class Tracker:
 
                 elif "FETCH_REQUESTS" == datacontent:
                     if addr[0] in settings.admin_ips:
-                        sock.sendto(pickle.dumps(settings.requests - 1), addr)
-                        settings.requests = 0
+                        all_requests = settings.requests  # all requests recorded not inc. current request.
+                        sock.sendto(pickle.dumps(all_requests), addr)
+                        settings.requests[0] = 0
+                        settings.requests[1] = {}
                     else:
                         sock.sendto(b"DENIED", addr)
 
+                elif datacontent == "DONE_ADMIN_OPERATION":
+                    if addr[0] in settings.admin_ips:
+                        settings.requests[0] = 0
+                        settings.requests[1] = []
+                        print("reset after admin quit")
+                    else:
+                        sock.sendto(b"DENIED", addr)
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")
                     matches = get_close_matches(f"{datacontent[4:]}", torrent_files, n=1, cutoff=0.3)
