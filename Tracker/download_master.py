@@ -59,6 +59,7 @@ class TrackerTCP:
         self.__BUF = 1024
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
+        self.not_listening = []
         self.admin_ips = []
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
@@ -84,7 +85,10 @@ class TrackerTCP:
         print("TCP Server is now listening\n")
         while 1:
             readable, writeable, ex = select.select(self.read_tcp, self.write_tcp, [])
+
             for sock in readable:
+                if sock in self.not_listening:
+                    break
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
 
@@ -93,7 +97,7 @@ class TrackerTCP:
                     curr.execute("SELECT * FROM BannedIPs")
                     self.banned_ips = curr.fetchall()
                     conn_db.close()
-                    print("banned ips:",self.banned_ips)
+                    print("banned ips:", self.banned_ips)
                     # with open("banned_ips.txt", "r") as f:
                     #     self.banned_ips = f.read().split("\n")
                     if addr[0] in self.banned_ips:
@@ -101,23 +105,27 @@ class TrackerTCP:
                         break
 
                     print(f"Connection from {addr}")
-                    conn.settimeout(5.0)
-                    readable.append(conn)
+                    if addr[0] not in settings.admin_ips:
+                        conn.settimeout(5.0)
+                    else:
+                        conn.settimeout(None)
+                    self.read_tcp.append(conn)
 
                 else:
                     try:
                         data = sock.recv(self.__BUF)
+
                         if not data:
-                            readable.remove(sock)
+                            self.read_tcp.remove(sock)
                             break
                     except:
-                        readable.remove(sock)
+                        self.read_tcp.remove(sock)
                         break
                     datacontent = data.decode()
-                    # print(datacontent)
-                    # file upload immensing
 
+                    # file upload immensing
                     if datacontent[-8:] == ".torrent":
+                        self.not_listening.append(sock)
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
 
                     elif "USER_PASSWORD" in datacontent:
@@ -128,13 +136,85 @@ class TrackerTCP:
                         curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
                                                                                           user_password[1]))
                         result = curr.fetchone()
+
                         if result:
-                            sock.send(b"SUCCESS")
-                            if sock.getpeername()[0] not in settings.admin_ips:
+                            if not settings.admin_ips:
+                                sock.send(b"SUCCESS")
                                 settings.admin_ips.append(sock.getpeername()[0])
+
+                            else:
+                                sock.send(b"DENIED an Admin is already connected")
+
                             # user was found, open a thread dedicated to him
                         else:
-                            sock.send(b"DENIED")
+                            sock.send(b"DENIED user or password incorrect")
+
+                    elif datacontent == "REQUEST_DB":
+                        if sock.getpeername()[0] in settings.admin_ips:
+                            self.not_listening.append(sock)
+                            threading.Thread(target=self.send_db, args=(sock,)).start()
+                        else:
+                            sock.send(b"DENIED not an Admin")
+
+                    elif datacontent == "QUERIES":
+                        sock.send(b"FLOW")
+                        data = sock.recv(self.__BUF)
+                        queries = pickle.loads(data)
+                        conn = sqlite3.connect("databases\\torrent_swarms.db")
+                        curr = conn.cursor()
+                        for query, raw_addr, file_name in queries:
+                            addr = pickle.loads(raw_addr)
+                            curr.execute(query, (raw_addr, ))
+                            conn.commit()
+                            if os.path.exists(f"torrents\\{file_name}"):
+                                print(f"removed {addr} from {file_name}")
+                                with open(f"torrents\\{file_name}", "rb") as f:
+                                    torrent_data = bencode.bdecode(f.read())
+
+                                for i in torrent_data["announce-list"]:
+                                    if list(addr) == i:
+                                        torrent_data["announce-list"].remove(i)
+                                        break
+
+                                with open(f"torrents\\{file_name}", "wb") as f:
+                                    f.write(bencode.bencode(torrent_data))
+
+
+    def send_db(self, sock):
+        done = False
+        while not done:
+            data = sock.recv(self.__BUF)
+
+            if not data:
+                break
+            try:
+                datacontent = data.decode()
+            except:
+                break
+            if datacontent == "FLOW":
+                length = os.path.getsize(f"databases\\torrent_swarms.db")
+                s = 0
+                sock.send(pickle.dumps(length))
+                with open(f"databases\\torrent_swarms.db", "rb") as f:
+                    while f:
+                        if datacontent == "FLOW":
+                            file_data = f.read(self.__BUF)
+                            s += len(file_data)
+                            if file_data:
+                                sock.send(file_data)
+                        elif datacontent == "DONE":
+                            break
+                        try:
+                            data = sock.recv(self.__BUF)
+                            datacontent = data.decode()
+                        except Exception as e:
+                            print(e)
+                            raise Exception("could not decode data recieved")
+
+            if datacontent == "DONE":
+                print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
+                done = True
+                self.not_listening.remove(sock)
 
     def recv_files(self, sock, filename):
         try:
@@ -151,7 +231,7 @@ class TrackerTCP:
                     if length != s:
                         sock.send("FLOW".encode())
                 print(f"Done downloading {filename}")
-                sock.send("DONE".encode())
+                sock.send(b"DONE")
                 with open(f'torrents\\{filename}', 'rb') as t:
                     torrent = t.read()
                 torrent = bencode.bdecode(torrent)
@@ -164,12 +244,13 @@ class TrackerTCP:
                 conn = sqlite3.connect("databases\\torrent_swarms.db")
                 curr = conn.cursor()
                 curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
-                 (address BLOB, time REAL)""")
+                 (address BLOB, time REAL, tokens INT)""")
 
                 curr.execute(f"""INSERT INTO "{filename}" VALUES 
                 (?, ?)""", (pickle.dumps(sock.getpeername()), time.time()))
                 conn.commit()
                 conn.close()
+                self.not_listening.remove(sock)
                 self.check_newly_added_file(filename, sock)
             else:
                 sock.send("FILE_EXISTS".encode())

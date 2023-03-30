@@ -75,6 +75,7 @@ class Upload:
         except Exception as e:
             print(e)
             return
+
     def listen(self):
         while 1:
             data = self.sock.recv(self.__BUF)

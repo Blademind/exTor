@@ -34,7 +34,6 @@ class Tracker:
         settings.init()
         self.torrents_search_object = py1337x(proxy="1337xx.to")
 
-
         self.server_sock = self.init_udp_sock(12345)  # udp socket with given port
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
@@ -43,44 +42,48 @@ class Tracker:
         self.ip_addresses = {}
         # self.reset_ip_addresses()  # reset lists of ip addresses
 
-        _thread.start_new_thread(self.deleter_timer, ())  # remove peer after set time
+        if not os.path.exists("databases\\torrent_swarms.db"):
+            file = open("databases\\torrent_swarms.db", "w+")
+            file.close()
+
+        # _thread.start_new_thread(self.deleter_timer, ())  # remove peer after set time
         self.listen_udp()  # listen
 
-    def deleter_timer(self):
-        """
-        removes ip after an hour (according to protocol)
-        :return: None
-        """
-        timer = 3600
-        conn2 = sqlite3.connect("databases\\torrent_swarms.db")
-        curr = conn2.cursor()
-        while 1:
-            # size_changed = False
-            # adds all ips-times into one list
-            curr.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            table_names = curr.fetchall()
-            for file_name in table_names:
-                curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
-                records = curr.fetchall()
-
-                for raw_addr, time_added, tokens in records:
-                    addr = pickle.loads(raw_addr)
-                    if time.time() - time_added >= timer:
-                        curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
-                        conn2.commit()
-                        if os.path.exists(f"torrents\\{file_name[0]}"):
-                            print(f"removed {addr} from {file_name[0]}")
-                            with open(f"torrents\\{file_name[0]}", "rb") as f:
-                                torrent_data = bencode.bdecode(f.read())
-
-                            for i in torrent_data["announce-list"]:
-                                if list(addr) == i:
-                                    torrent_data["announce-list"].remove(i)
-                                    break
-
-                            with open(f"torrents\\{file_name[0]}", "wb") as f:
-                                f.write(bencode.bencode(torrent_data))
-            time.sleep(5)
+    # def deleter_timer(self):
+    #     """
+    #     removes ip after an hour (according to protocol)
+    #     :return: None
+    #     """
+    #     timer = 3600
+    #     conn2 = sqlite3.connect("databases\\torrent_swarms.db")
+    #     curr = conn2.cursor()
+    #     while 1:
+    #         # size_changed = False
+    #         # adds all ips-times into one list
+    #         curr.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    #         table_names = curr.fetchall()
+    #         for file_name in table_names:
+    #             curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
+    #             records = curr.fetchall()
+    #
+    #             for raw_addr, time_added in records[:2]:
+    #                 addr = pickle.loads(raw_addr)
+    #                 if time.time() - time_added >= timer:
+    #                     curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
+    #                     conn2.commit()
+    #                     if os.path.exists(f"torrents\\{file_name[0]}"):
+    #                         print(f"removed {addr} from {file_name[0]}")
+    #                         with open(f"torrents\\{file_name[0]}", "rb") as f:
+    #                             torrent_data = bencode.bdecode(f.read())
+    #
+    #                         for i in torrent_data["announce-list"]:
+    #                             if list(addr) == i:
+    #                                 torrent_data["announce-list"].remove(i)
+    #                                 break
+    #
+    #                         with open(f"torrents\\{file_name[0]}", "wb") as f:
+    #                             f.write(bencode.bencode(torrent_data))
+    #         time.sleep(5)
 
     def reset_ip_addresses(self):
         """
@@ -205,15 +208,17 @@ class Tracker:
                         settings.requests[0] = 0
                         settings.requests[1] = {}
                     else:
-                        sock.sendto(b"DENIED", addr)
+                        sock.sendto(b"DENIED not an Admin", addr)
 
                 elif datacontent == "DONE_ADMIN_OPERATION":
                     if addr[0] in settings.admin_ips:
+                        settings.admin_ips = []
                         settings.requests[0] = 0
-                        settings.requests[1] = []
+                        settings.requests[1] = {}
                         print("reset after admin quit")
                     else:
-                        sock.sendto(b"DENIED", addr)
+                        sock.sendto(b"DENIED not an Admin", addr)
+
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")
                     matches = get_close_matches(f"{datacontent[4:]}", torrent_files, n=1, cutoff=0.3)
@@ -272,7 +277,7 @@ class Tracker:
         conn = sqlite3.connect("databases\\torrent_swarms.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
-         (address BLOB, time REAL)""")
+         (address BLOB, time REAL, tokens INT)""")
         curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?, ?);""", (pickle.dumps(addr), time.time(), 0))
         # self.ip_addresses[file_name].append((addr, time.time()))
         conn.commit()
@@ -426,6 +431,7 @@ def exit_function():
             input()
     except UnicodeDecodeError:
         for torrent in os.listdir(f"torrents"):
+
             if torrent[-12:-8] == "_LOC" or torrent[-15:-8] == "_UPLOAD":
                 os.remove(f"torrents\\{torrent}")
 

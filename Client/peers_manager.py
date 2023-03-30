@@ -502,7 +502,6 @@ class Downloader:
                 sharing_peers.append(peer)
                 print(peer, "added to sharing_peers list")
 
-
 def reset_to_default():
     global currently_connected, DONE
     currently_connected = []

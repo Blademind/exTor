@@ -16,6 +16,11 @@ import pyqtgraph as pg
 import numpy as np
 import warnings
 import math
+import bencode
+import os
+import sqlite3
+
+
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
@@ -67,8 +72,8 @@ class AdminLoginGui(QMainWindow):
             self.MainWindow = AdminGui(self.local_tracker)
             self.MainWindow.show()
             # continue to main window
-        elif data == b"DENIED":
-            self.error_handler("user or password incorrect", close_program=False)
+        elif b"DENIED" in data:
+            self.error_handler(data[7:].decode(), close_program=False)
 
     def find_local_tracker(self):
         sock = init_udp_sock()
@@ -111,6 +116,17 @@ class AdminGui(QMainWindow):
         self.setWindowTitle("exTor")
         self.setGeometry(100, 100, 680, 500)
         self.create_graph()
+        if not os.path.exists("databases"):
+            os.makedirs("databases")
+        self.tcp_sock = socket(AF_INET, SOCK_STREAM)
+        self.tcp_sock.settimeout(5)
+        self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+        self.tcp_sock.connect((self.local_tracker[0], 55556))
+
+        self.__BUF = 1024
+
+        self.db_lock = threading.Lock()
+        threading.Thread(target=self.deleter_timer).start()
 
         self.sock = init_udp_sock()
         # self.update_plot_data()
@@ -145,6 +161,66 @@ class AdminGui(QMainWindow):
 
         self.data_line.setData(self.x, self.y)  # Update the data.
 
+    def deleter_timer(self):
+        """
+        removes ip after an hour (according to protocol)
+        :return: None
+        """
+        timer = 60
+        while 1:
+            queries = []
+            recv_db_status = self.recv_db()
+            if recv_db_status != "success":  # error along the way
+                print(recv_db_status)
+                break
+            else:
+                print("SUCCESS UPDATE.")
+            self.db_lock.acquire()  # acquire lock for db data to not change during operation
+
+            conn = sqlite3.connect("databases\\torrent_swarms.db")
+            curr = conn.cursor()
+            # adds all ips-times into one list
+            curr.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            table_names = curr.fetchall()
+            for file_name in table_names:
+                curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
+                records = curr.fetchall()
+                for raw_addr, time_added, tokens in records:
+                    # addr = pickle.loads(raw_addr)
+                    if time.time() - time_added >= timer:
+                        queries.append((f"""DELETE FROM "{file_name[0]}" WHERE address=?""", raw_addr, file_name[0]))
+
+                        curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
+                        conn.commit()
+
+                        # if os.path.exists(f"torrents\\{file_name[0]}"):
+                        #     print(f"removed {addr} from {file_name[0]}")
+                        #     with open(f"torrents\\{file_name[0]}", "rb") as f:
+                        #         torrent_data = bencode.bdecode(f.read())
+                        #
+                        #     for i in torrent_data["announce-list"]:
+                        #         if list(addr) == i:
+                        #             torrent_data["announce-list"].remove(i)
+                        #             break
+                        #
+                        #     with open(f"torrents\\{file_name[0]}", "wb") as f:
+                        #         f.write(bencode.bencode(torrent_data))
+            conn.close()
+            print(queries)
+            if queries:
+                self.tcp_sock.send(b"QUERIES")
+                try:
+                    data = self.tcp_sock.recv(self.__BUF)
+                    if data == b"FLOW":
+                        self.tcp_sock.send(pickle.dumps(queries))
+                except:
+                    pass
+            self.db_lock.release()  # release lock so database can be used again
+
+            time.sleep(20)
+
+    # def get_db_data(self):
+
     def create_graph(self):
         pg.setConfigOptions(antialias=True)
         self.graphWidget = pg.PlotWidget(title="Requests on tracker")
@@ -174,6 +250,43 @@ class AdminGui(QMainWindow):
         except Exception as e:
             print(e)
             return
+
+    def recv_db(self):
+        """
+
+        :return: success if passed, [error] if error
+        """
+        print("db download started")
+        self.tcp_sock.send(b"REQUEST_DB")
+
+        db_name = "torrent_swarms.db"
+        if db_name[-3:] != ".db":
+            return "file is not database"
+        self.db_lock.acquire()
+        f = open(f"databases\\{db_name}", "w")
+        f.close()
+        try:
+            self.tcp_sock.send("FLOW".encode())
+            s = 0
+            length = int(pickle.loads(self.tcp_sock.recv(self.__BUF)))  # awaiting client to send the file's length
+            print(f"torrent swarms db download has started ({length} bytes)")
+            while s != length:
+                data = self.tcp_sock.recv(self.__BUF)
+                s += len(data)
+                with open(f"databases\\{db_name}", "ab") as f:
+                    f.write(data)
+                if length != s:
+                    self.tcp_sock.send("FLOW".encode())
+            print(f"done downloading {db_name}")
+            self.tcp_sock.send(b"DONE")
+            self.db_lock.release()  # release lock so database can be used again
+
+            return "success"
+
+        except Exception as e:
+            return e
+
+
 
 
 @errormng
