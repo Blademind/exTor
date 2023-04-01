@@ -9,7 +9,8 @@ from alive_progress import alive_bar
 import select
 from socket import *
 import message_handler as message
-
+import tracker
+import pickle
 
 def reset_have(num_of_pieces):
     """
@@ -28,9 +29,18 @@ def bitstring_to_bytes(s):
     return bytes(int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big'))
 
 
+def get_ip_addr():
+    s = socket(AF_INET, SOCK_DGRAM)
+    s.connect(('8.8.8.8', 53))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
+
+
 class Downloader:
     def __init__(self, torrent, tracker):
         self.count_bar = 0
+        self.__BUF = 1024
         # self.count_download_bar = 0
         # self.written = b""
         self.s_bytes = b""
@@ -48,6 +58,13 @@ class Downloader:
         self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.listen_sock.bind(('0.0.0.0', self.torrent.port))
         self.listen_sock.listen(5)
+
+        self.udp_list_sock = socket(AF_INET, SOCK_DGRAM)
+        self.udp_list_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.udp_list_sock.bind((get_ip_addr(), self.torrent.port))
+
+        self.banned_ips = []
+
         self.readable, self.writable = [self.listen_sock], []
         self.BUFS = {}
 
@@ -111,6 +128,7 @@ class Downloader:
 
     def listen_seq(self):
         threading.Thread(target=self.listen_to_peers).start()
+        threading.Thread(target=self.listen_to_tracker).start()
 
     def generate_download_bar(self):
         threading.Thread(target=self.generate_progress_bar).start()
@@ -123,6 +141,9 @@ class Downloader:
             for sock in read:
                 if self.listen_sock == sock:
                     conn, addr = self.listen_sock.accept()
+                    if addr[0] in self.banned_ips:
+                        conn.close()
+                        break
                     print(f"Connected to {addr}")
                     self.BUFS[conn] = 68
                     self.readable.append(conn)
@@ -159,6 +180,29 @@ class Downloader:
                         sock.send(message.build_handshake(self.tracker))
                         sock.send(message.build_bitfield(bitstring_to_bytes(self.have)))
                         self.BUFS[sock] = 4
+
+    def listen_to_tracker(self):
+        global sharing_peers
+        print("Now listening for tracker UDP queries...")
+        while 1:
+            data, addr = self.udp_list_sock.recvfrom(self.__BUF)
+            if not data:
+                break
+            try:
+                datacontent = data.decode()
+
+            except:
+                datacontent = ""
+
+            print("data from tracker:", datacontent)
+            if datacontent == "UPDATED":
+                if self.tracker.current_file_status == "local file" or self.tracker.current_file_status == "upload file":
+                    self.udp_list_sock.sendto(pickle.dumps((f"INFORM_SHARED_PEERS {self.tracker.file_name}", sharing_peers)),
+                                     self.tracker.local_tracker)
+                print("Tracker was informed of downloaded file")
+            if datacontent[:6] == "BAN_IP":
+                ip = datacontent[7:]
+                self.banned_ips.append(ip)
 
     def add_piece_data(self, piece_number, data):
         file_name, begin_piece, size = self.find_begin_piece_index(piece_number)
@@ -501,6 +545,7 @@ class Downloader:
             if peer not in sharing_peers:
                 sharing_peers.append(peer)
                 print(peer, "added to sharing_peers list")
+
 
 def reset_to_default():
     global currently_connected, DONE

@@ -26,6 +26,14 @@ def errormng(func):
     return wrapper
 
 
+def get_ip_addr():
+    s = socket(AF_INET, SOCK_DGRAM)
+    s.connect(('8.8.8.8', 53))
+    ip = s.getsockname()[0]
+    s.close()
+    return ip
+
+
 class Tracker:
     def __init__(self):
         """
@@ -42,9 +50,16 @@ class Tracker:
         self.ip_addresses = {}
         # self.reset_ip_addresses()  # reset lists of ip addresses
 
-        if not os.path.exists("databases\\torrent_swarms.db"):
-            file = open("databases\\torrent_swarms.db", "w+")
+        if not os.path.exists("databases\\swarms_data.db"):
+            file = open("databases\\swarms_data.db", "w+")
             file.close()
+
+        conn = sqlite3.connect("databases\\swarms_data.db")
+        curr = conn.cursor()
+        curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
+         (address TEXT);""")
+        conn.commit()
+        conn.close()
 
         # _thread.start_new_thread(self.deleter_timer, ())  # remove peer after set time
         self.listen_udp()  # listen
@@ -101,15 +116,9 @@ class Tracker:
         """
         server_sock = socket(AF_INET, SOCK_DGRAM)
         server_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        server_sock.bind((self.get_ip_addr(), port))
+        server_sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        server_sock.bind((get_ip_addr(), port))
         return server_sock
-
-    def get_ip_addr(self):
-        s = socket(AF_INET, SOCK_DGRAM)
-        s.connect(('8.8.8.8', 53))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
 
     def listen_udp(self):
         """
@@ -120,8 +129,18 @@ class Tracker:
             readable, writeable, ex = select.select(self.read_udp, self.write_udp, [])
             for sock in readable:
                 data, addr = sock.recvfrom(self.__BUF)
+                conn = sqlite3.connect("databases\\swarms_data.db")
+                curr = conn.cursor()
+                curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
+                banned = curr.fetchall()
+                if banned:
+                    print(f"{addr} tried to contact, and is banned")
+                    break
+                conn.close()
+
                 if not data:
                     break
+
                 try:
                     datacontent = data.decode()
                     # MESSAGE FROM INFO SERVER
@@ -131,7 +150,7 @@ class Tracker:
                         if "INFORM_SHARED_PEERS " in datacontent[0]:
                             sharing_peers = datacontent[1]
                             file_name = datacontent[0][20:]
-                            conn = sqlite3.connect("databases\\torrent_swarms.db")
+                            conn = sqlite3.connect("databases\\swarms_data.db")
                             curr = conn.cursor()
                             curr.execute(f"""SELECT * FROM "{file_name}" """)
                             data = curr.fetchall()
@@ -160,7 +179,7 @@ class Tracker:
                 else:
                     settings.requests[1][addr[0]] = 1
 
-                if datacontent == "FIND LOCAL TRACKER":
+                if datacontent == "FIND_LOCAL_TRACKER":
                     sock.sendto(pickle.dumps((sock.getsockname()[0], 12345)), addr)
 
                 elif datacontent[:17] == "DONE DOWNLOADING ":
@@ -174,7 +193,7 @@ class Tracker:
 
                         else:  # local file was not already created
                             print(local_file_name[:-8])
-                            conn = sqlite3.connect("databases\\torrent_swarms.db")
+                            conn = sqlite3.connect("databases\\swarms_data.db")
                             curr = conn.cursor()
                             curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
                              (address BLOB, time REAL, tokens INT)""")
@@ -216,6 +235,13 @@ class Tracker:
                         settings.requests[0] = 0
                         settings.requests[1] = {}
                         print("reset after admin quit")
+                    else:
+                        sock.sendto(b"DENIED not an Admin", addr)
+
+                elif datacontent[:6] == "BAN_IP":
+                    if addr[0] in settings.admin_ips:
+                        settings.ban_ip(datacontent[7:], self.server_sock)
+
                     else:
                         sock.sendto(b"DENIED not an Admin", addr)
 
@@ -267,6 +293,7 @@ class Tracker:
                         query = datacontent[4:]
                         self.torrent_from_web(query, addr, sock)
 
+
     def add_peer_to_LOC(self, file_name, addr):
         """
         Adds given peer to a local torrent file
@@ -274,10 +301,11 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
-        conn = sqlite3.connect("databases\\torrent_swarms.db")
+        conn = sqlite3.connect("databases\\swarms_data.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
          (address BLOB, time REAL, tokens INT)""")
+
         curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?, ?);""", (pickle.dumps(addr), time.time(), 0))
         # self.ip_addresses[file_name].append((addr, time.time()))
         conn.commit()

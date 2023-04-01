@@ -21,6 +21,9 @@ import os
 import sqlite3
 
 
+# ========= BAN IP =========
+# self.sock.sendto(f"BAN_IP {addr[0]}".encode(), self.local_tracker)
+
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
@@ -35,10 +38,10 @@ def errormng(func):
 class UI:
     def __init__(self):
         self.app = QApplication(sys.argv)
-        self.LoginWindow = AdminLoginGui()
-        self.LoginWindow.show()
+        self.AdminLoginWindow = AdminLoginGui()
+        self.AdminLoginWindow.show()
         self.app.exec_()
-        tracker = self.LoginWindow.local_tracker
+        tracker = self.AdminLoginWindow.local_tracker
 
         if tracker:  # resets values on tracker side once done
             sock = init_udp_sock()
@@ -48,12 +51,10 @@ class UI:
 class AdminLoginGui(QMainWindow):
     def __init__(self):
         super(AdminLoginGui, self).__init__()
-        uic.loadUi("mygui.ui", self)
-        # self.tracker_connection_window()
         self.local_tracker = self.find_local_tracker()
 
         if self.local_tracker:
-
+            uic.loadUi("mygui.ui", self)
             self.setWindowTitle("exTor")
             self.pushButton.setShortcut("Return")
             self.pushButton.clicked.connect(self.pass_password)
@@ -77,7 +78,7 @@ class AdminLoginGui(QMainWindow):
 
     def find_local_tracker(self):
         sock = init_udp_sock()
-        msg = b'FIND LOCAL TRACKER'
+        msg = b'FIND_LOCAL_TRACKER'
         try:
             sock.sendto(msg, ("255.255.255.255", 12345))
         except Exception as e:
@@ -135,7 +136,9 @@ class AdminGui(QMainWindow):
         self.timer.timeout.connect(self.update_plot_data)
         self.timer.start()
 
+    @errormng
     def update_plot_data(self):
+
         if np.nan in self.y:
             requests_data = self.fetch_requests()
             requests = requests_data[0]
@@ -166,7 +169,7 @@ class AdminGui(QMainWindow):
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 60
+        timer = 20
         while 1:
             queries = []
             recv_db_status = self.recv_db()
@@ -177,34 +180,26 @@ class AdminGui(QMainWindow):
                 print("SUCCESS UPDATE.")
             self.db_lock.acquire()  # acquire lock for db data to not change during operation
 
-            conn = sqlite3.connect("databases\\torrent_swarms.db")
+            conn = sqlite3.connect("databases\\swarms_data.db")
             curr = conn.cursor()
             # adds all ips-times into one list
-            curr.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            curr.execute("SELECT name FROM sqlite_master WHERE type='table' AND name!='BannedIPs';")
             table_names = curr.fetchall()
+            print(table_names)
             for file_name in table_names:
                 curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
                 records = curr.fetchall()
-                for raw_addr, time_added, tokens in records:
-                    # addr = pickle.loads(raw_addr)
+
+                for raw_addr, time_added, _ in records:
+                    addr = pickle.loads(raw_addr)
                     if time.time() - time_added >= timer:
-                        queries.append((f"""DELETE FROM "{file_name[0]}" WHERE address=?""", raw_addr, file_name[0]))
+                        query = f"""DELETE FROM "{file_name[0]}" WHERE address=?"""
+                        queries.append((query, raw_addr, file_name[0]))
 
-                        curr.execute(f"""DELETE FROM "{file_name[0]}" WHERE address=?""", (raw_addr,))
+                        curr.execute(query, (raw_addr,))
                         conn.commit()
+                        # self.sock.sendto(f"BAN_IP {addr[0]}".encode(), self.local_tracker)
 
-                        # if os.path.exists(f"torrents\\{file_name[0]}"):
-                        #     print(f"removed {addr} from {file_name[0]}")
-                        #     with open(f"torrents\\{file_name[0]}", "rb") as f:
-                        #         torrent_data = bencode.bdecode(f.read())
-                        #
-                        #     for i in torrent_data["announce-list"]:
-                        #         if list(addr) == i:
-                        #             torrent_data["announce-list"].remove(i)
-                        #             break
-                        #
-                        #     with open(f"torrents\\{file_name[0]}", "wb") as f:
-                        #         f.write(bencode.bencode(torrent_data))
             conn.close()
             print(queries)
             if queries:
@@ -215,6 +210,7 @@ class AdminGui(QMainWindow):
                         self.tcp_sock.send(pickle.dumps(queries))
                 except:
                     pass
+
             self.db_lock.release()  # release lock so database can be used again
 
             time.sleep(20)
@@ -259,7 +255,7 @@ class AdminGui(QMainWindow):
         print("db download started")
         self.tcp_sock.send(b"REQUEST_DB")
 
-        db_name = "torrent_swarms.db"
+        db_name = "swarms_data.db"
         if db_name[-3:] != ".db":
             return "file is not database"
         self.db_lock.acquire()
@@ -316,4 +312,4 @@ def get_ip_addr():
 if __name__ == '__main__':
     warnings.simplefilter("ignore", category=RuntimeWarning)
     UI()
-
+    os._exit(0)

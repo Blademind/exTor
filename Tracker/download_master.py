@@ -37,7 +37,7 @@ def ban_ip(ip, banned_ips):
     :param banned_ips: the banned ips list
     :return: None
     """
-    conn = sqlite3.connect("databases\\users.db")
+    conn = sqlite3.connect("databases\\swarms_data.db")
     curr = conn.cursor()
     curr.execute("INSERT INTO BannedIPs VALUES (?)", ip[0])
     conn.close()
@@ -63,8 +63,7 @@ class TrackerTCP:
         self.admin_ips = []
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
-        curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
-         (address TEXT)""")
+
         curr.execute(f"""CREATE TABLE IF NOT EXISTS Admins
         (user TEXT, password TEXT)""")
         conn.close()
@@ -92,7 +91,7 @@ class TrackerTCP:
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
 
-                    conn_db = sqlite3.connect("databases\\users.db")
+                    conn_db = sqlite3.connect("databases\\swarms_data.db")
                     curr = conn_db.cursor()
                     curr.execute("SELECT * FROM BannedIPs")
                     self.banned_ips = curr.fetchall()
@@ -160,7 +159,7 @@ class TrackerTCP:
                         sock.send(b"FLOW")
                         data = sock.recv(self.__BUF)
                         queries = pickle.loads(data)
-                        conn = sqlite3.connect("databases\\torrent_swarms.db")
+                        conn = sqlite3.connect("databases\\swarms_data.db")
                         curr = conn.cursor()
                         for query, raw_addr, file_name in queries:
                             addr = pickle.loads(raw_addr)
@@ -179,7 +178,6 @@ class TrackerTCP:
                                 with open(f"torrents\\{file_name}", "wb") as f:
                                     f.write(bencode.bencode(torrent_data))
 
-
     def send_db(self, sock):
         done = False
         while not done:
@@ -192,10 +190,10 @@ class TrackerTCP:
             except:
                 break
             if datacontent == "FLOW":
-                length = os.path.getsize(f"databases\\torrent_swarms.db")
+                length = os.path.getsize(f"databases\\swarms_data.db")
                 s = 0
                 sock.send(pickle.dumps(length))
-                with open(f"databases\\torrent_swarms.db", "rb") as f:
+                with open(f"databases\\swarms_data.db", "rb") as f:
                     while f:
                         if datacontent == "FLOW":
                             file_data = f.read(self.__BUF)
@@ -241,7 +239,7 @@ class TrackerTCP:
                 with open(f'torrents\\{filename}', 'wb') as t:
                     t.write(bencode.bencode(torrent))
 
-                conn = sqlite3.connect("databases\\torrent_swarms.db")
+                conn = sqlite3.connect("databases\\swarms_data.db")
                 curr = conn.cursor()
                 curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
                  (address BLOB, time REAL, tokens INT)""")
@@ -267,7 +265,7 @@ class TrackerTCP:
                 f.close()
                 os.remove(f"torrents\\{filename}")
 
-                conn = sqlite3.connect("databases\\torrent_swarms.db")
+                conn = sqlite3.connect("databases\\swarms_data.db")
                 curr = conn.cursor()
                 curr.execute(f"""DELETE FROM "{filename}" WHERE address=?""", (sock.getpeername(),))
                 conn.commit()
