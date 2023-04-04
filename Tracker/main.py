@@ -128,7 +128,13 @@ class Tracker:
         while 1:
             readable, writeable, ex = select.select(self.read_udp, self.write_udp, [])
             for sock in readable:
-                data, addr = sock.recvfrom(self.__BUF)
+                try:
+                    data, addr = sock.recvfrom(self.__BUF)
+                except Exception as e:
+                    print("Force connection close")
+                    data = b""
+                if not data:
+                    break
                 conn = sqlite3.connect("databases\\swarms_data.db")
                 curr = conn.cursor()
                 curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
@@ -137,9 +143,6 @@ class Tracker:
                     print(f"{addr} tried to contact, and is banned")
                     break
                 conn.close()
-
-                if not data:
-                    break
 
                 try:
                     datacontent = data.decode()
