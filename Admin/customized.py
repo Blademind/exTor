@@ -22,8 +22,8 @@ class PasswordEdit(QLineEdit):
         # Set styles
         #self.setStyleSheet(self.CSS)
 
-        self.visibleIcon = QIcon("icons/eye_on_32x32.png")
-        self.hiddenIcon = QIcon("icons/eye_off_32x32.png")
+        self.visibleIcon = QIcon("icons/eye.svg")
+        self.hiddenIcon = QIcon("icons/eye-off.svg")
 
         self.setEchoMode(QLineEdit.Password)
         self.togglepasswordAction = self.addAction(self.visibleIcon, QLineEdit.TrailingPosition)

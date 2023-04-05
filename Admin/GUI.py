@@ -22,7 +22,7 @@ import os
 import sqlite3
 import atexit
 import signal
-
+import redis
 from customized import PasswordEdit
 
 
@@ -39,6 +39,15 @@ def errormng(func):
             print(e)
     return wrapper
 
+
+def mousePressEvent(obj, event):
+    obj.oldPos = event.globalPos()
+
+
+def mouseMoveEvent(obj, event):
+    delta = QPoint (event.globalPos() - obj.oldPos)
+    obj.move(obj.x() + delta.x(), obj.y() + delta.y())
+    obj.oldPos = event.globalPos()
 
 class UI:
     def __init__(self):
@@ -69,7 +78,6 @@ class AdminLoginGui(QWidget):
         # remove the title bar
 
         self.setWindowFlags(Qt.FramelessWindowHint)
-
         self.setStyleSheet(
             """
             QPushButton {
@@ -249,16 +257,24 @@ class AdminLoginGui(QWidget):
         self.retranslateUi()
         QMetaObject.connectSlotsByName(self)
 
+    def mousePressEvent(self, event):
+        self.oldPos = event.globalPos()
+
+    def mouseMoveEvent(self, event):
+        delta = QPoint (event.globalPos() - self.oldPos)
+        self.move(self.x() + delta.x(), self.y() + delta.y())
+        self.oldPos = event.globalPos()
+
     def retranslateUi(self):
         _translate = QCoreApplication.translate
         self.setWindowTitle(_translate("Form", "Form"))
         self.pushButton_3.setText(_translate("Form", "X"))
         self.label_2.setText(_translate(
             "Form",
-            "<html><head/><body><p><img src=\"icons/user_32x32.png\"/></p></body></html>"))
+            "<html><head/><body><p><img src=\"icons/user.svg\"/></p></body></html>"))
         self.label_3.setText(_translate(
             "Form",
-            "<html><head/><body><p><img src=\"icons/lock_32x32.png\"/></p></body></html>"))
+            "<html><head/><body><p><img src=\"icons/lock.svg\"/></p></body></html>"))
         # self.label_4.setText(_translate(
         #     "Form",
         #     "<html><head/><body><p><img src=\"icons/mail_32x32.png\"/></p></body></html>"))
@@ -307,6 +323,39 @@ class AdminLoginGui(QWidget):
     def error_handler(self, msg, close_program=True):
         error_dialog = QMessageBox()
         error_dialog.setWindowTitle("Error")
+        # error_dialog.setWindowFlags(Qt.FramelessWindowHint)
+        error_dialog.setStyleSheet(
+            """
+            QPushButton {
+                border-style: outset;
+                color: white;
+                border-radius: 0px;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #0080FB;
+                border-style: inset;
+            }
+            QPushButton:pressed {
+                background-color: #43A6C6;
+                border-style: inset;
+            }
+            QMessageBox{
+                background-color: rgb(20, 20, 40);
+                font: 13pt "Verdana";
+                padding: 5px;
+                border-radius: 3px;
+                opacity: 200;
+                }
+            QMessageBox QLabel{
+                color: white;
+                }
+            """
+
+        )
+        error_dialog.mouseMoveEvent = lambda event: mouseMoveEvent(error_dialog, event)
+        error_dialog.mousePressEvent = lambda event: mousePressEvent(error_dialog, event)
+
         error_dialog.setText(msg)
         error_dialog.setIcon(QMessageBox.Critical)
         if close_program:
@@ -374,51 +423,58 @@ class AdminGui(QMainWindow):
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 20
+        timer = 30
+        redis_host = "localhost"
+        redis_port = 6379
+        r = redis.StrictRedis(host=redis_host, port=redis_port)
         while 1:
             queries = []
-            recv_db_status = self.recv_db()
-            if recv_db_status != "success":  # error along the way
-                print(recv_db_status)
-                break
-            else:
-                print("SUCCESS UPDATE.")
-            self.db_lock.acquire()  # acquire lock for db data to not change during operation
+            # recv_db_status = self.recv_db()
+            # if recv_db_status != "success":  # error along the way
+            #     print(recv_db_status)
+            #     break
+            # else:
+            #     print("SUCCESS UPDATE.")
+            # self.db_lock.acquire()  # acquire lock for db data to not change during operation
 
-            conn = sqlite3.connect("databases\\swarms_data.db")
-            curr = conn.cursor()
-            # adds all ips-times into one list
-            curr.execute("SELECT name FROM sqlite_master WHERE type='table' AND name!='BannedIPs';")
-            table_names = curr.fetchall()
-            print(table_names)
+            # conn = sqlite3.connect("databases\\swarms_data.db")
+            # curr = conn.cursor()
+            # # adds all ips-times into one list
+            # curr.execute("SELECT name FROM sqlite_master WHERE type='table' AND name!='BannedIPs';")
+            # table_names = curr.fetchall()
+            # print(table_names)
+            table_names = r.keys("*.torrent*")
             for file_name in table_names:
-                curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
-                records = curr.fetchall()
+                # curr.execute(f"""SELECT * FROM "{file_name[0]}" """)
+                # records = curr.fetchall()
+                records = r.lrange(file_name, 0, -1)
 
-                for raw_addr, time_added, _ in records:
-                    addr = pickle.loads(raw_addr)
-                    if time.time() - time_added >= timer:
-                        query = f"""DELETE FROM "{file_name[0]}" WHERE address=?"""
-                        queries.append((query, raw_addr, file_name[0]))
+                for raw_addr in records:
+                    time_added = r.get(raw_addr)
+                    if time.time() - float(time_added) >= timer:
+                        r.lrem(file_name, 0, raw_addr)
+                        r.delete(raw_addr)
+                        # query = f"""DELETE FROM "{file_name}" WHERE address=?"""
+                        # queries.append((query, raw_addr, file_name))
 
-                        curr.execute(query, (raw_addr,))
-                        conn.commit()
+                        # curr.execute(query, (raw_addr,))
+                        # conn.commit()
                         # self.sock.sendto(f"BAN_IP {addr[0]}".encode(), self.local_tracker)
 
-            conn.close()
-            print(queries)
-            if queries:
-                self.tcp_sock.send(b"QUERIES")
-                try:
-                    data = self.tcp_sock.recv(self.__BUF)
-                    if data == b"FLOW":
-                        self.tcp_sock.send(pickle.dumps(queries))
-                except:
-                    pass
+            # conn.close()
+            # print(queries)
+            # if queries:
+            #     self.tcp_sock.send(b"QUERIES")
+            #     try:
+            #         data = self.tcp_sock.recv(self.__BUF)
+            #         if data == b"FLOW":
+            #             self.tcp_sock.send(pickle.dumps(queries))
+            #     except:
+            #         pass
 
-            self.db_lock.release()  # release lock so database can be used again
+            # self.db_lock.release()  # release lock so database can be used again
 
-            time.sleep(20)
+            time.sleep(1)
 
     # def get_db_data(self):
 
@@ -500,7 +556,7 @@ def init_udp_sock():
 
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    sock.settimeout(2)
+    sock.settimeout(1)
 
     sock.bind((get_ip_addr(), 0))
     return sock

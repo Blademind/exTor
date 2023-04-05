@@ -63,7 +63,8 @@ class TrackerTCP:
         self.admin_ips = []
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
-
+        curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
+         (address TEXT);""")
         curr.execute(f"""CREATE TABLE IF NOT EXISTS Admins
         (user TEXT, password TEXT)""")
         conn.close()

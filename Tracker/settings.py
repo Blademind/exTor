@@ -20,7 +20,7 @@ def ban_ip(ip, tracker_sock):
     :return: None
     """
     if ip not in admin_ips:
-        conn = sqlite3.connect("databases\\swarms_data.db")
+        conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
         curr.execute("SELECT * FROM BannedIPS WHERE address=?", (ip,))
         exists = curr.fetchall()

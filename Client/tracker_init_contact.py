@@ -6,7 +6,7 @@ def find_local_tracker():
     msg = b'FIND_LOCAL_TRACKER'
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
     sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    sock.settimeout(2)
+    sock.settimeout(1)
     sock.bind((get_ip_addr(), 0))
 
     sock.sendto(msg, ("255.255.255.255", 12345))

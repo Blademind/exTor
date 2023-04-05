@@ -15,6 +15,7 @@ import bencode
 import urllib3
 import sqlite3
 import settings
+import redis
 
 
 def errormng(func):
@@ -49,18 +50,14 @@ class Tracker:
         self.connection_ids = {}  # list of all connected clients
         self.ip_addresses = {}
         # self.reset_ip_addresses()  # reset lists of ip addresses
+        #
+        # if not os.path.exists("databases\\swarms_data.db"):
+        #     file = open("databases\\swarms_data.db", "w+")
+        #     file.close()
 
-        if not os.path.exists("databases\\swarms_data.db"):
-            file = open("databases\\swarms_data.db", "w+")
-            file.close()
-
-        conn = sqlite3.connect("databases\\swarms_data.db")
-        curr = conn.cursor()
-        curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
-         (address TEXT);""")
-        conn.commit()
-        conn.close()
-
+        redis_host = "localhost"
+        redis_port = 6379
+        self.r = redis.StrictRedis(host=redis_host, port=redis_port)
         # _thread.start_new_thread(self.deleter_timer, ())  # remove peer after set time
         self.listen_udp()  # listen
 
@@ -135,7 +132,7 @@ class Tracker:
                     data = b""
                 if not data:
                     break
-                conn = sqlite3.connect("databases\\swarms_data.db")
+                conn = sqlite3.connect("databases\\users.db")
                 curr = conn.cursor()
                 curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
                 banned = curr.fetchall()
@@ -153,23 +150,30 @@ class Tracker:
                         if "INFORM_SHARED_PEERS " in datacontent[0]:
                             sharing_peers = datacontent[1]
                             file_name = datacontent[0][20:]
-                            conn = sqlite3.connect("databases\\swarms_data.db")
-                            curr = conn.cursor()
-                            curr.execute(f"""SELECT * FROM "{file_name}" """)
-                            data = curr.fetchall()
-                            peers = [pickle.loads(peer[0]) for peer in data]
+
+                            # conn = sqlite3.connect("databases\\swarms_data.db")
+                            # curr = conn.cursor()
+                            # curr.execute(f"""SELECT * FROM "{file_name}" """)
+                            # data = curr.fetchall()
+
+                            peers = [pickle.loads(p) for p in self.r.lrange(file_name, 0, -1)]
+
+                            # peers = [pickle.loads(peer[0]) for peer in data]
+
                             print(peers)
                             print(sharing_peers)
                             print(data)
+
                             for peer in sharing_peers:
                                 if peer in peers:
-                                    curr.execute(f"""SELECT * FROM "{file_name}" WHERE address=? """, (pickle.dumps(peer), ))
-                                    print(curr.fetchall())
-                                    curr.execute(f"""UPDATE "{file_name}" SET time=? ,tokens=? WHERE address=? """,
-                                                 (time.time(), data[peers.index(peer)][2] + 1, pickle.dumps(peer)))
+                                    self.r.set(pickle.dumps(peer), time.time())
+                                    # curr.execute(f"""SELECT * FROM "{file_name}" WHERE address=? """, (pickle.dumps(peer), ))
+                                    # print(curr.fetchall())
+                                    # curr.execute(f"""UPDATE "{file_name}" SET time=? ,tokens=? WHERE address=? """,
+                                    #              (time.time(), data[peers.index(peer)][2] + 1, pickle.dumps(peer)))
 
-                            conn.commit()
-                            conn.close()
+                            # conn.commit()
+                            # conn.close()
 
                     except Exception as e:
                         print("(listen_udp) error exception handling: ", e)
@@ -191,21 +195,25 @@ class Tracker:
 
                     if local_file_name in torrent_files:
                         # create a local file
-                        if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":  # file is type local or upload
-                            self.add_peer_to_LOC(local_file_name, addr)
+                        # if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":  # file is type local or upload
+                        #     self.add_peer_to_LOC(local_file_name, addr)
 
-                        else:  # local file was not already created
+                        if local_file_name[-12:-8] != "_LOC" and local_file_name[-15:-8] != "_UPLOAD":  # local file was not already created
                             print(local_file_name[:-8])
-                            conn = sqlite3.connect("databases\\swarms_data.db")
-                            curr = conn.cursor()
-                            curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
-                             (address BLOB, time REAL, tokens INT)""")
 
-                            curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES 
-                            (?, ?, ?)""", (pickle.dumps(addr), time.time(), 0))
-
-                            conn.commit()
-                            conn.close()
+                            # conn = sqlite3.connect("databases\\swarms_data.db")
+                            # curr = conn.cursor()
+                            #
+                            # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{local_file_name[:-8]}_LOC.torrent"
+                            #  (address BLOB, time REAL, tokens INT)""")
+                            #
+                            # curr.execute(f"""INSERT INTO "{local_file_name[:-8]}_LOC.torrent" VALUES
+                            # (?, ?, ?)""", (pickle.dumps(addr), time.time(), 0))
+                            print("address added1:", addr)
+                            self.r.lpush(f"{local_file_name[:-8]}_LOC.torrent", pickle.dumps(addr))
+                            self.r.set(pickle.dumps(addr), time.time())
+                            # conn.commit()
+                            # conn.close()
 
                             if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
                                 # self.ip_addresses[f"{local_file_name[:-8]}_LOC.torrent"] = [(addr, time.time())]
@@ -304,15 +312,18 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
-        conn = sqlite3.connect("databases\\swarms_data.db")
-        curr = conn.cursor()
-        curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
-         (address BLOB, time REAL, tokens INT)""")
-
-        curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?, ?);""", (pickle.dumps(addr), time.time(), 0))
+        # conn = sqlite3.connect("databases\\swarms_data.db")
+        # curr = conn.cursor()
+        # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{file_name}"
+        #  (address BLOB, time REAL, tokens INT)""")
+        #
+        # curr.execute(f"""INSERT INTO "{file_name}" VALUES(?, ?, ?);""", (pickle.dumps(addr), time.time(), 0))
         # self.ip_addresses[file_name].append((addr, time.time()))
-        conn.commit()
-        conn.close()
+        print("address added:", addr)
+        self.r.lpush(file_name, pickle.dumps(addr))
+        self.r.set(pickle.dumps(addr), time.time())
+        # conn.commit()
+        # conn.close()
         with open(f"torrents\\{file_name}", "rb") as f:
             torrent = bencode.bdecode(f.read())
 
