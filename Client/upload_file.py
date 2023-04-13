@@ -33,21 +33,12 @@ class Upload:
 
         try:
             if self.local_tracker:
-                # c = 0
-                # torrents = os.listdr("torrents\\info_hashes")
-                # for t in torrents:
-                #     print(c, t)
-                #     c += 1
-
                 self.path = input("Enter the path of the file\s you would like to upload -> ")
                 self.torrent = self.create_metadata_file(self.path)
                 while self.torrent is None:
                     print("torrent could not be created on this path, try again")
                     self.path = input("Enter the path of the file\s you would like to upload -> ")
                     self.torrent = self.create_metadata_file(self.path)
-
-                # self.torrent = torrents[int(choice)]
-                # print(self.torrent, "chosen")
 
                 try:
                     self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)

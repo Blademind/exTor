@@ -16,17 +16,18 @@ def is_handshake(msg):
 def msg_type(msg):
     if not int.from_bytes(msg, 'big'):
         return "keep-alive"
-    if len(msg) == 1 and msg[0] == 0:
+    id_ = msg[0]
+    if len(msg) == 1 and id_ == 0:
         return 'choke'
-    elif len(msg) == 1 and msg[0] == 1:
+    elif len(msg) == 1 and id_ == 1:
         return 'unchoke'
-    elif msg[0] == 5:
-        return 'bitfield'
-    elif msg[0] == 7:
-        return 'piece'
-    elif msg[0] == 4 and len(msg) == 5:
+    elif len(msg) == 5 and id_ == 4:
         return 'have'
-
+    elif id_ == 5:
+        return 'bitfield'
+    elif id_ == 7:
+        return 'piece'
+    return
     # try:
     #     if msg[1:21].decode()[:19] == 'BitTorrent protocol':
     #         return 'handshake'

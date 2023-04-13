@@ -117,7 +117,7 @@ class Handler:
         # threading.Thread(target=self.check_errors).start()
         self.go_over_pieces()
         while len(manager.currently_connected) != 0:
-            time.sleep(0.5)
+            time.sleep(0)
         self.check_errors()
         # manager.down.bytes_file.close()  # closes the bytes file
         # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
@@ -238,8 +238,8 @@ class Handler:
             if p == current_piece_peers[-1]:
                 last_piece_length = len(manager.currently_connected)
                 while len(manager.currently_connected) == last_piece_length:
-                    time.sleep(0.01)
-                    pass
+                    time.sleep(0)
+
                 self.peer_piece_assignment(peer, k, current_piece_peers)
                 break
 

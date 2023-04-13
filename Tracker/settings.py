@@ -40,11 +40,11 @@ def ban_ip(ip, tracker_sock):
                 print(addr)
                 tracker_sock.sendto(f"BAN_IP {ip}".encode(), addr)
 
-
         conn.close()
 
 
+requests = [0, {}]
+admin_ips = []
+
 if __name__ == '__main__':
-    requests = [0, {}]
-    admin_ips = []
     init()

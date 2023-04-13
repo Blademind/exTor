@@ -1,5 +1,4 @@
 import pickle
-import socket
 import threading
 
 from random import randbytes
@@ -59,7 +58,7 @@ class Tracker:
 
             self.sock = socket(AF_INET, SOCK_DGRAM)
             self.sock.bind(("0.0.0.0", self.torrent.port))
-            self.sock.settimeout(5)
+            self.sock.settimeout(20)
 
             if not given_name:
                 self.file_name = self.fetch_torrent_file()
@@ -98,10 +97,12 @@ class Tracker:
         if self.global_flag:
             self.torrent.init_torrent_seq(self.global_file, False)
             # self.torrent.init_torrent_seq(self.file_name, False)
-            self.sock.settimeout(1)  # going over trackers, less timeout for more speed
+            # self.sock.settimeout(2)  # going over trackers, less timeout for more speed
             try:
                 self.yields = self.torrent.url_yields
                 if type(self.torrent.url) is ParseResult:
+                    print(f"Trying {self.torrent.url.hostname, self.torrent.url.port}")
+
                     # Udp tracker
                     self.udp_send(build_conn_req())
                 else:
@@ -128,10 +129,11 @@ class Tracker:
             # the torrent file is not local torrent
             if self.file_name[-12: -8] != "_LOC" and self.file_name[-15: -8] != "_UPLOAD":
                 # self.torrent.init_torrent_seq(self.file_name, False)
-                self.sock.settimeout(1)  # going over trackers, less timeout for more speed
+                # self.sock.settimeout(2)  # going over trackers, less timeout for more speed
                 try:
                     self.yields = self.torrent.url_yields
                     if type(self.torrent.url) is ParseResult:
+                        print(f"Trying {self.torrent.url.hostname, self.torrent.url.port}")
                         # Udp tracker
                         self.udp_send(build_conn_req())
                     else:
@@ -139,6 +141,7 @@ class Tracker:
                         self.http_send()
                 except AttributeError:
                     pass
+
             elif self.file_name != "_UPLOAD":
                 # self.torrent.init_torrent_seq(self.global_file, True)
                 # the peers are in the torrent file, instead of trackers, each peer is a node in the local network, algorithm specified for that is required here
@@ -152,11 +155,14 @@ class Tracker:
             else:
                 print("cannot download")
 
-    def udp_send(self, message):
-        print(self.torrent.url)
+    def udp_send(self, message, sock=None):
         try:
-            self.sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
-            self.listen()
+            if not sock:
+                sock = socket(AF_INET, SOCK_DGRAM)
+                sock.bind(("0.0.0.0", 0))
+                sock.settimeout(2)
+            sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
+            self.listen(sock)
             self.torrent.url = self.torrent.url_yields.__next__()
             if self.torrent.url:
                 if type(self.torrent.url) is ParseResult:
@@ -173,11 +179,13 @@ class Tracker:
             print(f'Error: {e}')
             self.torrent.url = self.torrent.url_yields.__next__()
             if self.torrent.url:
-                print('Trying another tracker...')
                 if type(self.torrent.url) is ParseResult:
+                    print(f'Trying another tracker... ({self.torrent.url.hostname, self.torrent.url.port})')
+
                     # Udp tracker
                     self.udp_send(build_conn_req())
                 else:
+                    print(f'Trying another tracker...')
                     # Http tracker
                     self.http_send()
 
@@ -192,24 +200,34 @@ class Tracker:
             'event': 'started'
         }
         try:
-            answer_tracker = requests.get(self.torrent.url, params=params, timeout=5)
+            answer_tracker = requests.get(self.torrent.url, params=params, timeout=2)
             list_peers = bencode.bdecode(answer_tracker.content)
             for peer in list_peers['peers']:
                 self.peers.append((peer['ip'], peer['port']))
-        except:
-            print('Error, Trying another tracker...')
+        except Exception as e:
+            print(f'Error: {e}')
             self.torrent.url = self.torrent.url_yields.__next__()
-            self.http_send()
+            if self.torrent.url:
+                if type(self.torrent.url) is ParseResult:
+                    print(f'Trying another tracker... ({self.torrent.url.hostname, self.torrent.url.port})')
+                    # Udp tracker
+                    self.udp_send(build_conn_req())
+                else:
+                    print(f'Trying another tracker...')
+                    # Http tracker
+                    self.http_send()
 
-    def listen(self):
-        ret = self.sock.recv(self.__BUF)
+    def listen(self, sock):
+        ret = sock.recv(self.__BUF)
+
+        # print("passed initial tracker contact:", ret)
         try:
             self.TCP_IP_PORT = pickle.loads(ret)
         except:
             if resp_type(ret) == 'connect':
-                self.conn_id = ret[8:]
+                self.conn_id = ret[8:16]
                 self.tran_id = ret[4:8]
-                self.udp_send(self.build_announce_req())
+                self.udp_send(self.build_announce_req(), sock=sock)
 
             elif resp_type(ret) == 'announce':
                 n = 0
@@ -227,8 +245,10 @@ class Tracker:
                 if int.from_bytes(ret[:4], byteorder='big') == 3:
                     print("=== ERROR ===")
                     print(ret[8:].decode())
+                else:
+                    print("WAIT WHAT?")
 
-    def build_announce_req(self, port=6881):
+    def build_announce_req(self):
         message = self.conn_id  # connection_id
         message += (1).to_bytes(4, byteorder='big')  # action
         message += self.tran_id  # transaction_id
@@ -241,7 +261,7 @@ class Tracker:
         message += (0).to_bytes(4, byteorder='big')  # ip_address
         message += randbytes(4)  # key
         message += (-1).to_bytes(4, byteorder='big', signed=True)
-        message += port.to_bytes(2, byteorder='big')
+        message += self.torrent.port.to_bytes(2, byteorder='big')
         return message
 
     def init_tcp_sock(self):
