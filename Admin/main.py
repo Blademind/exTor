@@ -152,30 +152,35 @@ class MainWindow(QMainWindow):
             self.ui_main.label_TitleDash.setText("Swarms")
             self.ui_main.label_SubTitleDash.setText("Group of Peers per local file")
             files = self.r.keys("*.torrent*")
+            print(files)
             if files:
+                self.ui_main.table.clear()
                 self.ui_main.table.setColumnCount(1)
                 self.ui_main.table.setRowCount(len(files))
                 self.ui_main.table.setHorizontalHeaderLabels(['File Name'])
-                print(files)
                 for i, file in enumerate(files):
                     self.ui_main.table.setItem(i, 0, QTableWidgetItem(file.decode()))
-                    self.ui_main.table.item(i, 0).setBackground(QColor(41,40,62))
+                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
                     self.ui_main.table.item(i, 0).setForeground(QColor("white"))
                 self.ui_main.table.show()
             else:
                 self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
 
     def swarms(self, item):
+        self.ui_main.table.doubleClicked.disconnect()
         self.ui_main.table.setColumnCount(2)
-        file = item.data()
+        self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
 
+        file = item.data()
+        print("file:",file)
         peers = self.r.lrange(file, 0, -1)
         print(peers)
         self.ui_main.table.setRowCount(len(peers))
         for i, peer_raw in enumerate(peers):
             peer = pickle.loads(peer_raw)
             ip = f"{peer[0]}:{peer[1]}"
-            time_added = str(datetime.timedelta(seconds=float(self.r.get(peer_raw))))
+            time_added = time.asctime(time.localtime(time.time()))
+
             self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
             self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
             self.ui_main.table.item(i, 0).setForeground(QColor("white"))
