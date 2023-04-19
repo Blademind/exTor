@@ -37,24 +37,6 @@ def build_error_response(msg):
     return message
 
 
-def ban_ip(ip, banned_ips):
-    """
-    Adds ip to banned ips text file,
-    which will not be able to contact the tracker afterwards
-    :param ip: ip to ban
-    :param banned_ips: the banned ips list
-    :return: None
-    """
-    conn = sqlite3.connect("databases\\swarms_data.db")
-    curr = conn.cursor()
-    curr.execute("INSERT INTO BannedIPs VALUES (?)", ip[0])
-    conn.close()
-
-    # if ip[0] not in banned_ips:
-    #     with open("banned_ips.txt", "a") as f:
-    #         f.write(f"{ip[0]}\n")
-
-
 class TrackerTCP:
     """
     Create a Download Master object
@@ -192,6 +174,14 @@ class TrackerTCP:
                         else:
                             sock.send(b"DENIED not an Admin")
 
+                    elif datacontent[:6] == "BAN_IP":
+                        if sock.getpeername()[0] in settings.admin_ips:
+                            print("banning")
+                            settings.ban_ip(datacontent[7:], self.r)
+
+                        else:
+                            sock.send(b"DENIED not an Admin")
+
 
     # def send_db(self, sock):
     #     done = False
@@ -228,6 +218,7 @@ class TrackerTCP:
     #             print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
     #             done = True
     #             self.not_listening.remove(sock)
+
 
     def recv_files(self, sock, filename):
         try:
@@ -267,34 +258,36 @@ class TrackerTCP:
                 # conn.commit()
                 # conn.close()
 
-
                 self.not_listening.remove(sock)
-                self.check_newly_added_file(filename, sock)
+
+                # self.check_newly_added_file(filename, sock)  # A PRIOR IDEA
             else:
                 sock.send("FILE_EXISTS".encode())
         except Exception as e:
             print("Exception:", e)
             return
 
-    def check_newly_added_file(self, filename, sock):
-        with open(f"torrents\\{filename}", "rb") as f:
-            try:
-                bencode.bdecode(f.read())
-            except bencode.exceptions.BencodeDecodeError:
-                print(filename, "is corrupted, removing")
-                f.close()
-                os.remove(f"torrents\\{filename}")
 
-                conn = sqlite3.connect("databases\\swarms_data.db")
-                curr = conn.cursor()
-                curr.execute(f"""DELETE FROM "{filename}" WHERE address=?""", (sock.getpeername(),))
-                conn.commit()
-                conn.close()
-
-                print(filename, "removed")
-                print("Banning", sock.getpeername()[0])
-                ban_ip(sock.getpeername(), self.banned_ips)
-
+# region PRIOR IDEAS
+    # def check_newly_added_file(self, filename, sock):
+    #     with open(f"torrents\\{filename}", "rb") as f:
+    #         try:
+    #             bencode.bdecode(f.read())
+    #         except bencode.exceptions.BencodeDecodeError:
+    #             print(filename, "is corrupted, removing")
+    #             f.close()
+    #             os.remove(f"torrents\\{filename}")
+    #
+    #             conn = sqlite3.connect("databases\\swarms_data.db")
+    #             curr = conn.cursor()
+    #             curr.execute(f"""DELETE FROM "{filename}" WHERE address=?""", (sock.getpeername(),))
+    #             conn.commit()
+    #             conn.close()
+    #
+    #             print(filename, "removed")
+    #             print("Banning", sock.getpeername()[0])
+    #             settings.ban_ip(sock.getpeername(), self.banned_ips)
+# endregion
 
 if __name__ == '__main__':
     TrackerTCP()

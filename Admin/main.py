@@ -40,6 +40,12 @@ class MainWindow(QMainWindow):
         self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
         self.hidden = False
 
+        self.tcp_sock = socket(AF_INET, SOCK_STREAM)
+        self.tcp_sock.settimeout(5)
+        self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
+                                        certfile='cert.pem')
+        self.tcp_sock.connect((self.local_tracker[0], 55556))
+
         self.set_dash_value(username)
         threading.Thread(target=self.deleter_timer).start()
         self.sock = init_udp_sock()
@@ -70,12 +76,11 @@ class MainWindow(QMainWindow):
 
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
-            requests = requests_data[0]
-
-            if requests:
-                self.ui_main.y[self.ui_main.y.index(np.nan)] = requests
-            else:
-                self.ui_main.y[self.ui_main.y.index(np.nan)] = 0
+            num_of_requests = requests_data[0]
+            requests_per_ip = requests_data[1]
+            self.ui_main.y[self.ui_main.y.index(np.nan)] = num_of_requests
+            # else:
+            #     self.ui_main.y[self.ui_main.y.index(np.nan)] = 0
         else:
             self.ui_main.x = self.ui_main.x[1:]  # Remove the first y element.
             self.ui_main.x.append(self.ui_main.x[-1] + 5)  # Add a new value 1 higher than the last.
@@ -83,11 +88,15 @@ class MainWindow(QMainWindow):
             self.ui_main.y = self.ui_main.y[1:]  # Remove the first
 
             requests_data = self.fetch_requests()
-            requests = requests_data[0]
-            if requests:
-                self.ui_main.y.append(requests)  # Add a new random value.
-            else:
-                self.ui_main.y.append(0)
+            num_of_requests = requests_data[0]
+            requests_per_ip = requests_data[1]
+            self.ui_main.y.append(num_of_requests)  # Add a new random value.
+
+        for ip in requests_per_ip:
+            requests_ip = requests_per_ip[ip]
+            print(ip, "-> requests:", requests_ip)
+            if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
+                self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
 
@@ -98,11 +107,6 @@ class MainWindow(QMainWindow):
         :return: None
         """
         timer = 120
-        tcp_sock = socket(AF_INET, SOCK_STREAM)
-        tcp_sock.settimeout(5)
-        tcp_sock = ssl.wrap_socket(tcp_sock, server_side=False, keyfile='private-key.pem',
-                                        certfile='cert.pem')
-        tcp_sock.connect((self.local_tracker[0], 55556))
         try:
             self.r.ping()
             while 1:
@@ -118,11 +122,11 @@ class MainWindow(QMainWindow):
                             self.r.delete(raw_addr)
                             ip_files.append((raw_addr, file_name))
                 if ip_files:
-                    tcp_sock.send(b"UPDATE_FILES")
+                    self.tcp_sock.send(b"UPDATE_FILES")
                     try:
-                        data = tcp_sock.recv(1024)
+                        data = self.tcp_sock.recv(1024)
                         if data == b"FLOW":
-                            tcp_sock.send(pickle.dumps(ip_files))
+                            self.tcp_sock.send(pickle.dumps(ip_files))
                     except Exception as e:
                         print(e)
                         pass
@@ -165,28 +169,36 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.show()
             else:
                 self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
+        elif value == "Banned IPs":
+            self.ui_main.graphWidget.hide()
+            self.ui_main.label_TitleDash.setText("Banned IPs")
+            self.ui_main.label_SubTitleDash.setText("IPs not allowed to contact tracker")
+
+
 
     def swarms(self, item):
         self.ui_main.table.doubleClicked.disconnect()
-        self.ui_main.table.setColumnCount(2)
-        self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
+        try:
+            self.ui_main.table.setColumnCount(2)
+            self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
 
-        file = item.data()
-        print("file:",file)
-        peers = self.r.lrange(file, 0, -1)
-        print(peers)
-        self.ui_main.table.setRowCount(len(peers))
-        for i, peer_raw in enumerate(peers):
-            peer = pickle.loads(peer_raw)
-            ip = f"{peer[0]}:{peer[1]}"
-            time_added = time.asctime(time.localtime(time.time()))
+            file = item.data()
+            print("file:",file)
+            peers = self.r.lrange(file, 0, -1)
+            print(peers)
+            self.ui_main.table.setRowCount(len(peers))
+            for i, peer_raw in enumerate(peers):
+                peer = pickle.loads(peer_raw)
+                ip = f"{peer[0]}:{peer[1]}"
+                time_added = time.asctime(time.localtime(time.time()))
 
-            self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
-            self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-            self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-            self.ui_main.table.setItem(i, 1, QTableWidgetItem(time_added))
-            self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
-            self.ui_main.table.item(i, 1).setForeground(QColor("white"))
+                self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
+                self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
+                self.ui_main.table.item(i, 0).setForeground(QColor("white"))
+                self.ui_main.table.setItem(i, 1, QTableWidgetItem(time_added))
+                self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
+                self.ui_main.table.item(i, 1).setForeground(QColor("white"))
+        except: pass
 
 
 
