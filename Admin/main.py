@@ -37,8 +37,18 @@ class MainWindow(QMainWindow):
         self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
         self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
 
-        self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
+        with open("log.log", "r") as log:
+            log_data = log.read()
+        self.ui_main.logWidget.setText(log_data)
+        self.ui_main.logWidget.moveCursor(QTextCursor.End)
+
+        # self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
         self.hidden = False
+        self.sock = init_udp_sock()
+
+        redis_host = "localhost"
+        redis_port = 6379
+        self.r = redis.StrictRedis(host=redis_host, port=redis_port)
 
         self.tcp_sock = socket(AF_INET, SOCK_STREAM)
         self.tcp_sock.settimeout(5)
@@ -48,15 +58,12 @@ class MainWindow(QMainWindow):
 
         self.set_dash_value(username)
         threading.Thread(target=self.deleter_timer).start()
-        self.sock = init_udp_sock()
-        redis_host = "localhost"
-        redis_port = 6379
-        self.r = redis.StrictRedis(host=redis_host, port=redis_port)
+
 
 
         self.timer = QTimer()
         self.timer.setInterval(5000)
-        self.timer.timeout.connect(self.update_plot_data)
+        self.timer.timeout.connect(self.update_widgets)
         self.timer.start()
 
         self.show()
@@ -72,7 +79,11 @@ class MainWindow(QMainWindow):
             return
 
     @errormng
-    def update_plot_data(self):
+    def update_widgets(self):
+        with open("log.log", "r") as log:
+            log_data = log.read()
+        self.ui_main.logWidget.setText(log_data)
+        self.ui_main.logWidget.moveCursor(QTextCursor.End)
 
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
@@ -96,9 +107,14 @@ class MainWindow(QMainWindow):
             requests_ip = requests_per_ip[ip]
             print(ip, "-> requests:", requests_ip)
             if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
+                self.add_to_log(f"Banned {ip}")
                 self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
+
+    def add_to_log(self, msg):
+        with open("log.log", "a") as f:
+            f.write(f"\n\n> {msg} [{time.strftime('%H:%M:%S %d-%m-%Y', time.gmtime())}]")
 
     # Set values in Dash
     def deleter_timer(self):
@@ -106,7 +122,7 @@ class MainWindow(QMainWindow):
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 120
+        timer = 10
         try:
             self.r.ping()
             while 1:
@@ -121,6 +137,7 @@ class MainWindow(QMainWindow):
                             self.r.lrem(file_name, 0, raw_addr)
                             self.r.delete(raw_addr)
                             ip_files.append((raw_addr, file_name))
+                            self.add_to_log(f"Removed {pickle.loads(raw_addr)} from database")
                 if ip_files:
                     self.tcp_sock.send(b"UPDATE_FILES")
                     try:
@@ -131,7 +148,8 @@ class MainWindow(QMainWindow):
                         print(e)
                         pass
                 time.sleep(1)
-        except:
+        except Exception as e:
+            print(e)
             pass
 
     def set_dash_value(self, username):
@@ -147,10 +165,16 @@ class MainWindow(QMainWindow):
         if value == "Home":
             # Object hide before showing graph, change text as well
             self.ui_main.table.hide()
+            self.ui_main.logWidget.hide()
             self.ui_main.label_TitleDash.setText("Requests on Tracker")
             self.ui_main.label_SubTitleDash.setText("UDP tracker requests")
             self.ui_main.graphWidget.show()
         elif value == "Swarms":
+            try:
+                self.ui_main.table.doubleClicked.disconnect()
+            except: pass
+            self.ui_main.table.hide()
+            self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
             self.ui_main.table.doubleClicked.connect(self.swarms)
             self.ui_main.label_TitleDash.setText("Swarms")
@@ -170,11 +194,43 @@ class MainWindow(QMainWindow):
             else:
                 self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
         elif value == "Banned IPs":
+            try:
+                self.ui_main.table.doubleClicked.disconnect()
+            except: pass
+            self.ui_main.table.hide()
+            self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
             self.ui_main.label_TitleDash.setText("Banned IPs")
-            self.ui_main.label_SubTitleDash.setText("IPs not allowed to contact tracker")
+            self.ui_main.label_SubTitleDash.setText("IPs which are not allowed to contact tracker")
+            self.ui_main.table.clear()
+            banned_ips = self.r.lrange("banned", 0, -1)
+            if banned_ips:
+                self.ui_main.table.setColumnCount(1)
+                self.ui_main.table.setRowCount(len(banned_ips))
+                self.ui_main.table.setHorizontalHeaderLabels(['IP'])
+                for i, ip in enumerate(banned_ips):
+                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
+                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
+                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
+                self.ui_main.table.show()
 
+            else:
+                self.ui_main.label_SubTitleDash.setText("No Banned IPs, Yet.")
+        elif value == "Log":
+            try:
+                self.ui_main.table.doubleClicked.disconnect()
+            except: pass
+            self.ui_main.table.hide()
+            self.ui_main.graphWidget.hide()
+            self.ui_main.label_TitleDash.setText("Log")
+            self.ui_main.label_SubTitleDash.setText("Log of this admin")
 
+            if not self.ui_main.logWidget.document().isEmpty():
+                self.ui_main.logWidget.moveCursor(QTextCursor.End)
+                self.ui_main.logWidget.show()
+            else:
+
+                self.ui_main.label_SubTitleDash.setText("Log is empty")
 
     def swarms(self, item):
         self.ui_main.table.doubleClicked.disconnect()
@@ -199,11 +255,6 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
                 self.ui_main.table.item(i, 1).setForeground(QColor("white"))
         except: pass
-
-
-
-
-    # Open File data.json
 
     def open_file_json(self, file_name_str, mode):
         try:

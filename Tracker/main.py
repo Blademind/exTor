@@ -89,14 +89,17 @@ class Tracker:
                     data = b""
                 if not data:
                     break
-                conn = sqlite3.connect("databases\\users.db")
-                curr = conn.cursor()
-                curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
-                banned = curr.fetchall()
-                if banned:
+                # conn = sqlite3.connect("databases\\users.db")
+                # curr = conn.cursor()
+                # curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
+                # banned = curr.fetchall()
+
+                banned_ips = self.r.lrange("banned", 0, -1)
+                if addr[0].encode() in banned_ips:
                     print(f"{addr} tried to contact, and is banned")
                     break
-                conn.close()
+
+                # conn.close()
 
                 try:
                     datacontent = data.decode()

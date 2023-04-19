@@ -127,13 +127,6 @@ class Ui_MainWindow(object):
 "font-size:15px;\n"
 "border:0px;\n"
 "}")
-        icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("assets/img/alert.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        # self.pushButton_TopAlert.setIcon(icon1)
-        self.pushButton_TopAlert.setIconSize(QtCore.QSize(20, 20))
-        self.pushButton_TopAlert.setObjectName("pushButton_TopAlert")
-        self.horizontalLayout_4.addWidget(self.pushButton_TopAlert)
-        self.horizontalLayout_3.addWidget(self.frame_TopAlert)
         self.frame_TopProfile = QtWidgets.QFrame(self.frame_TopRight)
         self.frame_TopProfile.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_TopProfile.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -211,7 +204,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_7.setObjectName("verticalLayout_7")
         self.pushButton_BtnDeclarar = QtWidgets.QPushButton(self.frame_4)
         self.pushButton_BtnDeclarar.setMinimumSize(QtCore.QSize(0, 50))
-        self.pushButton_BtnDeclarar.setMaximumSize(QtCore.QSize(234, 50))
+        self.pushButton_BtnDeclarar.setMaximumSize(QtCore.QSize(140, 50))
         self.pushButton_BtnDeclarar.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.pushButton_BtnDeclarar.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.pushButton_BtnDeclarar.setStyleSheet("QPushButton{\n"
@@ -230,7 +223,7 @@ class Ui_MainWindow(object):
 "\n"
 "")
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("assets/img/FAB-1.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.pushButton_BtnDeclarar.setIcon(icon3)
         self.pushButton_BtnDeclarar.setIconSize(QtCore.QSize(40, 40))
         self.pushButton_BtnDeclarar.setObjectName("pushButton_BtnDeclarar")
@@ -404,43 +397,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_6.addWidget(self.pushButton_BtnOndeEncontro)
         spacerItem7 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.verticalLayout_6.addItem(spacerItem7)
-        self.pushButton_BtnGovbr = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnGovbr.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnGovbr.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnGovbr.setObjectName("pushButton_BtnGovbr")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnGovbr)
-        spacerItem8 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_6.addItem(spacerItem8)
-        self.pushButton_BtnConfiguracao = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnConfiguracao.setStyleSheet("QPushButton{\n"
-"    text-align:center;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"    font-style: italic;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"}")
-        icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap("assets/img/setting.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pushButton_BtnConfiguracao.setIcon(icon4)
-        self.pushButton_BtnConfiguracao.setIconSize(QtCore.QSize(30, 30))
-        self.pushButton_BtnConfiguracao.setObjectName("pushButton_BtnConfiguracao")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnConfiguracao)
         spacerItem9 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.verticalLayout_6.addItem(spacerItem9)
         self.frame = QtWidgets.QFrame(self.frame_7)
@@ -505,7 +461,14 @@ class Ui_MainWindow(object):
 "    background-color: #141428;\n"
 "    border-radius:10px;\n"
 "border:0px;\n"
-"}")
+"}"
+"QTextEdit{\n"
+"border-radius:15px;\n"
+"background-color: #f2f2f2;\n"
+"text-align: center;\n"
+"font-size:30px;\n"
+"}"
+)
         self.frame_DashCentral.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_DashCentral.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_DashCentral.setObjectName("frame_DashCentral")
@@ -549,7 +512,12 @@ class Ui_MainWindow(object):
         # self.frame_AjusteAnual.setFrameShape(QtWidgets.QFrame.StyledPanel)
         # self.frame_AjusteAnual.setFrameShadow(QtWidgets.QFrame.Raised)
         # self.frame_AjusteAnual.setObjectName("frame_AjusteAnual")
+        self.logWidget = QtWidgets.QTextEdit(self.frame_DashCentral)
+        self.logWidget.setReadOnly(True)
+        # self.logWidget.setEnabled(False)
+        # self.logWidget.clearFocus()
 
+        self.logWidget.hide()
         pg.setConfigOptions(antialias=True, background="#29283E")
         self.graphWidget = pg.PlotWidget(self.frame_DashCentral, title="")
         axis = pg.DateAxisItem()
@@ -576,9 +544,11 @@ class Ui_MainWindow(object):
 
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         self.table.hide()
-        self.verticalLayout_8.addWidget(self.table)
 
+        self.verticalLayout_8.addWidget(self.table)
         self.verticalLayout_8.addWidget(self.graphWidget)
+        self.verticalLayout_8.addWidget(self.logWidget)
+
         self.verticalLayout_3.addWidget(self.frame_DashCentral)
         self.horizontalLayout_6.addWidget(self.frame_ColumnCenter)
 

@@ -176,7 +176,6 @@ class TrackerTCP:
 
                     elif datacontent[:6] == "BAN_IP":
                         if sock.getpeername()[0] in settings.admin_ips:
-                            print("banning")
                             settings.ban_ip(datacontent[7:], self.r)
 
                         else:
