@@ -25,13 +25,19 @@ def errormng(func):
     return wrapper
 
 
+def generateMenu():
+    menu = QMenu()
+    menu.addAction('You clicked on the empty space')
+    menu.exec_(QCursor.pos())
+
+
 class MainWindow(QMainWindow):
     def __init__(self, tracker, username):
         QMainWindow.__init__(self)
         self.ui_main = Ui_MainWindow()
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
-
+        self.file_name = ""
         self.ui_main.pushButton_BtnDeclarar.clicked.connect(lambda x:self.click_button('Home'))
         self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
         self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
@@ -39,6 +45,7 @@ class MainWindow(QMainWindow):
 
         with open("log.log", "r") as log:
             log_data = log.read()
+
         self.ui_main.logWidget.setText(log_data)
         self.ui_main.logWidget.moveCursor(QTextCursor.End)
 
@@ -67,6 +74,74 @@ class MainWindow(QMainWindow):
         self.timer.start()
 
         self.show()
+
+    def menu_event(self, obj, event):
+        menu = QMenu()
+        index = obj.indexAt(event.pos())
+        kick = menu.addAction('')
+        if index.isValid():
+            kick.setText('Kick Peer')  # index.data()
+        else:
+            kick.setText('No selection')
+            kick.setEnabled(False)
+        ban = menu.addAction('Ban Peer')
+
+        res = menu.exec_(event.globalPos())
+        ip = index.data().split(':')[0], int(index.data().split(':')[1])
+        raw_addr = pickle.dumps(ip)
+        print(ip)
+        if res == kick:
+            print("kicked")
+            print(self.file_name, raw_addr)
+            print(self.r.lrem(self.file_name, 0, raw_addr))
+            print(self.r.delete(raw_addr))
+            self.add_to_log(f"Kicked {ip} as prompted")
+
+            self.tcp_sock.send(b"UPDATE_FILES")
+            try:
+                data = self.tcp_sock.recv(1024)
+                if data == b"FLOW":
+                    self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
+            except Exception as e:
+                print(e)
+                pass
+
+            self.swarms(self.file_name)
+
+            # update table now
+        elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
+            print("banned")
+            self.add_to_log(f"Banned {ip[0]} as prompted")
+            self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
+            self.swarms(self.file_name)
+            # update table now
+
+    def menu_event2(self, obj, event):
+        menu = QMenu()
+        index = obj.indexAt(event.pos())
+        remove = menu.addAction('')
+        if index.isValid():
+            remove.setText('Remove')  # index.data()
+        else:
+            remove.setText('No selection')
+            remove.setEnabled(False)
+
+        res = menu.exec_(event.globalPos())
+        if res == remove:
+            self.r.lrem("banned", 0, index.data())
+            print("removed")
+            banned_ips = self.r.lrange("banned", 0, -1)
+            self.ui_main.table.setColumnCount(1)
+            self.ui_main.table.setRowCount(len(banned_ips))
+            self.ui_main.table.setHorizontalHeaderLabels(['IP'])
+            for i, ip in enumerate(banned_ips):
+                self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
+                self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
+                self.ui_main.table.item(i, 0).setForeground(QColor("white"))
+            self.ui_main.table.show()
+
+
+            # update table now
 
     def fetch_requests(self):
         try:
@@ -107,7 +182,7 @@ class MainWindow(QMainWindow):
             requests_ip = requests_per_ip[ip]
             print(ip, "-> requests:", requests_ip)
             if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
-                self.add_to_log(f"Banned {ip}")
+                self.add_to_log(f"Banned {ip} due to over requesting")
                 self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
@@ -122,7 +197,7 @@ class MainWindow(QMainWindow):
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 10
+        timer = 120
         try:
             self.r.ping()
             while 1:
@@ -137,7 +212,7 @@ class MainWindow(QMainWindow):
                             self.r.lrem(file_name, 0, raw_addr)
                             self.r.delete(raw_addr)
                             ip_files.append((raw_addr, file_name))
-                            self.add_to_log(f"Removed {pickle.loads(raw_addr)} from database")
+                            self.add_to_log(f"Kicked {pickle.loads(raw_addr)} due to inactivity")
                 if ip_files:
                     self.tcp_sock.send(b"UPDATE_FILES")
                     try:
@@ -173,6 +248,8 @@ class MainWindow(QMainWindow):
             try:
                 self.ui_main.table.doubleClicked.disconnect()
             except: pass
+            self.ui_main.table.contextMenuEvent = lambda event: None
+
             self.ui_main.table.hide()
             self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
@@ -197,6 +274,7 @@ class MainWindow(QMainWindow):
             try:
                 self.ui_main.table.doubleClicked.disconnect()
             except: pass
+            self.ui_main.table.contextMenuEvent = lambda event: self.menu_event2(self.ui_main.table, event)
             self.ui_main.table.hide()
             self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
@@ -233,12 +311,20 @@ class MainWindow(QMainWindow):
                 self.ui_main.label_SubTitleDash.setText("Log is empty")
 
     def swarms(self, item):
-        self.ui_main.table.doubleClicked.disconnect()
+        try:
+            self.ui_main.table.doubleClicked.disconnect()
+        except: pass
         try:
             self.ui_main.table.setColumnCount(2)
             self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
+            try:
+                file = item.data()
+                self.file_name = file
+            except:
+                file = item
 
-            file = item.data()
+            self.ui_main.table.contextMenuEvent = lambda event: self.menu_event(self.ui_main.table, event)
+
             print("file:",file)
             peers = self.r.lrange(file, 0, -1)
             print(peers)

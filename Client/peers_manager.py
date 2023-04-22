@@ -201,6 +201,7 @@ class Downloader:
                                      self.tracker.local_tracker)
                 print("Tracker was informed of downloaded file")
             if datacontent[:6] == "BAN_IP":
+                print("banned ip from tracker: ", datacontent[7:])
                 ip = datacontent[7:]
                 self.banned_ips.append(ip)
 

@@ -13,12 +13,10 @@ import math
 import datetime
 import numpy as np
 
-QtWidgets.QTableView
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1652, 1158)
+        MainWindow.resize(1280, 720)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setStyleSheet("QWidget{\n"
 "    background-color: #29283E;\n"
@@ -83,27 +81,27 @@ class Ui_MainWindow(object):
         self.frame_TopCenter.setObjectName("frame_TopCenter")
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.frame_TopCenter)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.textEdit_TxtTopSearch = QtWidgets.QTextEdit(self.frame_TopCenter)
-        self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
-        font = QtGui.QFont()
-        font.setPointSize(1)
-        self.textEdit_TxtTopSearch.setFont(font)
-        self.textEdit_TxtTopSearch.setAcceptDrops(False)
-        self.textEdit_TxtTopSearch.setToolTip("")
-        self.textEdit_TxtTopSearch.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.textEdit_TxtTopSearch.setStyleSheet("QTextEdit{\n"
-"border-radius:15px;\n"
-"background-color: #f2f2f2;\n"
-"text-align: center;\n"
-"font-size:30px;\n"
-"color:#8e8e8e;\n"
-"}")
-        self.textEdit_TxtTopSearch.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.textEdit_TxtTopSearch.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.textEdit_TxtTopSearch.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.textEdit_TxtTopSearch.setReadOnly(False)
-        self.textEdit_TxtTopSearch.setObjectName("textEdit_TxtTopSearch")
-        self.horizontalLayout_2.addWidget(self.textEdit_TxtTopSearch)
+#         self.textEdit_TxtTopSearch = QtWidgets.QTextEdit(self.frame_TopCenter)
+#         self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
+#         font = QtGui.QFont()
+#         font.setPointSize(1)
+#         self.textEdit_TxtTopSearch.setFont(font)
+#         self.textEdit_TxtTopSearch.setAcceptDrops(False)
+#         self.textEdit_TxtTopSearch.setToolTip("")
+#         self.textEdit_TxtTopSearch.setLayoutDirection(QtCore.Qt.LeftToRight)
+#         self.textEdit_TxtTopSearch.setStyleSheet("QTextEdit{\n"
+# "border-radius:15px;\n"
+# "background-color: #f2f2f2;\n"
+# "text-align: center;\n"
+# "font-size:30px;\n"
+# "color:#8e8e8e;\n"
+# "}")
+#         self.textEdit_TxtTopSearch.setFrameShape(QtWidgets.QFrame.StyledPanel)
+#         self.textEdit_TxtTopSearch.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+#         self.textEdit_TxtTopSearch.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+#         self.textEdit_TxtTopSearch.setReadOnly(False)
+#         self.textEdit_TxtTopSearch.setObjectName("textEdit_TxtTopSearch")
+        # self.horizontalLayout_2.addWidget(self.textEdit_TxtTopSearch)
         self.horizontalLayout.addWidget(self.frame_TopCenter)
         self.frame_TopRight = QtWidgets.QFrame(self.frame_Top)
         self.frame_TopRight.setMinimumSize(QtCore.QSize(350, 0))
@@ -539,9 +537,9 @@ class Ui_MainWindow(object):
         self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen, symbol='o')
 
         self.table = QtWidgets.QTableWidget(self.frame_DashCentral)
+        # self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.table.resizeColumnsToContents()
-
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         self.table.hide()
 
@@ -557,16 +555,17 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "exTor Admin"))
         self.pushButton_LogoReceitaFederal.setText(_translate("MainWindow", "exTor"))
-        self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-"p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
+
+#         self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+# "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+# "p, li { white-space: pre-wrap; }\n"
+# "</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
+# "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
+
         # self.pushButton_TopAlert.setText(_translate("MainWindow", "{0}"))
         self.label_TxtTopDataUser.setText(_translate("MainWindow", "{USER}"))
         self.label_TxtTopDataUserType.setText(_translate("MainWindow", "{PROFILE_TYPE}"))
@@ -586,5 +585,6 @@ class Ui_MainWindow(object):
         self.lineEdit_TxtDataAtual.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
         self.label_TitleDash.setText("Requests on Tracker")
         self.label_SubTitleDash.setText("UDP tracker requests")
+
 
 

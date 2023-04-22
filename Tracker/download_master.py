@@ -42,8 +42,7 @@ class TrackerTCP:
     Create a Download Master object
     """
     def __init__(self):
-        with open("banned_ips.txt", "r") as f:
-            self.banned_ips = f.read().split("\n")
+
         self.server_sock = None  # udp sock
         self.init_tcp_sock()
         self.__BUF = 1024
@@ -85,16 +84,9 @@ class TrackerTCP:
                     break
                 if sock == self.server_sock:
                     conn, addr = self.server_sock.accept()
-
-                    conn_db = sqlite3.connect("databases\\swarms_data.db")
-                    curr = conn_db.cursor()
-                    curr.execute("SELECT * FROM BannedIPs")
-                    self.banned_ips = curr.fetchall()
-                    conn_db.close()
-                    print("banned ips:", self.banned_ips)
-                    # with open("banned_ips.txt", "r") as f:
-                    #     self.banned_ips = f.read().split("\n")
-                    if addr[0] in self.banned_ips:
+                    # ip must not be banned
+                    banned_ips = self.r.lrange("banned", 0, -1)
+                    if addr[0].encode() in banned_ips:
                         conn.close()
                         break
 
