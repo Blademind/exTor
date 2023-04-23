@@ -11,6 +11,8 @@ import hashlib
 from torf import Torrent
 import ssl
 import shutil
+import warnings
+import atexit
 # print("Welcome to exTorrent upload service\n"
 #       "Here you can upload your own file to a tracker\n"
 #       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
@@ -24,21 +26,30 @@ def get_ip_addr():
     return ip
 
 
+def folders_in(path_to_parent):
+    for fname in os.listdir(path_to_parent):
+        if os.path.isdir(os.path.join(path_to_parent,fname)):
+            return True
+    return False
+
+
 class Upload:
     def __init__(self):
+        global torrent
         self.local_tracker = tracker_init_contact.find_local_tracker()
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.bind((get_ip_addr(), 0))
         self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
-
         try:
             if self.local_tracker:
                 self.path = input("Enter the path of the file\s you would like to upload -> ")
                 self.torrent = self.create_metadata_file(self.path)
-                while self.torrent is None:
-                    print("torrent could not be created on this path, try again")
+                while self.torrent is None or folders_in(self.path):
+                    print("torrent could not be created on this path")
                     self.path = input("Enter the path of the file\s you would like to upload -> ")
                     self.torrent = self.create_metadata_file(self.path)
+
+                threading.Thread(target=self.exit_function).start()
 
                 try:
                     self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)
@@ -47,15 +58,30 @@ class Upload:
                     self.listen()
                 except:
                     print("Error connecting to Tracker")
+        except KeyboardInterrupt:
+            pass
         except Exception as e:
             print(e)
 
+    def exit_function(self):
+        try:
+            while 1:
+                input()
+        except UnicodeDecodeError:
+            try:
+                self.sock.send(f"REMOVE_UPLOAD {self.torrent}".encode())
+            except:
+                pass
+            if self.torrent:
+                print(self.torrent)
+                os.remove(f"torrents\\info_hashes\\{self.torrent}")
+            print("\nprogram ended")
     def create_metadata_file(self, path):
         try:
             t = Torrent(
                 path=path,
                 trackers=[],
-                comment='This file was created using the upload file algorithm')
+                comment='This file was created using the upload file algorithm by Alon Levy')
             t.generate()
             torrent_name = f"{os.path.split(os.path.basename(path))[1]}_UPLOAD.torrent"
             print(torrent_name)
@@ -101,5 +127,8 @@ class Upload:
                 break
 
 
+
 if __name__ == '__main__':
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    # atexit.register(lambda: print("program ended"))
     Upload()

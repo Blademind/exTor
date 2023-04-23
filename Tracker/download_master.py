@@ -173,6 +173,10 @@ class TrackerTCP:
                         else:
                             sock.send(b"DENIED not an Admin")
 
+                    elif datacontent[:13] == "REMOVE_UPLOAD":
+                        os.remove(f"torrents\\{datacontent[14:]}")
+
+
 
     # def send_db(self, sock):
     #     done = False
@@ -209,7 +213,6 @@ class TrackerTCP:
     #             print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
     #             done = True
     #             self.not_listening.remove(sock)
-
 
     def recv_files(self, sock, filename):
         try:
@@ -249,14 +252,13 @@ class TrackerTCP:
                 # conn.commit()
                 # conn.close()
 
-                self.not_listening.remove(sock)
-
                 # self.check_newly_added_file(filename, sock)  # A PRIOR IDEA
             else:
                 sock.send("FILE_EXISTS".encode())
         except Exception as e:
             print("Exception:", e)
             return
+        self.not_listening.remove(sock)
 
 
 # region PRIOR IDEAS

@@ -76,9 +76,11 @@ class Handler:
             pass
         except Exception as e:
             print("Exception (at main):", e)
-            manager.down.progress_flag = False
+            try:
+                manager.down.progress_flag = False
 
-            manager.DONE = True
+                manager.DONE = True
+            except: pass
 
             if self.tracker.global_flag:
                 try:
@@ -89,13 +91,16 @@ class Handler:
                     manager.down.generate_download_bar()
                     self.download()
                 except:
-                    manager.down.progress_flag = False
+                    try:
+                        manager.down.progress_flag = False
 
-                    manager.DONE = True
-                    if manager.down.files_data:
-                        for name, file in manager.down.files_data.items():
-                            file.close()
-                    print(e)
+                        manager.DONE = True
+                        if manager.down.files_data:
+                            for name, file in manager.down.files_data.items():
+                                file.close()
+                        print(e)
+                    except:
+                        pass
             else:
                 if manager.down.files_data:
                     for name, file in manager.down.files_data.items():
