@@ -109,8 +109,16 @@ class TrackerTCP:
                         break
                     datacontent = data.decode()
 
+                    if datacontent[:13] == "REMOVE_UPLOAD":
+                        with open(f"torrents\\{datacontent[14:]}") as f:
+                            torrent_data = bencode.bdecode(f.read())
+
+                        if len(torrent_data["announce-list"]) == 1:
+                            print(datacontent)
+                            os.remove(f"torrents\\{datacontent[14:]}")
+
                     # file upload immensing
-                    if datacontent[-8:] == ".torrent":
+                    elif datacontent[-8:] == ".torrent":
                         self.not_listening.append(sock)
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
 
@@ -172,9 +180,6 @@ class TrackerTCP:
 
                         else:
                             sock.send(b"DENIED not an Admin")
-
-                    elif datacontent[:13] == "REMOVE_UPLOAD":
-                        os.remove(f"torrents\\{datacontent[14:]}")
 
 
 
@@ -241,7 +246,7 @@ class TrackerTCP:
 
                 self.r.lpush(filename, pickle.dumps(sock.getpeername()))
                 self.r.set(pickle.dumps(sock.getpeername()), time.time())
-
+                print('HERE')
                 # conn = sqlite3.connect("databases\\swarms_data.db")
                 # curr = conn.cursor()
                 # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
@@ -257,8 +262,8 @@ class TrackerTCP:
                 sock.send("FILE_EXISTS".encode())
         except Exception as e:
             print("Exception:", e)
-            return
         self.not_listening.remove(sock)
+        return
 
 
 # region PRIOR IDEAS

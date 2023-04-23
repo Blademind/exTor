@@ -1,6 +1,7 @@
 import _thread
 import os
 import pickle
+import sys
 import threading
 import time
 from random import randbytes
@@ -52,6 +53,7 @@ class Tracker:
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
+
         self.listen_udp()  # listen
 
     def reset_ip_addresses(self):
@@ -93,12 +95,13 @@ class Tracker:
                 # curr = conn.cursor()
                 # curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
                 # banned = curr.fetchall()
+                try:
+                    banned_ips = self.r.lrange("banned", 0, -1)
+                    if addr[0].encode() in banned_ips:
+                        print(f"{addr} tried to contact, and is banned")
+                        break
 
-                banned_ips = self.r.lrange("banned", 0, -1)
-                if addr[0].encode() in banned_ips:
-                    print(f"{addr} tried to contact, and is banned")
-                    break
-
+                except: pass
                 # conn.close()
 
                 try:
@@ -403,8 +406,19 @@ def exit_function():
         print("\nprogram ended")
 
 
+def test_database():
+    redis_host = "localhost"
+    redis_port = 6379
+    r = redis.StrictRedis(host=redis_host, port=redis_port)
+    try:
+        r.ping()
+    except:
+        print("redis database is offline, cannot continue")
+        sys.exit(0)
+
 if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    test_database()
     threading.Thread(target=TrackerTCP).start()
     threading.Thread(target=exit_function).start()
     Tracker()
