@@ -110,7 +110,7 @@ class TrackerTCP:
                     datacontent = data.decode()
 
                     if datacontent[:13] == "REMOVE_UPLOAD":
-                        with open(f"torrents\\{datacontent[14:]}") as f:
+                        with open(f"torrents\\{datacontent[14:]}", "rb") as f:
                             torrent_data = bencode.bdecode(f.read())
 
                         if len(torrent_data["announce-list"]) == 1:
@@ -166,9 +166,11 @@ class TrackerTCP:
                                         if list(addr) == i:
                                             torrent_data["announce-list"].remove(i)
                                             break
-
-                                    with open(f"torrents\\{file_name}", "wb") as f:
-                                        f.write(bencode.bencode(torrent_data))
+                                    if torrent_data["announce-list"]:
+                                        with open(f"torrents\\{file_name}", "wb") as f:
+                                            f.write(bencode.bencode(torrent_data))
+                                    else:
+                                        os.remove(f"torrents\\{file_name}")
 
                                     print(f"removed {addr} from {file_name}")
                         else:
@@ -180,44 +182,6 @@ class TrackerTCP:
 
                         else:
                             sock.send(b"DENIED not an Admin")
-
-
-
-    # def send_db(self, sock):
-    #     done = False
-    #     while not done:
-    #         data = sock.recv(self.__BUF)
-    #
-    #         if not data:
-    #             break
-    #         try:
-    #             datacontent = data.decode()
-    #         except:
-    #             break
-    #         if datacontent == "FLOW":
-    #             length = os.path.getsize(f"databases\\swarms_data.db")
-    #             s = 0
-    #             sock.send(pickle.dumps(length))
-    #             with open(f"databases\\swarms_data.db", "rb") as f:
-    #                 while f:
-    #                     if datacontent == "FLOW":
-    #                         file_data = f.read(self.__BUF)
-    #                         s += len(file_data)
-    #                         if file_data:
-    #                             sock.send(file_data)
-    #                     elif datacontent == "DONE":
-    #                         break
-    #                     try:
-    #                         data = sock.recv(self.__BUF)
-    #                         datacontent = data.decode()
-    #                     except Exception as e:
-    #                         print(e)
-    #                         raise Exception("could not decode data recieved")
-    #
-    #         if datacontent == "DONE":
-    #             print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
-    #             done = True
-    #             self.not_listening.remove(sock)
 
     def recv_files(self, sock, filename):
         try:
@@ -285,6 +249,41 @@ class TrackerTCP:
     #             print(filename, "removed")
     #             print("Banning", sock.getpeername()[0])
     #             settings.ban_ip(sock.getpeername(), self.banned_ips)
+    # def send_db(self, sock):
+    #     done = False
+    #     while not done:
+    #         data = sock.recv(self.__BUF)
+    #
+    #         if not data:
+    #             break
+    #         try:
+    #             datacontent = data.decode()
+    #         except:
+    #             break
+    #         if datacontent == "FLOW":
+    #             length = os.path.getsize(f"databases\\swarms_data.db")
+    #             s = 0
+    #             sock.send(pickle.dumps(length))
+    #             with open(f"databases\\swarms_data.db", "rb") as f:
+    #                 while f:
+    #                     if datacontent == "FLOW":
+    #                         file_data = f.read(self.__BUF)
+    #                         s += len(file_data)
+    #                         if file_data:
+    #                             sock.send(file_data)
+    #                     elif datacontent == "DONE":
+    #                         break
+    #                     try:
+    #                         data = sock.recv(self.__BUF)
+    #                         datacontent = data.decode()
+    #                     except Exception as e:
+    #                         print(e)
+    #                         raise Exception("could not decode data recieved")
+    #
+    #         if datacontent == "DONE":
+    #             print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
+    #             done = True
+    #             self.not_listening.remove(sock)
 # endregion
 
 if __name__ == '__main__':

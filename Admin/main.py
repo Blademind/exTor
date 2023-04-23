@@ -25,12 +25,6 @@ def errormng(func):
     return wrapper
 
 
-def generateMenu():
-    menu = QMenu()
-    menu.addAction('You clicked on the empty space')
-    menu.exec_(QCursor.pos())
-
-
 class MainWindow(QMainWindow):
     def __init__(self, tracker, username):
         QMainWindow.__init__(self)
@@ -66,8 +60,7 @@ class MainWindow(QMainWindow):
         self.set_dash_value(username)
         threading.Thread(target=self.deleter_timer).start()
 
-
-
+        self.fetch_requests()
         self.timer = QTimer()
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.update_widgets)
@@ -77,22 +70,22 @@ class MainWindow(QMainWindow):
 
     def menu_event(self, obj, event):
         menu = QMenu()
-        index = obj.indexAt(event.pos())
-        kick = menu.addAction('')
+        point = event.pos()
+        point.setX(0)
+        index = obj.indexAt(point)
         if index.isValid():
-            kick.setText('Kick Peer')  # index.data()
-        else:
-            kick.setText('No selection')
-            kick.setEnabled(False)
-        ban = menu.addAction('Ban Peer')
+            kick = menu.addAction('Kick Peer')  # index.data()
+            ban = menu.addAction('Ban Peer')
+        else: return
 
         res = menu.exec_(event.globalPos())
         ip = index.data().split(':')[0], int(index.data().split(':')[1])
+
         raw_addr = pickle.dumps(ip)
         print(ip)
         if res == kick:
             print("kicked")
-            print(self.file_name, raw_addr)
+            # print(self.file_name, raw_addr)
             print(self.r.lrem(self.file_name, 0, raw_addr))
             print(self.r.delete(raw_addr))
             self.add_to_log(f"Kicked {ip} as prompted")
@@ -111,6 +104,18 @@ class MainWindow(QMainWindow):
             # update table now
         elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
             print("banned")
+            print(self.r.lrem(self.file_name, 0, raw_addr))
+            print(self.r.delete(raw_addr))
+
+            self.tcp_sock.send(b"UPDATE_FILES")
+            try:
+                data = self.tcp_sock.recv(1024)
+                if data == b"FLOW":
+                    self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
+            except Exception as e:
+                print(e)
+                pass
+
             self.add_to_log(f"Banned {ip[0]} as prompted")
             self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
             self.swarms(self.file_name)
@@ -131,14 +136,18 @@ class MainWindow(QMainWindow):
             self.r.lrem("banned", 0, index.data())
             print("removed")
             banned_ips = self.r.lrange("banned", 0, -1)
-            self.ui_main.table.setColumnCount(1)
-            self.ui_main.table.setRowCount(len(banned_ips))
-            self.ui_main.table.setHorizontalHeaderLabels(['IP'])
-            for i, ip in enumerate(banned_ips):
-                self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
-                self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-            self.ui_main.table.show()
+            if banned_ips:
+                self.ui_main.table.setColumnCount(1)
+                self.ui_main.table.setRowCount(len(banned_ips))
+                self.ui_main.table.setHorizontalHeaderLabels(['IP'])
+                for i, ip in enumerate(banned_ips):
+                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
+                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
+                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
+                self.ui_main.table.show()
+            else:
+                self.ui_main.table.hide()
+                self.ui_main.label_SubTitleDash.setText("No Banned IPs, Yet.")
 
 
             # update table now
@@ -162,7 +171,7 @@ class MainWindow(QMainWindow):
 
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
-            num_of_requests = requests_data[0]
+            num_of_requests = requests_data[0] - 1
             requests_per_ip = requests_data[1]
             self.ui_main.y[self.ui_main.y.index(np.nan)] = num_of_requests
             # else:
@@ -174,13 +183,13 @@ class MainWindow(QMainWindow):
             self.ui_main.y = self.ui_main.y[1:]  # Remove the first
 
             requests_data = self.fetch_requests()
-            num_of_requests = requests_data[0]
+            num_of_requests = requests_data[0] - 1
             requests_per_ip = requests_data[1]
             self.ui_main.y.append(num_of_requests)  # Add a new random value.
 
         for ip in requests_per_ip:
             requests_ip = requests_per_ip[ip]
-            print(ip, "-> requests:", requests_ip)
+            # print(ip, "-> requests:", requests_ip)
             if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
                 self.add_to_log(f"Banned {ip} due to over requesting")
                 self.tcp_sock.send(f"BAN_IP {ip}".encode())
@@ -236,7 +245,7 @@ class MainWindow(QMainWindow):
 
     # Clicked buttons
     def click_button(self,value):
-        print("CLICKED", value)
+        # print("CLICKED", value)
         if value == "Home":
             # Object hide before showing graph, change text as well
             self.ui_main.table.hide()
@@ -257,7 +266,7 @@ class MainWindow(QMainWindow):
             self.ui_main.label_TitleDash.setText("Swarms")
             self.ui_main.label_SubTitleDash.setText("Group of Peers per local file")
             files = self.r.keys("*.torrent*")
-            print(files)
+            # print(files)
             if files:
                 self.ui_main.table.clear()
                 self.ui_main.table.setColumnCount(1)
@@ -315,31 +324,36 @@ class MainWindow(QMainWindow):
             self.ui_main.table.doubleClicked.disconnect()
         except: pass
         try:
-            self.ui_main.table.setColumnCount(2)
-            self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
             try:
                 file = item.data()
                 self.file_name = file
             except:
                 file = item
-
-            self.ui_main.table.contextMenuEvent = lambda event: self.menu_event(self.ui_main.table, event)
-
-            print("file:",file)
             peers = self.r.lrange(file, 0, -1)
-            print(peers)
-            self.ui_main.table.setRowCount(len(peers))
-            for i, peer_raw in enumerate(peers):
-                peer = pickle.loads(peer_raw)
-                ip = f"{peer[0]}:{peer[1]}"
-                time_added = time.asctime(time.localtime(time.time()))
+            if peers:
+                self.ui_main.table.setColumnCount(2)
+                self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
 
-                self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
-                self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-                self.ui_main.table.setItem(i, 1, QTableWidgetItem(time_added))
-                self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
-                self.ui_main.table.item(i, 1).setForeground(QColor("white"))
+                self.ui_main.table.contextMenuEvent = lambda event: self.menu_event(self.ui_main.table, event)
+
+                # print("file:",file)
+                # print(peers)
+                self.ui_main.table.setRowCount(len(peers))
+                for i, peer_raw in enumerate(peers):
+                    peer = pickle.loads(peer_raw)
+                    ip = f"{peer[0]}:{peer[1]}"
+                    time_added = time.asctime(time.localtime(time.time()))
+
+                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
+                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
+                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
+                    self.ui_main.table.setItem(i, 1, QTableWidgetItem(time_added))
+                    self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
+                    self.ui_main.table.item(i, 1).setForeground(QColor("white"))
+            else:
+                self.ui_main.table.hide()
+                self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
+
         except: pass
 
     def open_file_json(self, file_name_str, mode):

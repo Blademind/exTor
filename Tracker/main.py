@@ -416,6 +416,7 @@ def test_database():
         print("redis database is offline, cannot continue")
         sys.exit(0)
 
+
 if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     test_database()
