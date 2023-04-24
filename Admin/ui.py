@@ -508,7 +508,8 @@ class Ui_MainWindow(object):
         self.verticalLayout_8 = QtWidgets.QVBoxLayout(self.frame_DashCentral)
         self.verticalLayout_8.setObjectName("verticalLayout_8")
         self.frame_2 = QtWidgets.QFrame(self.frame_DashCentral)
-        self.frame_2.setMaximumSize(QtCore.QSize(16777215, 100))
+        # self.frame_2.setMinimumSize(QtCore.QSize(0, 0 ))
+        self.frame_2.setMaximumSize(QtCore.QSize(16777215, 101))
         self.frame_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_2.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_2.setObjectName("frame_2")
@@ -520,7 +521,7 @@ class Ui_MainWindow(object):
 "\n"
 "color:#E7E7E7;\n"
 "border:0px;\n"
-"font-size:40px;\n"
+"font-size:30px;\n"
 "font-weight: bold;\n"
 "}")
         self.label_TitleDash.setObjectName("label_TitleDash")
@@ -534,18 +535,19 @@ class Ui_MainWindow(object):
 "font-size:15px;\n"
 "}")
         self.label_SubTitleDash.setObjectName("label_SubTitleDash")
+        # self.label_SubTitleDash.hide()
         self.verticalLayout_9.addWidget(self.label_SubTitleDash)
 
         self.clear = QtWidgets.QPushButton(self.frame_2)
-        self.clear.setMinimumSize(QtCore.QSize(0, 50))
-        self.clear.setMaximumSize(QtCore.QSize(140, 50))
+        self.clear.setMinimumSize(QtCore.QSize(0, 25))
+        self.clear.setMaximumSize(QtCore.QSize(100, 50))
         self.clear.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.clear.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.clear.setStyleSheet("QPushButton{\n"
                                        "    text-align:left;\n"
                                        "    color:#E7E7E7;\n"
                                        "    border:0px;\n"
-                                       "    border-radius:25px;\n"
+                                       "    border-radius:12px;\n"
                                        "    font-size:20px;\n"
                                        "    cursor: pointer;\n"
                                        "    background-color:#538fff;\n"
@@ -557,11 +559,12 @@ class Ui_MainWindow(object):
                                        "\n"
                                        "")
         icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon3.addPixmap(QtGui.QPixmap("assets/img/trash-2.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.clear.setIcon(icon3)
         self.clear.setIconSize(QtCore.QSize(40, 40))
-        self.verticalLayout_9.addWidget(self.clear)
+        self.clear.hide()
 
+        self.verticalLayout_9.addWidget(self.clear)
         spacerItem11 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_9.addItem(spacerItem11)
 
@@ -637,6 +640,7 @@ class Ui_MainWindow(object):
         self.pushButton_BtnServico.setText(_translate("MainWindow", "Swarms"))
         self.pushButton_BtnAssuntos.setText(_translate("MainWindow", "Banned IPs"))
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))
+        self.clear.setText(_translate("MainWindow", "Clear"))
         # self.pushButton_BtnComposicao.setText(_translate("MainWindow", "Composição"))
         # self.pushButton_BtnConsultaProcessos.setText(_translate("MainWindow", "Consultar Processos"))
         # self.pushButton_BtnCentraisConteudo.setText(_translate("MainWindow", "Centrais de Conteúdo"))

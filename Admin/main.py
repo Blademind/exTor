@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
         self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
         self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
         self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
+        self.ui_main.clear.clicked.connect(lambda x: self.click_button('Clear'))
 
         with open("log.log", "r") as log:
             log_data = log.read()
@@ -166,8 +167,14 @@ class MainWindow(QMainWindow):
     def update_widgets(self):
         with open("log.log", "r") as log:
             log_data = log.read()
+        # if log_data:
         self.ui_main.logWidget.setText(log_data)
         self.ui_main.logWidget.moveCursor(QTextCursor.End)
+
+        # else:
+        #     self.ui_main.label_SubTitleDash.show()
+        #     self.ui_main.clear.hide()
+        #     self.ui_main.label_SubTitleDash.setText("Log is empty")
 
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
@@ -250,6 +257,8 @@ class MainWindow(QMainWindow):
             # Object hide before showing graph, change text as well
             self.ui_main.table.hide()
             self.ui_main.logWidget.hide()
+            self.ui_main.label_SubTitleDash.show()
+            self.ui_main.clear.hide()
             self.ui_main.label_TitleDash.setText("Requests on Tracker")
             self.ui_main.label_SubTitleDash.setText("UDP tracker requests")
             self.ui_main.graphWidget.show()
@@ -258,7 +267,8 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.doubleClicked.disconnect()
             except: pass
             self.ui_main.table.contextMenuEvent = lambda event: None
-
+            self.ui_main.label_SubTitleDash.show()
+            self.ui_main.clear.hide()
             self.ui_main.table.hide()
             self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
@@ -284,6 +294,8 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.doubleClicked.disconnect()
             except: pass
             self.ui_main.table.contextMenuEvent = lambda event: self.menu_event2(self.ui_main.table, event)
+            self.ui_main.label_SubTitleDash.show()
+            self.ui_main.clear.hide()
             self.ui_main.table.hide()
             self.ui_main.logWidget.hide()
             self.ui_main.graphWidget.hide()
@@ -307,17 +319,29 @@ class MainWindow(QMainWindow):
             try:
                 self.ui_main.table.doubleClicked.disconnect()
             except: pass
+            self.ui_main.label_SubTitleDash.show()
+            self.ui_main.clear.hide()
             self.ui_main.table.hide()
             self.ui_main.graphWidget.hide()
             self.ui_main.label_TitleDash.setText("Log")
-            self.ui_main.label_SubTitleDash.setText("Log of this admin")
+            # self.ui_main.label_SubTitleDash.hide()
+            # self.ui_main.label_SubTitleDash.setText("Log of this admin")
 
             if not self.ui_main.logWidget.document().isEmpty():
+                self.ui_main.label_SubTitleDash.hide()
+                self.ui_main.clear.show()
                 self.ui_main.logWidget.moveCursor(QTextCursor.End)
                 self.ui_main.logWidget.show()
             else:
-
                 self.ui_main.label_SubTitleDash.setText("Log is empty")
+        elif value == "Clear":
+            with open("log.log", "w") as f:
+                f.write("")
+            self.ui_main.label_SubTitleDash.show()
+            self.ui_main.clear.hide()
+            self.ui_main.logWidget.setText("")
+            self.ui_main.logWidget.hide()
+            self.ui_main.label_SubTitleDash.setText("Log is empty")
 
     def swarms(self, item):
         try:
