@@ -32,7 +32,7 @@ class MainWindow(QMainWindow):
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
         self.file_name = ""
-        self.ui_main.pushButton_BtnDeclarar.clicked.connect(lambda x:self.click_button('Home'))
+        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
         self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
         self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
         self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
         removes ip after an hour (according to protocol)
         :return: None
         """
-        timer = 120
+        timer = 300  # 300
         try:
             self.r.ping()
             while 1:
@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
         self.ui_main.label_TxtTopDataUserType.setText("Admin")
         # self.ui_main.label_TxtValorRestituicao.setText("R$"+data_dict.get('receita_value'))
         # self.ui_main.pushButton_TopAlert.setText(data_dict.get('notification'))
-        self.ui_main.lineEdit_TxtDataAtual.setText(self.date_now())
+        self.ui_main.date_widget.setText(self.date_now())
 
     # Clicked buttons
     def click_button(self,value):

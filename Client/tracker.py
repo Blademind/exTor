@@ -55,6 +55,7 @@ class Tracker:
             self.torrent = Torrent(port=port)  # create a torrent object
             self.id = generate_peer_id()  # peer_id
             self.peers = []
+            self.threads = []
 
             self.sock = socket(AF_INET, SOCK_DGRAM)
             self.sock.bind(("0.0.0.0", self.torrent.port))
@@ -100,9 +101,9 @@ class Tracker:
             # self.sock.settimeout(2)  # going over trackers, less timeout for more speed
             try:
                 self.yields = self.torrent.url_yields
+                print("Trying Trackers....")
                 if type(self.torrent.url) is ParseResult:
-                    print(f"Trying {self.torrent.url.hostname, self.torrent.url.port}")
-
+                    # print(f"Trying {self.torrent.url.hostname, self.torrent.url.port}")\
                     # Udp tracker
                     self.udp_send(build_conn_req())
                 else:
@@ -162,7 +163,16 @@ class Tracker:
                 sock.bind(("0.0.0.0", 0))
                 sock.settimeout(2)
             sock.sendto(message, (gethostbyname(self.torrent.url.hostname), self.torrent.url.port))
-            self.listen(sock)
+            # self.listen(sock)
+            if not sock:
+                th = threading.Thread(target=self.listen, args=(sock,))
+                th.start()
+                self.threads.append(th)
+            else:
+                self.listen(sock)
+
+            # th.join()
+
             self.torrent.url = self.torrent.url_yields.__next__()
             if self.torrent.url:
                 if type(self.torrent.url) is ParseResult:
@@ -180,7 +190,7 @@ class Tracker:
             self.torrent.url = self.torrent.url_yields.__next__()
             if self.torrent.url:
                 if type(self.torrent.url) is ParseResult:
-                    print(f'Trying another tracker... ({self.torrent.url.hostname, self.torrent.url.port})')
+                    print(f'Trying another tracker... {self.torrent.url.hostname, self.torrent.url.port}')
 
                     # Udp tracker
                     self.udp_send(build_conn_req())
@@ -209,27 +219,32 @@ class Tracker:
             self.torrent.url = self.torrent.url_yields.__next__()
             if self.torrent.url:
                 if type(self.torrent.url) is ParseResult:
-                    print(f'Trying another tracker... ({self.torrent.url.hostname, self.torrent.url.port})')
+                    # print(f'Trying another tracker... ({self.torrent.url.hostname, self.torrent.url.port})')
                     # Udp tracker
                     self.udp_send(build_conn_req())
                 else:
-                    print(f'Trying another tracker...')
+                    # print(f'Trying another tracker...')
+
                     # Http tracker
                     self.http_send()
 
     def listen(self, sock):
-        ret = sock.recv(self.__BUF)
+        try:
+            ret = sock.recv(self.__BUF)
+        except: return
 
         # print("passed initial tracker contact:", ret)
         try:
             self.TCP_IP_PORT = pickle.loads(ret)
         except:
             if resp_type(ret) == 'connect':
+                print("connect")
                 self.conn_id = ret[8:16]
                 self.tran_id = ret[4:8]
                 self.udp_send(self.build_announce_req(), sock=sock)
 
             elif resp_type(ret) == 'announce':
+                print("announce")
                 n = 0
                 while 24 + 6 * n <= len(ret):
                     ip = inet_ntoa(ret[20 + 6 * n: 24 + 6 * n])

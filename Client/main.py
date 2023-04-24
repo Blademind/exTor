@@ -55,6 +55,8 @@ class Handler:
                 # There are pieces which can be downloaded
                 if manager.down.num_of_pieces - manager.down.count_bar != 0:
                     self.tracker.contact_trackers()
+                    for thread in self.tracker.threads:
+                        thread.join()
 
                     self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
                     print(self.peers)

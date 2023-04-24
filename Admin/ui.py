@@ -200,12 +200,12 @@ class Ui_MainWindow(object):
         self.frame_4.setObjectName("frame_4")
         self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.frame_4)
         self.verticalLayout_7.setObjectName("verticalLayout_7")
-        self.pushButton_BtnDeclarar = QtWidgets.QPushButton(self.frame_4)
-        self.pushButton_BtnDeclarar.setMinimumSize(QtCore.QSize(0, 50))
-        self.pushButton_BtnDeclarar.setMaximumSize(QtCore.QSize(140, 50))
-        self.pushButton_BtnDeclarar.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnDeclarar.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.pushButton_BtnDeclarar.setStyleSheet("QPushButton{\n"
+        self.home_button = QtWidgets.QPushButton(self.frame_4)
+        self.home_button.setMinimumSize(QtCore.QSize(0, 50))
+        self.home_button.setMaximumSize(QtCore.QSize(140, 50))
+        self.home_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.home_button.setLayoutDirection(QtCore.Qt.LeftToRight)
+        self.home_button.setStyleSheet("QPushButton{\n"
 "    text-align:left;\n"
 "    color:#E7E7E7;\n"
 "    border:0px;\n"
@@ -222,10 +222,10 @@ class Ui_MainWindow(object):
 "")
         icon3 = QtGui.QIcon()
         icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pushButton_BtnDeclarar.setIcon(icon3)
-        self.pushButton_BtnDeclarar.setIconSize(QtCore.QSize(40, 40))
-        self.pushButton_BtnDeclarar.setObjectName("pushButton_BtnDeclarar")
-        self.verticalLayout_7.addWidget(self.pushButton_BtnDeclarar)
+        self.home_button.setIcon(icon3)
+        self.home_button.setIconSize(QtCore.QSize(40, 40))
+        self.home_button.setObjectName("pushButton_BtnDeclarar")
+        self.verticalLayout_7.addWidget(self.home_button)
         self.verticalLayout_4.addWidget(self.frame_4)
         self.frame_7 = QtWidgets.QFrame(self.frame_ColumnLeft)
         self.frame_7.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -425,24 +425,32 @@ class Ui_MainWindow(object):
         self.verticalLayout_6.addWidget(self.pushButton_ImgLogoGovbr)
         self.verticalLayout_4.addWidget(self.frame_7)
         self.horizontalLayout_6.addWidget(self.frame_ColumnLeft)
+
         self.frame_ColumnCenter = QtWidgets.QFrame(self.frame_Central)
         self.frame_ColumnCenter.setStyleSheet("")
         self.frame_ColumnCenter.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_ColumnCenter.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_ColumnCenter.setObjectName("frame_ColumnCenter")
+
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.frame_ColumnCenter)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
+
+        # self.horizontalLayout_7 = QtWidgets.QHBoxLayout(self.frame_ColumnCenter)
+        # self.horizontalLayout_7.setObjectName("verticalLayout_3")
+
         self.frame_5 = QtWidgets.QFrame(self.frame_ColumnCenter)
         self.frame_5.setMinimumSize(QtCore.QSize(0, 80))
-        self.frame_5.setMaximumSize(QtCore.QSize(16777215, 80))
+        # self.frame_5.setMaximumSize(QtCore.QSize(16777215, 80))
         self.frame_5.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_5.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_5.setObjectName("frame_5")
-        self.lineEdit_TxtDataAtual = QtWidgets.QLineEdit(self.frame_5)
-        self.lineEdit_TxtDataAtual.setGeometry(QtCore.QRect(10, 15, 190, 50))
-        self.lineEdit_TxtDataAtual.setMinimumSize(QtCore.QSize(190, 50))
-        self.lineEdit_TxtDataAtual.setMaximumSize(QtCore.QSize(190, 50))
-        self.lineEdit_TxtDataAtual.setStyleSheet("QLineEdit{\n"
+        # self.horizontalLayout_7 = QtWidgets.QVBoxLayout(self.frame_5)
+        # self.horizontalLayout_7.setObjectName("verticalLayout_7")
+        self.date_widget = QtWidgets.QLineEdit(self.frame_5)
+        self.date_widget.setGeometry(QtCore.QRect(10, 15, 190, 50))
+        self.date_widget.setMinimumSize(QtCore.QSize(190, 50))
+        self.date_widget.setMaximumSize(QtCore.QSize(190, 50))
+        self.date_widget.setStyleSheet("QLineEdit{\n"
 "border-radius:15px;\n"
 "background-color: #fff;\n"
 "text-align: center;\n"
@@ -451,9 +459,36 @@ class Ui_MainWindow(object):
 "border:1px solid #e1e4ed;\n"
 "text-aling:center;\n"
 "}")
-        self.lineEdit_TxtDataAtual.setAlignment(QtCore.Qt.AlignCenter)
-        self.lineEdit_TxtDataAtual.setObjectName("lineEdit_TxtDataAtual")
+        self.date_widget.setAlignment(QtCore.Qt.AlignCenter)
+
+        # self.clear = QtWidgets.QPushButton(self.frame_5)
+        # self.clear.setMinimumSize(QtCore.QSize(190, 50))
+        # self.clear.setMaximumSize(QtCore.QSize(190, 50))
+        # self.clear.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        # self.clear.setLayoutDirection(QtCore.Qt.LeftToRight)
+        # self.clear.setStyleSheet("QPushButton{\n"
+        #                                "    text-align:left;\n"
+        #                                "    color:#E7E7E7;\n"
+        #                                "    border:0px;\n"
+        #                                "    border-radius:25px;\n"
+        #                                "    font-size:20px;\n"
+        #                                "    cursor: pointer;\n"
+        #                                "    background-color:#538fff;\n"
+        #                                "}\n"
+        #                                "QPushButton:hover{\n"
+        #                                "background-color:#3668ff;\n"
+        #                                "}\n"
+        #                                "\n"
+        #                                "\n"
+        #                                "")
+        # icon3 = QtGui.QIcon()
+        # icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        # self.clear.setIcon(icon3)
+        # self.clear.setIconSize(QtCore.QSize(40, 40))
+
         self.verticalLayout_3.addWidget(self.frame_5)
+        # self.verticalLayout_3.addWidget(self.date_widget)
+        # self.verticalLayout_3.addWidget(self.horizontalLayout_7)
         self.frame_DashCentral = QtWidgets.QFrame(self.frame_ColumnCenter)
         self.frame_DashCentral.setStyleSheet("QFrame{\n"
 "    background-color: #141428;\n"
@@ -500,8 +535,36 @@ class Ui_MainWindow(object):
 "}")
         self.label_SubTitleDash.setObjectName("label_SubTitleDash")
         self.verticalLayout_9.addWidget(self.label_SubTitleDash)
+
+        self.clear = QtWidgets.QPushButton(self.frame_2)
+        self.clear.setMinimumSize(QtCore.QSize(0, 50))
+        self.clear.setMaximumSize(QtCore.QSize(140, 50))
+        self.clear.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.clear.setLayoutDirection(QtCore.Qt.LeftToRight)
+        self.clear.setStyleSheet("QPushButton{\n"
+                                       "    text-align:left;\n"
+                                       "    color:#E7E7E7;\n"
+                                       "    border:0px;\n"
+                                       "    border-radius:25px;\n"
+                                       "    font-size:20px;\n"
+                                       "    cursor: pointer;\n"
+                                       "    background-color:#538fff;\n"
+                                       "}\n"
+                                       "QPushButton:hover{\n"
+                                       "background-color:#3668ff;\n"
+                                       "}\n"
+                                       "\n"
+                                       "\n"
+                                       "")
+        icon3 = QtGui.QIcon()
+        icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.clear.setIcon(icon3)
+        self.clear.setIconSize(QtCore.QSize(40, 40))
+        self.verticalLayout_9.addWidget(self.clear)
+
         spacerItem11 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_9.addItem(spacerItem11)
+
         self.verticalLayout_8.addWidget(self.frame_2)
 
         # self.frame_AjusteAnual = QtWidgets.QFrame(self.frame_DashCentral)
@@ -510,6 +573,7 @@ class Ui_MainWindow(object):
         # self.frame_AjusteAnual.setFrameShape(QtWidgets.QFrame.StyledPanel)
         # self.frame_AjusteAnual.setFrameShadow(QtWidgets.QFrame.Raised)
         # self.frame_AjusteAnual.setObjectName("frame_AjusteAnual")
+
         self.logWidget = QtWidgets.QTextEdit(self.frame_DashCentral)
         self.logWidget.setReadOnly(True)
         # self.logWidget.setEnabled(False)
@@ -569,7 +633,7 @@ class Ui_MainWindow(object):
         # self.pushButton_TopAlert.setText(_translate("MainWindow", "{0}"))
         self.label_TxtTopDataUser.setText(_translate("MainWindow", "{USER}"))
         self.label_TxtTopDataUserType.setText(_translate("MainWindow", "{PROFILE_TYPE}"))
-        self.pushButton_BtnDeclarar.setText(_translate("MainWindow", "   Home"))
+        self.home_button.setText(_translate("MainWindow", "   Home"))
         self.pushButton_BtnServico.setText(_translate("MainWindow", "Swarms"))
         self.pushButton_BtnAssuntos.setText(_translate("MainWindow", "Banned IPs"))
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))
@@ -582,7 +646,7 @@ class Ui_MainWindow(object):
         # self.pushButton_BtnConfiguracao.setText(_translate("MainWindow", "   Configurações"))
         # self.pushButton_BtnFeedback.setText(_translate("MainWindow", "Feedback"))
         # self.pushButton_BtnSugestao.setText(_translate("MainWindow", "Sugestões"))
-        self.lineEdit_TxtDataAtual.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
+        self.date_widget.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
         self.label_TitleDash.setText("Requests on Tracker")
         self.label_SubTitleDash.setText("UDP tracker requests")
 
