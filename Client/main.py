@@ -347,15 +347,15 @@ class Handler:
 # endregion
 
 
-def exit_function():
-    dir = "torrents\\info_hashes"
-    info_hashes = os.listdir(dir)
-    for metadata in info_hashes:
-        if metadata[-15:-8] == "_UPLOAD":
-            os.remove(f"{dir}\\{metadata}")
+# def exit_function():
+#     dir = "torrents\\info_hashes"
+#     info_hashes = os.listdir(dir)
+#     for metadata in info_hashes:
+#         if metadata[-15:-8] == "_UPLOAD":
+#             os.remove(f"{dir}\\{metadata}")
 
 
 if __name__ == '__main__':
-    atexit.register(exit_function,)
+    # atexit.register(exit_function,)
 
     Handler()

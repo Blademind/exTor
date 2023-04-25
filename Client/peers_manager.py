@@ -80,6 +80,8 @@ class Downloader:
             if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
                 os.makedirs(f"torrents\\files\\{self.torrent_name}")
 
+        self.error_queue = []  # queue for errors from peers calls
+
         self.file_piece = self.calculate_file_piece()
 
         if not self.path:
