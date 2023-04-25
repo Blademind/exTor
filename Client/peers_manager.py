@@ -12,6 +12,7 @@ import message_handler as message
 import tracker
 import pickle
 
+
 def reset_have(num_of_pieces):
     """
     resets have
@@ -41,8 +42,6 @@ class Downloader:
     def __init__(self, torrent, tracker):
         self.count_bar = 0
         self.__BUF = 1024
-        # self.count_download_bar = 0
-        # self.written = b""
         self.s_bytes = b""
         self.torrent = torrent
         self.tracker = tracker
@@ -68,12 +67,10 @@ class Downloader:
         self.readable, self.writable = [self.listen_sock], []
         self.BUFS = {}
 
-        self.file_data = {}
         self.torrent_name = self.torrent.torrent['info']['name']
         self.pieces = self.torrent.torrent['info']['pieces']
         self.num_of_pieces = len(self.pieces) // 20  # number of pieces in torrent
         self.pointer = 0
-        # self.pieces_bytes = self.reset_pieces()
         self.have = reset_have(self.num_of_pieces)  # what pieces I have
         self.info_hashes = self.generate_info_hashes()
         self.buf = 68
@@ -83,10 +80,6 @@ class Downloader:
             if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
                 os.makedirs(f"torrents\\files\\{self.torrent_name}")
 
-        # self.bytes_file = open(f"torrents\\files\\{self.torrent_name}\\bytes_file", "wb+")
-        # self.bytes_file_length = 0
-
-        self.error_queue = []  # queue for errors from peers calls
         self.file_piece = self.calculate_file_piece()
 
         if not self.path:
@@ -381,44 +374,6 @@ class Downloader:
                 begin += length
             begin = 0
         return ret
-
-    # def calculate_have_bitfield2(self):
-    #     time.sleep(0.1)
-    #     base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
-    #     files = sorted(base_files, key=self.file_names.index)  # ordered file names
-    #     files_raw = b""
-    #
-    #     for file in files:
-    #         with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
-    #             files_raw += f.read()
-    #     # files_len = len(files_raw)
-    #
-    #     while files_raw:
-    #         if hashlib.sha1(files_raw[:self.piece_length]).digest() in self.info_hashes:
-    #             temp = list(self.have)
-    #             index_of_piece = self.info_hashes.index(hashlib.sha1(files_raw[:self.piece_length]).digest())
-    #             self.info_hashes[index_of_piece] = None
-    #             temp[index_of_piece] = "1"
-    #             self.have = "".join(temp)
-    #             self.add_bytes(index_of_piece, files_raw[:self.piece_length])
-    #             self.check_files()
-    #             # print(self.have)
-    #             self.bar()
-    #             # self.pieces_bytes[index_of_piece] = files_raw[:self.piece_length]
-    #             if len(files_raw[:self.piece_length]) == self.piece_length:
-    #                 files_raw = files_raw[self.piece_length:]
-    #             elif len(files_raw[:self.piece_length]) < self.piece_length:
-    #                 break
-    #         else:
-    #             break
-    #             # files_raw = files_raw[1:]
-    #     self.progress_flag = False
-
-    # def reset_pieces(self):
-    #     ret = []
-    #     for i in range(self.num_of_pieces):
-    #         ret.append(b"")
-    #     return ret
 
     def calculate_file_piece(self):
         file_piece = {}
@@ -774,7 +729,43 @@ def remove_peer(peer):
     #
     #         # print(file_piece)
     #     self.progress_flag = False
+    # def calculate_have_bitfield2(self):
+    #     time.sleep(0.1)
+    #     base_files = [file for file in os.listdir(f"torrents\\files\\{self.torrent_name}") if file != "bytes_file"]
+    #     files = sorted(base_files, key=self.file_names.index)  # ordered file names
+    #     files_raw = b""
+    #
+    #     for file in files:
+    #         with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
+    #             files_raw += f.read()
+    #     # files_len = len(files_raw)
+    #
+    #     while files_raw:
+    #         if hashlib.sha1(files_raw[:self.piece_length]).digest() in self.info_hashes:
+    #             temp = list(self.have)
+    #             index_of_piece = self.info_hashes.index(hashlib.sha1(files_raw[:self.piece_length]).digest())
+    #             self.info_hashes[index_of_piece] = None
+    #             temp[index_of_piece] = "1"
+    #             self.have = "".join(temp)
+    #             self.add_bytes(index_of_piece, files_raw[:self.piece_length])
+    #             self.check_files()
+    #             # print(self.have)
+    #             self.bar()
+    #             # self.pieces_bytes[index_of_piece] = files_raw[:self.piece_length]
+    #             if len(files_raw[:self.piece_length]) == self.piece_length:
+    #                 files_raw = files_raw[self.piece_length:]
+    #             elif len(files_raw[:self.piece_length]) < self.piece_length:
+    #                 break
+    #         else:
+    #             break
+    #             # files_raw = files_raw[1:]
+    #     self.progress_flag = False
 
+    # def reset_pieces(self):
+    #     ret = []
+    #     for i in range(self.num_of_pieces):
+    #         ret.append(b"")
+    #     return ret
 # end region
 
 

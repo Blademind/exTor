@@ -49,7 +49,7 @@ class TrackerTCP:
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
         self.not_listening = []
-        self.admin_ips = []
+        # self.admin_ips = []
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs

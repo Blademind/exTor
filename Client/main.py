@@ -195,7 +195,6 @@ class Handler:
     def peer_piece_assignment(self, peer, k, current_piece_peers):
         """
         goes over peers in order to get a piece downloaded
-        :param last_piece: piece is last piece
         :param peer:
         :param k:
         :param current_piece_peers: the peers assigned to this piece
@@ -292,7 +291,9 @@ class Handler:
             for thread in a:
                 thread.start()
                 time.sleep(0.01)  # create a small delay to create a gap
-            a[-1].join()  # last thread has ended
+            for thread in a:
+                thread.join()
+            # a[-1].join()  # last thread has ended
 
         time.sleep(1)  # some peers are slow, gives them some time to delete client's instance from them
 
@@ -346,7 +347,7 @@ class Handler:
 # endregion
 
 
-def my_exit_function():
+def exit_function():
     dir = "torrents\\info_hashes"
     info_hashes = os.listdir(dir)
     for metadata in info_hashes:
@@ -355,6 +356,6 @@ def my_exit_function():
 
 
 if __name__ == '__main__':
-    atexit.register(my_exit_function,)
+    atexit.register(exit_function,)
 
     Handler()

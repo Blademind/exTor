@@ -48,21 +48,21 @@ class Tracker:
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
 
-        self.connection_ids = {}  # list of all connected clients
-        self.ip_addresses = {}
+        # self.connection_ids = {}  # list of all connected clients
+        # self.ip_addresses = {}
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
 
         self.listen_udp()  # listen
 
-    def reset_ip_addresses(self):
-        """
-        Puts an empty list on each of the owned files, will be filled with peers
-        :return: None
-        """
-        for i in info_torrent.values():
-            self.ip_addresses[i] = []
+    # def reset_ip_addresses(self):
+    #     """
+    #     Puts an empty list on each of the owned files, will be filled with peers
+    #     :return: None
+    #     """
+    #     for i in info_torrent.values():
+    #         self.ip_addresses[i] = []
 
     def init_udp_sock(self, port):
         """

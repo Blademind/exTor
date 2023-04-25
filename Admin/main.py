@@ -1,5 +1,4 @@
 import sys
-import json
 import datetime
 from ui import Ui_MainWindow
 from PyQt5.QtCore import *
@@ -380,18 +379,6 @@ class MainWindow(QMainWindow):
 
         except: pass
 
-    def open_file_json(self, file_name_str, mode):
-        try:
-            data_file = open(
-                file_name_str,
-                mode=mode,
-                encoding='utf-8',
-                errors='ignore')
-            data_file = json.load(data_file)
-        except IOError as e:
-            return str(e)
-        else:
-            return data_file
 
     # Get date formatted
     def date_now(self):

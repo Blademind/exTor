@@ -145,7 +145,7 @@ class Ui_MainWindow(object):
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap("assets/img/profile.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.pushButton_ImgTopProfile.setIcon(icon2)
-        self.pushButton_ImgTopProfile.setIconSize(QtCore.QSize(40, 40))
+        self.pushButton_ImgTopProfile.setIconSize(QtCore.QSize(34, 34))
         self.pushButton_ImgTopProfile.setObjectName("pushButton_ImgTopProfile")
         self.horizontalLayout_5.addWidget(self.pushButton_ImgTopProfile)
         self.horizontalLayout_3.addWidget(self.frame_TopProfile)
@@ -170,7 +170,7 @@ class Ui_MainWindow(object):
 "color:#0080FB;\n"
 "}")
         self.label_TxtTopDataUserType.setObjectName("label_TxtTopDataUserType")
-        self.verticalLayout_2.addWidget(self.label_TxtTopDataUserType)
+        # self.verticalLayout_2.addWidget(self.label_TxtTopDataUserType)
         self.horizontalLayout_3.addWidget(self.frame_TopDataUser)
         self.horizontalLayout.addWidget(self.frame_TopRight)
         self.verticalLayout.addWidget(self.frame_Top)

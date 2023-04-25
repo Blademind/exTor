@@ -76,6 +76,7 @@ class Upload:
                 print(self.torrent)
                 os.remove(f"torrents\\info_hashes\\{self.torrent}")
             print("\nprogram ended")
+
     def create_metadata_file(self, path):
         try:
             t = Torrent(
