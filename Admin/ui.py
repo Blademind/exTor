@@ -584,13 +584,14 @@ class Ui_MainWindow(object):
 
         self.logWidget.hide()
         pg.setConfigOptions(antialias=True, background="#29283E")
+
         self.graphWidget = pg.PlotWidget(self.frame_DashCentral, title="")
         axis = pg.DateAxisItem()
         self.graphWidget.setAxisItems({'bottom': axis})
         self.graphWidget.setLabel('left', 'Requests')
         self.graphWidget.setLabel('bottom', 'Time')
-
-        self.graphWidget.showGrid(x=True, y=True)
+        self.graphWidget.setLimits(yMin=0)
+        # self.graphWidget.showGrid(x=True, y=True)
 
         date_list = [math.floor((datetime.datetime.today() + datetime.timedelta(seconds=i)).timestamp()) for i in
                      range(5, 51, 5)]
@@ -599,9 +600,13 @@ class Ui_MainWindow(object):
         self.y = [np.nan for _ in range(10)]  # 100 data points
 
         # plot data: x, y values
-        pen = pg.mkPen(width=5)
 
-        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen, symbol='o')
+        # pen = pg.mkPen(width=5)
+
+        pen = pg.mkPen(width=-1)
+        self.line_pen = pg.mkPen(width=15, color="#0668E1")
+
+        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen)
 
         self.table = QtWidgets.QTableWidget(self.frame_DashCentral)
         # self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)

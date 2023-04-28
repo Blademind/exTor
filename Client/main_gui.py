@@ -36,10 +36,26 @@ class MainWindow(QMainWindow):
         self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
         self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
         self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
-        self.ui_main.clear.clicked.connect(lambda x: self.click_button('Clear'))
+
+        self._add_action = self.ui_main.toolbar.addAction('Add')
+        # self._add_action.triggered.connect(self._add_torrents_triggered)
+
+        self._pause_action = self.ui_main.toolbar.addAction('Pause')
+        self._pause_action.setEnabled(False)
+        # self._pause_action.triggered.connect(partial(self._control_action_triggered, control.pause))
+
+        self._resume_action = self.ui_main.toolbar.addAction('Resume')
+        self._resume_action.setEnabled(False)
+        # self._resume_action.triggered.connect(partial(self._control_action_triggered, control.resume))
+
+        self._remove_action = self.ui_main.toolbar.addAction('Remove')
+        self._remove_action.setEnabled(False)
+        # self._remove_action.triggered.connect(partial(self._control_action_triggered, control.remove))
+
+        self._about_action = self.ui_main.toolbar.addAction('About')
+        # self._about_action.triggered.connect(self._show_about)
 
         # self.ui_main.logWidget.setText(log_data)
-        self.ui_main.logWidget.moveCursor(QTextCursor.End)
 
         # self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
         self.hidden = False
@@ -126,18 +142,6 @@ class MainWindow(QMainWindow):
             self.r.lrem("banned", 0, index.data())
             print("removed")
             banned_ips = self.r.lrange("banned", 0, -1)
-            if banned_ips:
-                self.ui_main.table.setColumnCount(1)
-                self.ui_main.table.setRowCount(len(banned_ips))
-                self.ui_main.table.setHorizontalHeaderLabels(['IP'])
-                for i, ip in enumerate(banned_ips):
-                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
-                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-                self.ui_main.table.show()
-            else:
-                self.ui_main.table.hide()
-                self.ui_main.label_SubTitleDash.setText("No Banned IPs, Yet.")
 
             # update table now
     def set_dash_value(self):
@@ -145,126 +149,7 @@ class MainWindow(QMainWindow):
         self.ui_main.date_widget.setText(self.date_now())
 
     # Clicked buttons
-    def click_button(self,value):
-        # print("CLICKED", value)
-        if value == "Home":
-            # Object hide before showing graph, change text as well
-            self.ui_main.table.hide()
-            self.ui_main.logWidget.hide()
-            self.ui_main.label_SubTitleDash.show()
-            self.ui_main.clear.hide()
-            self.ui_main.label_TitleDash.setText("Requests on Tracker")
-            self.ui_main.label_SubTitleDash.setText("UDP tracker requests")
-            self.ui_main.graphWidget.show()
-        elif value == "Swarms":
-            try:
-                self.ui_main.table.doubleClicked.disconnect()
-            except: pass
-            self.ui_main.table.contextMenuEvent = lambda event: None
-            self.ui_main.label_SubTitleDash.show()
-            self.ui_main.clear.hide()
-            self.ui_main.table.hide()
-            self.ui_main.logWidget.hide()
-            self.ui_main.graphWidget.hide()
-            self.ui_main.table.doubleClicked.connect(self.swarms)
-            self.ui_main.label_TitleDash.setText("Swarms")
-            self.ui_main.label_SubTitleDash.setText("Group of Peers per local file")
-            files = self.r.keys("*.torrent*")
-            # print(files)
-            if files:
-                self.ui_main.table.clear()
-                self.ui_main.table.setColumnCount(1)
-                self.ui_main.table.setRowCount(len(files))
-                self.ui_main.table.setHorizontalHeaderLabels(['File Name'])
-                for i, file in enumerate(files):
-                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(file.decode()))
-                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-                self.ui_main.table.show()
-            else:
-                self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
-        elif value == "Banned IPs":
-            try:
-                self.ui_main.table.doubleClicked.disconnect()
-            except: pass
-            self.ui_main.table.contextMenuEvent = lambda event: self.menu_event2(self.ui_main.table, event)
-            self.ui_main.label_SubTitleDash.show()
-            self.ui_main.clear.hide()
-            self.ui_main.table.hide()
-            self.ui_main.logWidget.hide()
-            self.ui_main.graphWidget.hide()
-            self.ui_main.label_TitleDash.setText("Banned IPs")
-            self.ui_main.label_SubTitleDash.setText("IPs which are not allowed to contact tracker")
-            self.ui_main.table.clear()
-            banned_ips = self.r.lrange("banned", 0, -1)
-            if banned_ips:
-                self.ui_main.table.setColumnCount(1)
-                self.ui_main.table.setRowCount(len(banned_ips))
-                self.ui_main.table.setHorizontalHeaderLabels(['IP'])
-                for i, ip in enumerate(banned_ips):
-                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip.decode()))
-                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-                self.ui_main.table.show()
 
-            else:
-                self.ui_main.label_SubTitleDash.setText("No Banned IPs, Yet.")
-        elif value == "Log":
-            try:
-                self.ui_main.table.doubleClicked.disconnect()
-            except: pass
-            self.ui_main.label_SubTitleDash.show()
-            self.ui_main.clear.hide()
-            self.ui_main.table.hide()
-            self.ui_main.graphWidget.hide()
-            self.ui_main.label_TitleDash.setText("Log")
-            # self.ui_main.label_SubTitleDash.hide()
-            # self.ui_main.label_SubTitleDash.setText("Log of this admin")
-
-            if not self.ui_main.logWidget.document().isEmpty():
-                self.ui_main.label_SubTitleDash.hide()
-                self.ui_main.clear.show()
-                self.ui_main.logWidget.moveCursor(QTextCursor.End)
-                self.ui_main.logWidget.show()
-            else:
-                self.ui_main.label_SubTitleDash.setText("Log is empty")
-
-    def swarms(self, item):
-        try:
-            self.ui_main.table.doubleClicked.disconnect()
-        except: pass
-        try:
-            try:
-                file = item.data()
-                self.file_name = file
-            except:
-                file = item
-            peers = self.r.lrange(file, 0, -1)
-            if peers:
-                self.ui_main.table.setColumnCount(2)
-                self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
-
-                self.ui_main.table.contextMenuEvent = lambda event: self.menu_event(self.ui_main.table, event)
-
-                # print("file:",file)
-                # print(peers)
-                self.ui_main.table.setRowCount(len(peers))
-                for i, peer_raw in enumerate(peers):
-                    peer = pickle.loads(peer_raw)
-                    ip = f"{peer[0]}:{peer[1]}"
-                    time_added = time.asctime(time.localtime(time.time()))
-
-                    self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
-                    self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
-                    self.ui_main.table.item(i, 0).setForeground(QColor("white"))
-                    self.ui_main.table.setItem(i, 1, QTableWidgetItem(time_added))
-                    self.ui_main.table.item(i, 1).setBackground(QColor(41, 40, 62))
-                    self.ui_main.table.item(i, 1).setForeground(QColor("white"))
-            else:
-                self.ui_main.table.hide()
-                self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
-
-        except: pass
 
 
 

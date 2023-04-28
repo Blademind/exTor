@@ -513,10 +513,11 @@ class Ui_MainWindow(object):
         self.frame_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_2.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_2.setObjectName("frame_2")
+
         self.verticalLayout_9 = QtWidgets.QVBoxLayout(self.frame_2)
         self.verticalLayout_9.setObjectName("verticalLayout_9")
         self.label_TitleDash = QtWidgets.QLabel(self.frame_2)
-        self.label_TitleDash.setMaximumSize(QtCore.QSize(16777215, 50))
+        # self.label_TitleDash.setMaximumSize(QtCore.QSize(16777215, 50))
         self.label_TitleDash.setStyleSheet("QLabel{\n"
 "\n"
 "color:#E7E7E7;\n"
@@ -527,7 +528,7 @@ class Ui_MainWindow(object):
         self.label_TitleDash.setObjectName("label_TitleDash")
         self.verticalLayout_9.addWidget(self.label_TitleDash)
         self.label_SubTitleDash = QtWidgets.QLabel(self.frame_2)
-        self.label_SubTitleDash.setMaximumSize(QtCore.QSize(16777215, 20))
+        # self.label_SubTitleDash.setMaximumSize(QtCore.QSize(16777215, 20))
         self.label_SubTitleDash.setStyleSheet("QLabel{\n"
 "\n"
 "color:#E7E7E7;\n"
@@ -537,82 +538,22 @@ class Ui_MainWindow(object):
         self.label_SubTitleDash.setObjectName("label_SubTitleDash")
         # self.label_SubTitleDash.hide()
         self.verticalLayout_9.addWidget(self.label_SubTitleDash)
-
-        self.clear = QtWidgets.QPushButton(self.frame_2)
-        self.clear.setMinimumSize(QtCore.QSize(0, 25))
-        self.clear.setMaximumSize(QtCore.QSize(100, 50))
-        self.clear.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.clear.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.clear.setStyleSheet("QPushButton{\n"
-                                       "    text-align:left;\n"
-                                       "    color:#E7E7E7;\n"
-                                       "    border:0px;\n"
-                                       "    border-radius:12px;\n"
-                                       "    font-size:20px;\n"
-                                       "    cursor: pointer;\n"
-                                       "    background-color:#538fff;\n"
-                                       "}\n"
-                                       "QPushButton:hover{\n"
-                                       "background-color:#3668ff;\n"
-                                       "}\n"
-                                       "\n"
-                                       "\n"
-                                       "")
-        icon3 = QtGui.QIcon()
-        icon3.addPixmap(QtGui.QPixmap("assets/img/trash-2.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.clear.setIcon(icon3)
-        self.clear.setIconSize(QtCore.QSize(40, 40))
-        self.clear.hide()
-
-        self.verticalLayout_9.addWidget(self.clear)
+        # self.clear.setIcon(icon3)
+        # self.clear.setIconSize(QtCore.QSize(40, 40))
+        # self.clear.hide()
+        #
+        # self.verticalLayout_9.addWidget(self.clear)
         spacerItem11 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_9.addItem(spacerItem11)
 
+        self.toolbar = QtWidgets.QToolBar(self.frame_DashCentral)
+        self.toolbar.setMaximumSize(QtCore.QSize(16777215, 50))
+        self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.toolbar.setMovable(False)
+
+        self.verticalLayout_8.addWidget(self.toolbar)
+
         self.verticalLayout_8.addWidget(self.frame_2)
-
-        # self.frame_AjusteAnual = QtWidgets.QFrame(self.frame_DashCentral)
-        # self.frame_AjusteAnual.setMinimumSize(QtCore.QSize(0, 250))
-        # self.frame_AjusteAnual.setStyleSheet("QFrame{ background-color: #29283E; }")
-        # self.frame_AjusteAnual.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        # self.frame_AjusteAnual.setFrameShadow(QtWidgets.QFrame.Raised)
-        # self.frame_AjusteAnual.setObjectName("frame_AjusteAnual")
-
-        self.logWidget = QtWidgets.QTextEdit(self.frame_DashCentral)
-        self.logWidget.setReadOnly(True)
-        # self.logWidget.setEnabled(False)
-        # self.logWidget.clearFocus()
-
-        self.logWidget.hide()
-        pg.setConfigOptions(antialias=True, background="#29283E")
-        self.graphWidget = pg.PlotWidget(self.frame_DashCentral, title="")
-        axis = pg.DateAxisItem()
-        self.graphWidget.setAxisItems({'bottom': axis})
-        self.graphWidget.setLabel('left', 'Requests')
-        self.graphWidget.setLabel('bottom', 'Time')
-
-        self.graphWidget.showGrid(x=True, y=True)
-
-        date_list = [math.floor((datetime.datetime.today() + datetime.timedelta(seconds=i)).timestamp()) for i in
-                     range(5, 51, 5)]
-        self.x = sorted(date_list, reverse=False)  # 100 time points
-        # self.x = [_ for _ in range(5, 51, 5)]
-        self.y = [np.nan for _ in range(10)]  # 100 data points
-
-        # plot data: x, y values
-        pen = pg.mkPen(width=5)
-
-        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen, symbol='o')
-
-        self.table = QtWidgets.QTableWidget(self.frame_DashCentral)
-        # self.table.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.table.resizeColumnsToContents()
-        self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-        self.table.hide()
-
-        self.verticalLayout_8.addWidget(self.table)
-        self.verticalLayout_8.addWidget(self.graphWidget)
-        self.verticalLayout_8.addWidget(self.logWidget)
 
         self.verticalLayout_3.addWidget(self.frame_DashCentral)
         self.horizontalLayout_6.addWidget(self.frame_ColumnCenter)
@@ -640,7 +581,6 @@ class Ui_MainWindow(object):
         self.pushButton_BtnServico.setText(_translate("MainWindow", "Swarms"))
         self.pushButton_BtnAssuntos.setText(_translate("MainWindow", "Banned IPs"))
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))
-        self.clear.setText(_translate("MainWindow", "Clear"))
         # self.pushButton_BtnComposicao.setText(_translate("MainWindow", "Composição"))
         # self.pushButton_BtnConsultaProcessos.setText(_translate("MainWindow", "Consultar Processos"))
         # self.pushButton_BtnCentraisConteudo.setText(_translate("MainWindow", "Centrais de Conteúdo"))
