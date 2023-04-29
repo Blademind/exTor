@@ -22,6 +22,14 @@ def errormng(func):
         except Exception as e:
             print(e)
     return wrapper
+def mousePressEvent(obj, event):
+    obj.oldPos = event.globalPos()
+
+
+def mouseMoveEvent(obj, event):
+    delta = QPoint (event.globalPos() - obj.oldPos)
+    obj.move(obj.x() + delta.x(), obj.y() + delta.y())
+    obj.oldPos = event.globalPos()
 
 
 class MainWindow(QMainWindow):
@@ -50,6 +58,10 @@ class MainWindow(QMainWindow):
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
+        try:
+            self.r.ping()
+        except redis.ConnectionError:
+            self.error_handler("Could not connect to database")
 
         self.tcp_sock = socket(AF_INET, SOCK_STREAM)
         self.tcp_sock.settimeout(5)
@@ -67,6 +79,49 @@ class MainWindow(QMainWindow):
         self.timer.start()
 
         self.show()
+
+    def error_handler(self, msg, close_program=True):
+        error_dialog = QMessageBox()
+        error_dialog.setWindowTitle("Error")
+        error_dialog.setStyleSheet(
+            """
+            QPushButton {
+                border-style: outset;
+                color: white;
+                border-radius: 0px;
+                padding: 6px;
+            }
+            QPushButton:hover {
+                background-color: #0080FB;
+                border-style: inset;
+            }
+            QPushButton:pressed {
+                background-color: #43A6C6;
+                border-style: inset;
+            }
+            QMessageBox{
+                background-color: rgb(20, 20, 40);
+                font: 13pt "Verdana";
+                padding: 5px;
+                border-radius: 3px;
+                opacity: 200;
+                }
+            QMessageBox QLabel{
+                color: white;
+                }
+            """
+
+        )
+        error_dialog.mouseMoveEvent = lambda event: mouseMoveEvent(error_dialog, event)
+        error_dialog.mousePressEvent = lambda event: mousePressEvent(error_dialog, event)
+        error_dialog.setText(msg)
+        error_dialog.setIcon(QMessageBox.Critical)
+        self.sock.sendto(b"DONE_ADMIN_OPERATION", self.local_tracker)
+
+        if close_program:
+            sys.exit(error_dialog.exec_())
+        else:
+            error_dialog.exec_()
 
     def menu_event(self, obj, event):
         menu = QMenu()
@@ -166,22 +221,13 @@ class MainWindow(QMainWindow):
     def update_widgets(self):
         with open("log.log", "r") as log:
             log_data = log.read()
-        # if log_data:
         self.ui_main.logWidget.setText(log_data)
         self.ui_main.logWidget.moveCursor(QTextCursor.End)
-
-        # else:
-        #     self.ui_main.label_SubTitleDash.show()
-        #     self.ui_main.clear.hide()
-        #     self.ui_main.label_SubTitleDash.setText("Log is empty")
-
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
             requests_per_ip = requests_data[1]
             self.ui_main.y[self.ui_main.y.index(np.nan)] = num_of_requests
-            # else:
-            #     self.ui_main.y[self.ui_main.y.index(np.nan)] = 0
         else:
             self.ui_main.x = self.ui_main.x[1:]  # Remove the first y element.
             self.ui_main.x.append(self.ui_main.x[-1] + 5)  # Add a new value 1 higher than the last.
