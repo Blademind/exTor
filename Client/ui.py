@@ -81,27 +81,28 @@ class Ui_MainWindow(object):
         self.frame_TopCenter.setObjectName("frame_TopCenter")
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.frame_TopCenter)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-#         self.textEdit_TxtTopSearch = QtWidgets.QTextEdit(self.frame_TopCenter)
-#         self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
-#         font = QtGui.QFont()
-#         font.setPointSize(1)
-#         self.textEdit_TxtTopSearch.setFont(font)
-#         self.textEdit_TxtTopSearch.setAcceptDrops(False)
-#         self.textEdit_TxtTopSearch.setToolTip("")
-#         self.textEdit_TxtTopSearch.setLayoutDirection(QtCore.Qt.LeftToRight)
-#         self.textEdit_TxtTopSearch.setStyleSheet("QTextEdit{\n"
-# "border-radius:15px;\n"
-# "background-color: #f2f2f2;\n"
-# "text-align: center;\n"
-# "font-size:30px;\n"
-# "color:#8e8e8e;\n"
-# "}")
-#         self.textEdit_TxtTopSearch.setFrameShape(QtWidgets.QFrame.StyledPanel)
-#         self.textEdit_TxtTopSearch.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-#         self.textEdit_TxtTopSearch.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-#         self.textEdit_TxtTopSearch.setReadOnly(False)
-#         self.textEdit_TxtTopSearch.setObjectName("textEdit_TxtTopSearch")
-        # self.horizontalLayout_2.addWidget(self.textEdit_TxtTopSearch)
+        self.textEdit_TxtTopSearch = QtWidgets.QTextEdit(self.frame_TopCenter)
+        self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
+        font = QtGui.QFont()
+        font.setPointSize(1)
+        self.textEdit_TxtTopSearch.setFont(font)
+        self.textEdit_TxtTopSearch.setAcceptDrops(False)
+        self.textEdit_TxtTopSearch.setToolTip("")
+        self.textEdit_TxtTopSearch.setLayoutDirection(QtCore.Qt.LeftToRight)
+        self.textEdit_TxtTopSearch.setStyleSheet("QTextEdit{\n"
+"border-radius:15px;\n"
+"background-color: #f2f2f2;\n"
+"text-align: center;\n"
+"font-size:30px;\n"
+"color:#8e8e8e;\n"
+"}")
+        self.textEdit_TxtTopSearch.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.textEdit_TxtTopSearch.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.textEdit_TxtTopSearch.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.textEdit_TxtTopSearch.setReadOnly(False)
+        self.textEdit_TxtTopSearch.setObjectName("textEdit_TxtTopSearch")
+
+        self.horizontalLayout_2.addWidget(self.textEdit_TxtTopSearch)
         self.horizontalLayout.addWidget(self.frame_TopCenter)
         self.frame_TopRight = QtWidgets.QFrame(self.frame_Top)
         self.frame_TopRight.setMinimumSize(QtCore.QSize(350, 0))
@@ -170,7 +171,6 @@ class Ui_MainWindow(object):
 "color:#0080FB;\n"
 "}")
         self.label_TxtTopDataUserType.setObjectName("label_TxtTopDataUserType")
-        # self.verticalLayout_2.addWidget(self.label_TxtTopDataUserType)
         self.horizontalLayout_3.addWidget(self.frame_TopDataUser)
         self.horizontalLayout.addWidget(self.frame_TopRight)
         self.verticalLayout.addWidget(self.frame_Top)
@@ -303,100 +303,6 @@ class Ui_MainWindow(object):
         self.pushButton_BtnAcessoInfo.setIcon(icon8)
         self.pushButton_BtnAcessoInfo.setIconSize(QtCore.QSize(24, 24))
         self.verticalLayout_6.addWidget(self.pushButton_BtnAcessoInfo)
-        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem2)
-        self.pushButton_BtnComposicao = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnComposicao.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnComposicao.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnComposicao.setObjectName("pushButton_BtnComposicao")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnComposicao)
-        spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem3)
-        self.pushButton_BtnConsultaProcessos = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnConsultaProcessos.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnConsultaProcessos.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnConsultaProcessos.setObjectName("pushButton_BtnConsultaProcessos")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnConsultaProcessos)
-        spacerItem4 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem4)
-        self.pushButton_BtnCentraisConteudo = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnCentraisConteudo.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnCentraisConteudo.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnCentraisConteudo.setObjectName("pushButton_BtnCentraisConteudo")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnCentraisConteudo)
-        spacerItem5 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem5)
-        self.pushButton_BtnCanaisAtendimento = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnCanaisAtendimento.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnCanaisAtendimento.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnCanaisAtendimento.setObjectName("pushButton_BtnCanaisAtendimento")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnCanaisAtendimento)
-        spacerItem6 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem6)
-        self.pushButton_BtnOndeEncontro = QtWidgets.QPushButton(self.frame_7)
-        self.pushButton_BtnOndeEncontro.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_BtnOndeEncontro.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
-"    color:#E7E7E7;\n"
-"    border:0px;\n"
-"    font-size:16px;\n"
-"    cursor: pointer;\n"
-"}\n"
-"\n"
-"QPushButton:hover{\n"
-"text-decoration: underline;\n"
-"font-weight: bold;\n"
-"}")
-        self.pushButton_BtnOndeEncontro.setObjectName("pushButton_BtnOndeEncontro")
-        self.verticalLayout_6.addWidget(self.pushButton_BtnOndeEncontro)
-        spacerItem7 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem7)
-        spacerItem9 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.verticalLayout_6.addItem(spacerItem9)
         self.frame = QtWidgets.QFrame(self.frame_7)
         self.frame.setMinimumSize(QtCore.QSize(0, 2))
         self.frame.setMaximumSize(QtCore.QSize(16777215, 2))
@@ -435,17 +341,11 @@ class Ui_MainWindow(object):
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.frame_ColumnCenter)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
 
-        # self.horizontalLayout_7 = QtWidgets.QHBoxLayout(self.frame_ColumnCenter)
-        # self.horizontalLayout_7.setObjectName("verticalLayout_3")
-
         self.frame_5 = QtWidgets.QFrame(self.frame_ColumnCenter)
         self.frame_5.setMinimumSize(QtCore.QSize(0, 80))
-        # self.frame_5.setMaximumSize(QtCore.QSize(16777215, 80))
         self.frame_5.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_5.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_5.setObjectName("frame_5")
-        # self.horizontalLayout_7 = QtWidgets.QVBoxLayout(self.frame_5)
-        # self.horizontalLayout_7.setObjectName("verticalLayout_7")
         self.date_widget = QtWidgets.QLineEdit(self.frame_5)
         self.date_widget.setGeometry(QtCore.QRect(10, 15, 190, 50))
         self.date_widget.setMinimumSize(QtCore.QSize(190, 50))
@@ -460,35 +360,7 @@ class Ui_MainWindow(object):
 "text-aling:center;\n"
 "}")
         self.date_widget.setAlignment(QtCore.Qt.AlignCenter)
-
-        # self.clear = QtWidgets.QPushButton(self.frame_5)
-        # self.clear.setMinimumSize(QtCore.QSize(190, 50))
-        # self.clear.setMaximumSize(QtCore.QSize(190, 50))
-        # self.clear.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        # self.clear.setLayoutDirection(QtCore.Qt.LeftToRight)
-        # self.clear.setStyleSheet("QPushButton{\n"
-        #                                "    text-align:left;\n"
-        #                                "    color:#E7E7E7;\n"
-        #                                "    border:0px;\n"
-        #                                "    border-radius:25px;\n"
-        #                                "    font-size:20px;\n"
-        #                                "    cursor: pointer;\n"
-        #                                "    background-color:#538fff;\n"
-        #                                "}\n"
-        #                                "QPushButton:hover{\n"
-        #                                "background-color:#3668ff;\n"
-        #                                "}\n"
-        #                                "\n"
-        #                                "\n"
-        #                                "")
-        # icon3 = QtGui.QIcon()
-        # icon3.addPixmap(QtGui.QPixmap("assets/img/home.svg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        # self.clear.setIcon(icon3)
-        # self.clear.setIconSize(QtCore.QSize(40, 40))
-
         self.verticalLayout_3.addWidget(self.frame_5)
-        # self.verticalLayout_3.addWidget(self.date_widget)
-        # self.verticalLayout_3.addWidget(self.horizontalLayout_7)
         self.frame_DashCentral = QtWidgets.QFrame(self.frame_ColumnCenter)
         self.frame_DashCentral.setStyleSheet("QFrame{\n"
 "    background-color: #141428;\n"
@@ -508,8 +380,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_8 = QtWidgets.QVBoxLayout(self.frame_DashCentral)
         self.verticalLayout_8.setObjectName("verticalLayout_8")
         self.frame_2 = QtWidgets.QFrame(self.frame_DashCentral)
-        # self.frame_2.setMinimumSize(QtCore.QSize(0, 0 ))
-        self.frame_2.setMaximumSize(QtCore.QSize(16777215, 101))
+        # self.frame_2.setMaximumSize(QtCore.QSize(16777215, 101))
         self.frame_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_2.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_2.setObjectName("frame_2")
@@ -517,7 +388,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_9 = QtWidgets.QVBoxLayout(self.frame_2)
         self.verticalLayout_9.setObjectName("verticalLayout_9")
         self.label_TitleDash = QtWidgets.QLabel(self.frame_2)
-        # self.label_TitleDash.setMaximumSize(QtCore.QSize(16777215, 50))
         self.label_TitleDash.setStyleSheet("QLabel{\n"
 "\n"
 "color:#E7E7E7;\n"
@@ -527,33 +397,16 @@ class Ui_MainWindow(object):
 "}")
         self.label_TitleDash.setObjectName("label_TitleDash")
         self.verticalLayout_9.addWidget(self.label_TitleDash)
-        self.label_SubTitleDash = QtWidgets.QLabel(self.frame_2)
-        # self.label_SubTitleDash.setMaximumSize(QtCore.QSize(16777215, 20))
-        self.label_SubTitleDash.setStyleSheet("QLabel{\n"
-"\n"
-"color:#E7E7E7;\n"
-"border:0px;\n"
-"font-size:15px;\n"
-"}")
-        self.label_SubTitleDash.setObjectName("label_SubTitleDash")
-        # self.label_SubTitleDash.hide()
-        self.verticalLayout_9.addWidget(self.label_SubTitleDash)
-        # self.clear.setIcon(icon3)
-        # self.clear.setIconSize(QtCore.QSize(40, 40))
-        # self.clear.hide()
-        #
-        # self.verticalLayout_9.addWidget(self.clear)
+        self.toolbar = QtWidgets.QToolBar(self.frame_2)
+        self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.toolbar.setMovable(False)
+        self.verticalLayout_9.addWidget(self.toolbar)
+
         spacerItem11 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_9.addItem(spacerItem11)
 
-        self.toolbar = QtWidgets.QToolBar(self.frame_DashCentral)
-        self.toolbar.setMaximumSize(QtCore.QSize(16777215, 50))
-        self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        self.toolbar.setMovable(False)
-
-        self.verticalLayout_8.addWidget(self.toolbar)
-
         self.verticalLayout_8.addWidget(self.frame_2)
+        # self.verticalLayout_8.addWidget(self.toolbar)
 
         self.verticalLayout_3.addWidget(self.frame_DashCentral)
         self.horizontalLayout_6.addWidget(self.frame_ColumnCenter)
@@ -568,31 +421,20 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "exTor Admin"))
         self.pushButton_LogoReceitaFederal.setText(_translate("MainWindow", "exTor"))
 
-#         self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-# "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-# "p, li { white-space: pre-wrap; }\n"
-# "</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
-# "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
+        self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
+"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
 
-        # self.pushButton_TopAlert.setText(_translate("MainWindow", "{0}"))
         self.label_TxtTopDataUser.setText(_translate("MainWindow", "{USER}"))
         self.label_TxtTopDataUserType.setText(_translate("MainWindow", "{PROFILE_TYPE}"))
         self.home_button.setText(_translate("MainWindow", "   Home"))
         self.pushButton_BtnServico.setText(_translate("MainWindow", "Swarms"))
         self.pushButton_BtnAssuntos.setText(_translate("MainWindow", "Banned IPs"))
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))
-        # self.pushButton_BtnComposicao.setText(_translate("MainWindow", "Composição"))
-        # self.pushButton_BtnConsultaProcessos.setText(_translate("MainWindow", "Consultar Processos"))
-        # self.pushButton_BtnCentraisConteudo.setText(_translate("MainWindow", "Centrais de Conteúdo"))
-        # self.pushButton_BtnCanaisAtendimento.setText(_translate("MainWindow", "Canais de Atendimento"))
-        # self.pushButton_BtnOndeEncontro.setText(_translate("MainWindow", "Onde Encontro?"))
-        # self.pushButton_BtnGovbr.setText(_translate("MainWindow", "gov.br"))
-        # self.pushButton_BtnConfiguracao.setText(_translate("MainWindow", "   Configurações"))
-        # self.pushButton_BtnFeedback.setText(_translate("MainWindow", "Feedback"))
-        # self.pushButton_BtnSugestao.setText(_translate("MainWindow", "Sugestões"))
         self.date_widget.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
-        self.label_TitleDash.setText("Requests on Tracker")
-        self.label_SubTitleDash.setText("UDP tracker requests")
+        self.label_TitleDash.setText("Download")
 
 
 
