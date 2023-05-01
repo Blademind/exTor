@@ -398,10 +398,10 @@ def exit_function():
         while 1:
             input()
     except UnicodeDecodeError:
-        for torrent in os.listdir(f"torrents"):
+        # for torrent in os.listdir(f"torrents"):
 
-            if torrent[-12:-8] == "_LOC" or torrent[-15:-8] == "_UPLOAD":
-                os.remove(f"torrents\\{torrent}")
+            # if torrent[-12:-8] == "_LOC" or torrent[-15:-8] == "_UPLOAD":
+            #     os.remove(f"torrents\\{torrent}")
 
         print("\nprogram ended")
 

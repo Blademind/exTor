@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self.hidden = False
         self.sock = init_udp_sock()
 
-        redis_host = "localhost"
+        redis_host = self.local_tracker[0]
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
         try:
@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
         self.tcp_sock.connect((self.local_tracker[0], 55556))
 
         self.set_dash_value(username)
-        threading.Thread(target=self.deleter_timer).start()
+        # threading.Thread(target=self.deleter_timer).start()
 
         self.fetch_requests()
         self.timer = QTimer()
@@ -123,6 +123,26 @@ class MainWindow(QMainWindow):
         else:
             error_dialog.exec_()
 
+    def remove_from_database(self, ip):
+        all_keys = self.r.keys("*")
+        for key in all_keys:
+
+            if b".torrent" in key:
+                file_name = key
+                if b".torrent" in file_name:
+                    records = self.r.lrange(file_name, 0, -1)
+                    for record in records:
+                        created_ip = pickle.loads(record)
+                        if created_ip[0] == ip:
+                            self.r.lrem(file_name, 0, record)
+                            print(f"removed {ip} from {file_name.decode()}")
+
+            elif key != "banned":
+                created_ip = pickle.loads(key)
+                if ip == created_ip[0]:
+                    self.r.delete(key)
+                    print("deleted", created_ip)
+
     def menu_event(self, obj, event):
         menu = QMenu()
         point = event.pos()
@@ -159,8 +179,7 @@ class MainWindow(QMainWindow):
             # update table now
         elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
             print("banned")
-            print(self.r.lrem(self.file_name, 0, raw_addr))
-            print(self.r.delete(raw_addr))
+            self.remove_from_database(ip[0])
 
             self.tcp_sock.send(b"UPDATE_FILES")
             try:
@@ -272,6 +291,7 @@ class MainWindow(QMainWindow):
 
                     for raw_addr in records:
                         time_added = self.r.get(raw_addr)
+                        print(pickle.loads(raw_addr),time_added)
                         if time.time() - float(time_added) >= timer:
                             self.r.lrem(file_name, 0, raw_addr)
                             self.r.delete(raw_addr)
