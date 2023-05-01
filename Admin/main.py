@@ -159,10 +159,9 @@ class MainWindow(QMainWindow):
         raw_addr = pickle.dumps(ip)
         print(ip)
         if res == kick:
-            print("kicked")
-            # print(self.file_name, raw_addr)
-            print(self.r.lrem(self.file_name, 0, raw_addr))
-            print(self.r.delete(raw_addr))
+            print("Kicked")
+            self.r.lrem(self.file_name, 0, raw_addr)
+            self.r.delete(raw_addr)
             self.add_to_log(f"Kicked {ip} as prompted")
 
             self.tcp_sock.send(b"UPDATE_FILES")
@@ -178,7 +177,7 @@ class MainWindow(QMainWindow):
 
             # update table now
         elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
-            print("banned")
+            print("Banned")
             self.remove_from_database(ip[0])
 
             self.tcp_sock.send(b"UPDATE_FILES")
@@ -444,7 +443,7 @@ class MainWindow(QMainWindow):
                     self.ui_main.table.item(i, 1).setForeground(QColor("white"))
             else:
                 self.ui_main.table.hide()
-                self.ui_main.label_SubTitleDash.setText("Sorry, no groups are available")
+                self.ui_main.label_SubTitleDash.setText("Sorry, no peers are available")
 
         except: pass
 

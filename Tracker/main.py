@@ -144,11 +144,13 @@ class Tracker:
 
                     if local_file_name in torrent_files:
                         if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":
-                            self.add_peer_to_LOC(local_file_name, addr)
+                            # HAS ALL PIECES (ALREADY ADDED TO LOCAL FILE THOUGH)
+                            pass
+                            # self.add_peer_to_LOC(local_file_name, addr)
 
                         else:  # local file was not already created
                             print(local_file_name[:-8])
-                            print("address added1:", addr)
+                            print("address added to new LOC file:", addr)
                             self.r.lpush(f"{local_file_name[:-8]}_LOC.torrent", pickle.dumps(addr))
                             self.r.set(pickle.dumps(addr), time.time())
                             if not os.path.exists(f"torrents\\{local_file_name[:-8]}_LOC.torrent"):
