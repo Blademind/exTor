@@ -246,6 +246,7 @@ class Tracker:
         :return: None
         """
         print("address added:", addr)
+
         self.r.lpush(file_name, pickle.dumps(addr))
         self.r.set(pickle.dumps(addr), time.time())
         with open(f"torrents\\{file_name}", "rb") as f:

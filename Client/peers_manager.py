@@ -196,9 +196,12 @@ class Downloader:
                                      self.tracker.local_tracker)
                 print("Tracker was informed of downloaded file")
             if datacontent[:6] == "BAN_IP":
+                # TODO to fix
                 print("banned ip from tracker: ", datacontent[7:])
                 ip = datacontent[7:]
                 self.banned_ips.append(ip)
+            elif datacontent[:11] == "BAN_REMOVED":
+                pass  # TODO tracker side
 
     def add_piece_data(self, piece_number, data):
         file_name, begin_piece, size = self.find_begin_piece_index(piece_number)

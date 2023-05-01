@@ -148,7 +148,7 @@ class Handler:
         print("Completed Download!")
 
         manager.down.progress_flag = False
-        self.tracker.done_downloading(manager.sharing_peers)
+        # self.tracker.done_downloading(manager.sharing_peers)
 
     def go_over_pieces(self):
         """

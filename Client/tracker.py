@@ -344,7 +344,7 @@ class Tracker:
 
         # data = self.sock.recv(self.__BUF)
         # c = 0
-        # while len(data) == 0 and c < 3:
+        # while len(data) == 0 and c <= 3:  # try multiple times (might be network error)
         #     data = self.sock.recv(self.__BUF)
         #     print(data)
         #     c += 1
