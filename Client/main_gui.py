@@ -74,86 +74,10 @@ class MainWindow(QMainWindow):
         self.set_dash_value()
         self.show()
 
-    def menu_event(self, obj, event):
-        menu = QMenu()
-        point = event.pos()
-        point.setX(0)
-        index = obj.indexAt(point)
-        if index.isValid():
-            kick = menu.addAction('Kick Peer')  # index.data()
-            ban = menu.addAction('Ban Peer')
-        else: return
-
-        res = menu.exec_(event.globalPos())
-        ip = index.data().split(':')[0], int(index.data().split(':')[1])
-
-        raw_addr = pickle.dumps(ip)
-        print(ip)
-        if res == kick:
-            print("kicked")
-            # print(self.file_name, raw_addr)
-            print(self.r.lrem(self.file_name, 0, raw_addr))
-            print(self.r.delete(raw_addr))
-            self.add_to_log(f"Kicked {ip} as prompted")
-
-            self.tcp_sock.send(b"UPDATE_FILES")
-            try:
-                data = self.tcp_sock.recv(1024)
-                if data == b"FLOW":
-                    self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
-            except Exception as e:
-                print(e)
-                pass
-
-            self.swarms(self.file_name)
-
-            # update table now
-        elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
-            print("banned")
-            print(self.r.lrem(self.file_name, 0, raw_addr))
-            print(self.r.delete(raw_addr))
-
-            self.tcp_sock.send(b"UPDATE_FILES")
-            try:
-                data = self.tcp_sock.recv(1024)
-                if data == b"FLOW":
-                    self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
-            except Exception as e:
-                print(e)
-                pass
-
-            self.add_to_log(f"Banned {ip[0]} as prompted")
-            self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
-            self.swarms(self.file_name)
-            # update table now
-
-    def menu_event2(self, obj, event):
-        menu = QMenu()
-        index = obj.indexAt(event.pos())
-        remove = menu.addAction('')
-        if index.isValid():
-            remove.setText('Remove')  # index.data()
-        else:
-            remove.setText('No selection')
-            remove.setEnabled(False)
-
-        res = menu.exec_(event.globalPos())
-        if res == remove:
-            self.r.lrem("banned", 0, index.data())
-            print("removed")
-            banned_ips = self.r.lrange("banned", 0, -1)
-
-            # update table now
     def set_dash_value(self):
-        self.ui_main.label_TxtTopDataUserType.setText("Peer")
+        self.ui_main.label_TxtTopDataUserType.setText("User")
         self.ui_main.date_widget.setText(self.date_now())
 
-    # Clicked buttons
-
-
-
-
-    # Get date formatted
     def date_now(self):
         now = datetime.datetime.now()
         return str(now.strftime("%A %d/%m/%Y")).capitalize()
