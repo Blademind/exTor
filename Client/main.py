@@ -25,7 +25,7 @@ def create_new_sock():
     """
     sock = socket(AF_INET, SOCK_STREAM)
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.settimeout(1)
+    sock.settimeout(2)
     return sock
 
 
@@ -38,6 +38,16 @@ class Handler:
         self.pieces = None
         self.peer_thread = None
         self.peer_list = None
+        self.c = 0
+        if not os.path.exists("torrents"):
+            os.makedirs("torrents\\info_hashes")
+            os.makedirs("torrents\\files")
+
+        if not os.path.exists("torrents\\info_hashes"):
+            os.makedirs("torrents\\info_hashes")
+
+        if not os.path.exists("torrents\\files"):
+            os.makedirs("torrents\\files")
         try:
             if not given_name:
                 print("not given name")
@@ -123,9 +133,11 @@ class Handler:
         # start error check
         # threading.Thread(target=self.check_errors).start()
         self.go_over_pieces()
+
         while len(manager.currently_connected) != 0:
-            time.sleep(0)
-        self.check_errors()
+            self.check_errors()
+
+
         # manager.down.bytes_file.close()  # closes the bytes file
         # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")
 
@@ -146,8 +158,7 @@ class Handler:
         for piece, k in enumerate(sorted(self.pieces, key=lambda p: len(self.pieces[p]))):
             # print(piece, self.pieces[k])
             if manager.down.have[k] == "0":
-                self.peer_list.append(Peer(self.tracker))
-                peer = self.peer_list[-1]  # create a peer object
+                peer = Peer(self.tracker)  # create a peer object
                 current_piece_peers = self.pieces[k]
                 # no peers holding current piece
                 if len(current_piece_peers) == 0:
@@ -160,37 +171,24 @@ class Handler:
                     time.sleep(0.5)
                     raise Exception("operation stopped by user")
 
+    def remove_peer_instances(self, peer_ip_port):
+        for piece_number, peers_list in self.pieces.items():
+            if peer_ip_port in peers_list:
+                self.pieces[piece_number].remove(peer_ip_port)
+
     def check_errors(self):
 
         if manager.down.error_queue:
             while manager.down.error_queue:
                 peer_piece = manager.down.error_queue.pop(0)
                 peer_ip_port, piece = peer_piece[0], peer_piece[1]
-                print(piece)
-                self.peer_list.append(Peer(self.tracker))
-                peer_error_object = self.peer_list[-1]  # create a peer object
-                # deletes all peer instances
-                for piece_number, peers_list in self.pieces.items():
-                    if peer_ip_port in peers_list:
-                        self.pieces[piece_number].remove(peer_ip_port)
+                print("error handling:", piece)
+                peer_error_object = Peer(self.tracker)  # create a peer object
 
-                piece_peers = self.pieces[piece]
+                self.remove_peer_instances(peer_ip_port)
 
-                for piece_peer in piece_peers:
-                    if piece_peer not in manager.currently_connected:
-                        if piece_peer in self.peer_thread.keys():
-                            threading.Thread(target=self.peer_thread[piece_peer].request_piece,
-                                             args=(piece,)).start()
-                        else:
-                            manager.currently_connected.append(piece_peer)
-                            self.peer_thread[piece_peer] = peer_error_object
-                            threading.Thread(target=peer_error_object.download, args=(piece_peer, piece)).start()
-                        break
-                    else:
-                        threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
-                        break
-
-            self.check_errors()
+                piece_peers = self.pieces[piece]  # all peers sharing that piece
+                self.peer_piece_assignment(peer_error_object, piece, piece_peers)
 
     def peer_piece_assignment(self, peer, k, current_piece_peers):
         """
@@ -202,32 +200,7 @@ class Handler:
         """
 
         # go over errors if there are any
-        while manager.down.error_queue:
-            peer_piece = manager.down.error_queue.pop(0)
-            peer_ip_port, piece = peer_piece[0], peer_piece[1]
-            print(piece)
-            self.peer_list.append(Peer(self.tracker))
-            peer_error_object = self.peer_list[-1]  # create a peer object
-            # deletes all peer instances
-            for piece_number, peers_list in self.pieces.items():
-                if peer_ip_port in peers_list:
-                    self.pieces[piece_number].remove(peer_ip_port)
-
-            piece_peers = self.pieces[piece]
-
-            for piece_peer in piece_peers:
-                if piece_peer not in manager.currently_connected:
-                    if piece_peer in self.peer_thread.keys():
-                        threading.Thread(target=self.peer_thread[piece_peer].request_piece, args=(piece,)).start()
-                    else:
-                        manager.currently_connected.append(piece_peer)
-                        self.peer_thread[piece_peer] = peer_error_object
-                        threading.Thread(target=peer_error_object.download, args=(piece_peer, piece)).start()
-                    break
-                else:
-                    threading.Thread(target=self.peer_thread[piece_peer].request_piece(piece)).start()
-                    break
-
+        self.check_errors()
         for p in current_piece_peers:
             if p not in manager.currently_connected:
                 if p in self.peer_thread.keys():
@@ -250,25 +223,31 @@ class Handler:
                 break
 
     def connect_to_peer(self, peers, sock, current_peer, tracker):
+        flag = False
         try:
             sock.connect(peers[current_peer])
             sock.send(message.build_handshake(tracker))
             data = sock.recv(68)  # read handshake
             if message.is_handshake(data):
                 print("HANDSHAKE")
+                flag = True
                 msg_len = int.from_bytes(sock.recv(4), "big")
                 data = sock.recv(msg_len)
                 if message.msg_type(data) == 'bitfield':
-                    # print(data)
                     data = bitstring.BitArray(data[1:])
                     print("BITFIELD", data, peers[current_peer])
 
-                    # print(bitstring_to_bytes(data.bin))
-                    # print(data.bin)
                     for t, i in enumerate(data.bin):
                         if i == "1":
                             self.pieces[t].append(sock.getpeername())
             sock.close()
+
+        # risky
+        except timeout:
+            if flag:
+                for i in range(manager.down.num_of_pieces):
+                    self.pieces[i].append(sock.getpeername())
+
         except:
             return
 

@@ -76,22 +76,23 @@ class Peer:
                             break
                     if self.peer_removed:
                         raise Exception(f"Peer {self.peer} Removed")
-                    time.sleep(0.01)
+                    time.sleep(0)
 
-                if not self.peer_removed:
-                    with manager.lock:
-                        manager.currently_connected.append(self.peer)
-                    self.c_piece = piece_number
-                    self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
-                    if self.c_piece == self.num_of_pieces - 1:
-                        if self.total_current_piece_length >= self.block_len:
-                            self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
-                        else:
-                            self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
-                    else:
+            if not self.peer_removed:
+                with manager.lock:
+                    manager.currently_connected.append(self.peer)
+                self.c_piece = piece_number
+                self.total_current_piece_length = self.piece_length if self.c_piece != self.num_of_pieces - 1 else self.size - self.piece_length * self.c_piece
+                if self.c_piece == self.num_of_pieces - 1:
+                    if self.total_current_piece_length >= self.block_len:
                         self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+                    else:
+                        self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
                 else:
-                    raise Exception(f"Peer {self.peer} Removed")
+                    self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
+            else:
+                raise Exception(f"Peer {self.peer} Removed")
+
         except Exception as e:
             print("Error piece request:", e)
             time.sleep(0.5)
