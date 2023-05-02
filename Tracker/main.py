@@ -53,7 +53,7 @@ class Tracker:
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
-
+        # self.r.delete("admin_ip")
         self.listen_udp()  # listen
 
     # def reset_ip_addresses(self):
@@ -143,10 +143,9 @@ class Tracker:
                     local_file_name = datacontent[17:]
 
                     if local_file_name in torrent_files:
-                        if local_file_name[-12:-8] == "_LOC" or local_file_name[-15:-8] == "_UPLOAD":
+                        if local_file_name[-15:-8] == "_UPLOAD":
                             # HAS ALL PIECES (ALREADY ADDED TO LOCAL FILE THOUGH)
-                            pass
-                            # self.add_peer_to_LOC(local_file_name, addr)
+                            self.add_peer_to_LOC(local_file_name, addr)
 
                         else:  # local file was not already created
                             print(local_file_name[:-8])
@@ -168,7 +167,7 @@ class Tracker:
                         print("given file name not in the torrents dir")
 
                 elif "FETCH_REQUESTS" == datacontent:
-                    if addr[0] in settings.admin_ips:
+                    if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
                         all_requests = settings.requests  # all requests recorded not inc. current request.
                         sock.sendto(pickle.dumps(all_requests), addr)
                         settings.requests[0] = 0
@@ -176,9 +175,17 @@ class Tracker:
                     else:
                         sock.sendto(b"DENIED not an Admin", addr)
 
+                    # if addr[0] in settings.admin_ips:
+                    #     all_requests = settings.requests  # all requests recorded not inc. current request.
+                    #     sock.sendto(pickle.dumps(all_requests), addr)
+                    #     settings.requests[0] = 0
+                    #     settings.requests[1] = {}
+                    # else:
+                    #     sock.sendto(b"DENIED not an Admin", addr)
+
                 elif datacontent == "DONE_ADMIN_OPERATION":
-                    if addr[0] in settings.admin_ips:
-                        settings.admin_ips = []
+                    if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
+                        self.r.delete("admin_ip")
                         settings.requests[0] = 0
                         settings.requests[1] = {}
                         print("reset after admin quit")
@@ -186,7 +193,7 @@ class Tracker:
                         sock.sendto(b"DENIED not an Admin", addr)
 
                 elif datacontent[:6] == "BAN_IP":
-                    if addr[0] in settings.admin_ips:
+                    if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
                         settings.ban_ip(datacontent[7:], self.server_sock)
 
                     else:
@@ -194,12 +201,12 @@ class Tracker:
 
                 elif datacontent[:4] == "GET ":
                     torrent_files = os.listdir("torrents")
-                    matches = get_close_matches(f"{datacontent[4:]}", torrent_files, n=1, cutoff=0.5)
+                    matches = get_close_matches(f"{datacontent[4:]}", torrent_files, n=1, cutoff=0.6)
                     if matches:
-                        locals_ = get_close_matches(f"{datacontent[4:]}_LOC", torrent_files, n=1, cutoff=0.5)
+                        locals_ = get_close_matches(f"{datacontent[4:]}_LOC", torrent_files, n=1, cutoff=0.6)
                         locals_ = [local for local in locals_ if "_LOC" in local]
 
-                        uploads = get_close_matches(f"{datacontent[4:]}_UPLOAD", torrent_files, n=1, cutoff=0.5)
+                        uploads = get_close_matches(f"{datacontent[4:]}_UPLOAD", torrent_files, n=1, cutoff=0.6)
                         uploads = [upload for upload in uploads if "_UPLOAD" in uploads]
 
                         print(locals_)
@@ -217,7 +224,7 @@ class Tracker:
                                 query = datacontent[4:]
                                 self.torrent_from_web(query, addr, sock)
 
-                                for file in get_close_matches(query, torrent_files, n=1, cutoff=0.5):
+                                for file in get_close_matches(query, torrent_files, n=1, cutoff=0.6):
                                     if file != local_file_name:
                                         global_file_name = file
                                         break
@@ -247,7 +254,19 @@ class Tracker:
         :param addr: address of peer
         :return: None
         """
+
         print("address added:", addr)
+        peers = self.r.lrange(file_name, 0, -1)
+        in_peers = None
+        for peer in peers:
+            peer_decode = pickle.loads(peer)
+            if peer_decode[0] == addr[0]:
+                in_peers = peer
+                break
+        print(in_peers)
+        if in_peers:
+            self.r.lrem(file_name, 0, in_peers)
+            self.r.delete(in_peers)
 
         self.r.lpush(file_name, pickle.dumps(addr))
         self.r.set(pickle.dumps(addr), time.time())

@@ -21,7 +21,7 @@ def errormng(func):
         try:
             func(*args, **kwargs)
         except Exception as e:
-            print(e)
+            print("TCP tracker exception:",e)
     return wrapper
 
 
@@ -91,8 +91,11 @@ class TrackerTCP:
                         break
 
                     print(f"Connection from {addr}")
-                    if addr[0] not in settings.admin_ips:
+                    if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() != addr[0]:
                         conn.settimeout(5.0)
+
+                    # if addr[0] not in settings.admin_ips:
+                    #     conn.settimeout(5.0)
                     else:
                         conn.settimeout(None)
                     self.read_tcp.append(conn)
@@ -110,12 +113,14 @@ class TrackerTCP:
                     datacontent = data.decode()
 
                     if datacontent[:13] == "REMOVE_UPLOAD":
-                        with open(f"torrents\\{datacontent[14:]}", "rb") as f:
-                            torrent_data = bencode.bdecode(f.read())
-
-                        if len(torrent_data["announce-list"]) == 1:
-                            print(datacontent)
-                            os.remove(f"torrents\\{datacontent[14:]}")
+                        if os.path.exists(f"torrents\\{datacontent[14:]}"):
+                            with open(f"torrents\\{datacontent[14:]}", "rb") as f:
+                                torrent_data = bencode.bdecode(f.read())
+                            if len(torrent_data["announce-list"]) == 1 and tuple(torrent_data["announce-list"][0]) == sock.getpeername():
+                                os.remove(f"torrents\\{datacontent[14:]}")
+                                raw_addr = pickle.dumps(sock.getpeername())
+                                self.r.lrem(datacontent[14:], 0, raw_addr)
+                                self.r.delete(raw_addr)
 
                     # file upload immensing
                     elif datacontent[-8:] == ".torrent":
@@ -132,12 +137,19 @@ class TrackerTCP:
                         result = curr.fetchone()
 
                         if result:
-                            if not settings.admin_ips:
+                            if self.r.get("admin_ip") is None:
                                 sock.send(b"SUCCESS")
-                                settings.admin_ips.append(sock.getpeername()[0])
+                                self.r.set("admin_ip", sock.getpeername()[0])
 
                             else:
                                 sock.send(b"DENIED an Admin is already connected")
+
+                            # if not settings.admin_ips:
+                            #     sock.send(b"SUCCESS")
+                            #     settings.admin_ips.append(sock.getpeername()[0])
+                            #
+                            # else:
+                            #     sock.send(b"DENIED an Admin is already connected")
 
                             # user was found, open a thread dedicated to him
                         else:
@@ -151,13 +163,17 @@ class TrackerTCP:
                     #         sock.send(b"DENIED not an Admin")
 
                     elif datacontent == "UPDATE_FILES":
-                        if sock.getpeername()[0] in settings.admin_ips:
+                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
                             sock.send(b"FLOW")
                             data = sock.recv(self.__BUF)
                             ip_file = pickle.loads(data)
+                            print(ip_file)
                             for raw_addr, file_name in ip_file:
                                 addr = pickle.loads(raw_addr)
                                 file_name = file_name.decode()
+
+                                print("IS THIS IT? (2)")
+
                                 if os.path.exists(f"torrents\\{file_name}"):
                                     with open(f"torrents\\{file_name}", "rb") as f:
                                         torrent_data = bencode.bdecode(f.read())
@@ -170,6 +186,7 @@ class TrackerTCP:
                                         with open(f"torrents\\{file_name}", "wb") as f:
                                             f.write(bencode.bencode(torrent_data))
                                     else:
+                                        print("removed whole file:",file_name)
                                         os.remove(f"torrents\\{file_name}")
 
                                     print(f"removed {addr} from {file_name}")
@@ -177,14 +194,18 @@ class TrackerTCP:
                             sock.send(b"DENIED not an Admin")
 
                     elif datacontent[:6] == "BAN_IP":
-                        if sock.getpeername()[0] in settings.admin_ips:
+                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
                             settings.ban_ip(datacontent[7:], self.r)
+
+                        # if sock.getpeername()[0] in settings.admin_ips:
+                        #     settings.ban_ip(datacontent[7:], self.r)
 
                         else:
                             sock.send(b"DENIED not an Admin")
 
     def recv_files(self, sock, filename):
         try:
+            print("IS THIS IT? (3)")
             if not os.path.exists(f"torrents\\{filename}"):
                 sock.send("FLOW".encode())
                 s = 0

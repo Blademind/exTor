@@ -63,20 +63,6 @@ class Upload:
         except Exception as e:
             print(e)
 
-    def exit_function(self):
-        try:
-            while 1:
-                input()
-        except UnicodeDecodeError:
-            try:
-                self.sock.send(f"REMOVE_UPLOAD {self.torrent}".encode())
-            except:
-                pass
-            if self.torrent:
-                print(self.torrent)
-                os.remove(f"torrents\\info_hashes\\{self.torrent}")
-            print("\nprogram ended")
-
     def create_metadata_file(self, path):
         try:
             t = Torrent(
@@ -127,6 +113,19 @@ class Upload:
                 threading.Thread(target=Handler, args = (self.torrent,self.path, self.sock.getsockname()[1])).start()
                 break
 
+    def exit_function(self):
+        try:
+            while 1:
+                input()
+        except UnicodeDecodeError:
+            try:
+                self.sock.send(f"REMOVE_UPLOAD {self.torrent}".encode())
+            except:
+                pass
+            if self.torrent:
+                print(self.torrent)
+                os.remove(f"torrents\\info_hashes\\{self.torrent}")
+            print("\nprogram ended")
 
 
 if __name__ == '__main__':

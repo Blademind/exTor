@@ -76,7 +76,7 @@ class Peer:
                             break
                     if self.peer_removed:
                         raise Exception(f"Peer {self.peer} Removed")
-                    time.sleep(0)
+                    time.sleep(0.01)
 
             if not self.peer_removed:
                 with manager.lock:

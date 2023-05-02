@@ -6,9 +6,8 @@ import pickle
 
 
 def init():
-    global requests, admin_ips
+    global requests
     requests = [0, {}]
-    admin_ips = []
 
 
 def ban_ip(ip, r_server):
@@ -19,7 +18,7 @@ def ban_ip(ip, r_server):
     :param banned_ips: the banned ips list
     :return: None
     """
-    if ip not in admin_ips:
+    if r_server.get("admin_ip") is not None and r_server.get("admin_ip").decode() != ip:
         r_server.lrem("banned", 0, ip)
         r_server.lpush("banned", ip)
         print("Banned", ip)
@@ -48,7 +47,6 @@ def ban_ip(ip, r_server):
 
 
 requests = [0, {}]
-admin_ips = []
 
 if __name__ == '__main__':
     init()

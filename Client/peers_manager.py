@@ -203,6 +203,11 @@ class Downloader:
             elif datacontent[:11] == "BAN_REMOVED":
                 pass  # TODO tracker side
 
+    def update_bar(self):
+        with data_lock:
+            self.bar()
+            self.count_bar += 1
+
     def add_piece_data(self, piece_number, data):
         file_name, begin_piece, size = self.find_begin_piece_index(piece_number)
         file = self.files_data[file_name]
@@ -226,7 +231,7 @@ class Downloader:
                 file.seek(begin_piece)
                 file.write(data[:current_size])
             data = data[current_size:]
-        threading.Thread(target=self.bar).start()
+        threading.Thread(target=self.update_bar).start()
 
     def send_piece(self, data, sock):
         """Send given piece to a peer"""
@@ -781,5 +786,6 @@ lock = threading.Lock()
 request_lock = threading.Lock()
 bytes_file_lock = threading.Lock()
 currently_connected = []
+data_lock = threading.Lock()
 DONE = False
 down = None

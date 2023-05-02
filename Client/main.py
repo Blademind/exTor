@@ -137,6 +137,8 @@ class Handler:
         while len(manager.currently_connected) != 0:
             self.check_errors()
 
+        self.check_errors()
+
 
         # manager.down.bytes_file.close()  # closes the bytes file
         # os.remove(f"torrents\\files\\{manager.down.torrent_name}\\bytes_file")

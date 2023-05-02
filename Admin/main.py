@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self.hidden = False
         self.sock = init_udp_sock()
 
-        redis_host = self.local_tracker[0]
+        redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
         try:
@@ -126,18 +126,17 @@ class MainWindow(QMainWindow):
     def remove_from_database(self, ip):
         all_keys = self.r.keys("*")
         for key in all_keys:
-
+            print(key)
             if b".torrent" in key:
                 file_name = key
-                if b".torrent" in file_name:
-                    records = self.r.lrange(file_name, 0, -1)
-                    for record in records:
-                        created_ip = pickle.loads(record)
-                        if created_ip[0] == ip:
-                            self.r.lrem(file_name, 0, record)
-                            print(f"removed {ip} from {file_name.decode()}")
+                records = self.r.lrange(file_name, 0, -1)
+                for record in records:
+                    created_ip = pickle.loads(record)
+                    if created_ip[0] == ip:
+                        self.r.lrem(file_name, 0, record)
+                        print(f"removed {ip} from {file_name.decode()}")
 
-            elif key != "banned":
+            elif key != b"banned" and key != b"admin_ip":
                 created_ip = pickle.loads(key)
                 if ip == created_ip[0]:
                     self.r.delete(key)
@@ -193,6 +192,8 @@ class MainWindow(QMainWindow):
             self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
             self.swarms(self.file_name)
             # update table now
+        elif ip[0] == self.sock.getsockname()[0]:
+            print("could not ban because the IP is of this Admin")
 
     def menu_event2(self, obj, event):
         menu = QMenu()
@@ -262,6 +263,7 @@ class MainWindow(QMainWindow):
             # print(ip, "-> requests:", requests_ip)
             if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
                 self.add_to_log(f"Banned {ip} due to over requesting")
+                self.remove_from_database(ip)
                 self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
