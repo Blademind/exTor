@@ -30,7 +30,7 @@ def create_new_sock():
 
 
 class Handler:
-    def __init__(self, given_name=None, path=None, port=None):
+    def __init__(self, given_name=None, path=None, port=None, ui_given_name=None):
         """
         Create Handler object
         """
@@ -38,6 +38,7 @@ class Handler:
         self.pieces = None
         self.peer_thread = None
         self.peer_list = None
+        self.tracker = None
         self.c = 0
         if not os.path.exists("torrents"):
             os.makedirs("torrents\\info_hashes")
@@ -51,7 +52,7 @@ class Handler:
         try:
             if not given_name:
                 print("not given name")
-                self.tracker = Tracker()
+                self.tracker = Tracker(ui_given_name=ui_given_name)
             else:
                 print("given name")
                 self.tracker = Tracker(given_name=given_name, path=path, port=port)
@@ -71,7 +72,7 @@ class Handler:
                     self.peers = list(set(self.tracker.peers))  # list of peers fetched from trackers
                     print(self.peers)
                     manager.down.listen_seq()  # listen to peers (for pieces sharing)
-                    manager.down.generate_download_bar()
+                    manager.down.generate_download_bar()  # PROGRESS
                     self.download()
 
                 # All pieces present on disk
@@ -94,13 +95,13 @@ class Handler:
                 manager.DONE = True
             except: pass
 
-            if self.tracker.global_flag:
+            if self.tracker and self.tracker.global_flag:
                 try:
                     self.tracker.contact_trackers()
                     self.peers = list(set(self.tracker.peers))
                     self.torrent = self.tracker.torrent
                     manager.reset_to_default()
-                    manager.down.generate_download_bar()
+                    manager.down.generate_download_bar()  # PROGRESS
                     self.download()
                 except:
                     try:
@@ -114,7 +115,7 @@ class Handler:
                     except:
                         pass
             else:
-                if manager.down.files_data:
+                if manager.down and manager.down.files_data:
                     for name, file in manager.down.files_data.items():
                         file.close()
                 print(e)
@@ -237,8 +238,7 @@ class Handler:
                 data = sock.recv(msg_len)
                 if message.msg_type(data) == 'bitfield':
                     data = bitstring.BitArray(data[1:])
-                    print("BITFIELD", data, peers[current_peer])
-
+                    print("BITFIELD", data.bin, peers[current_peer])
                     for t, i in enumerate(data.bin):
                         if i == "1":
                             self.pieces[t].append(sock.getpeername())

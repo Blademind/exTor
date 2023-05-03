@@ -32,7 +32,7 @@ def generate_peer_id():
 
 
 class Tracker:
-    def __init__(self, given_name=None, path=None, port=None):
+    def __init__(self, given_name=None, path=None, port=None, ui_given_name=None):
         self.given_name = given_name
         self.path = path
         print(self.path)
@@ -61,7 +61,11 @@ class Tracker:
             self.sock.bind(("0.0.0.0", self.torrent.port))
             self.sock.settimeout(20)
 
-            if not given_name:
+            if ui_given_name:
+                self.file_name = self.fetch_torrent_file(file_name=ui_given_name)
+                self.file_names()
+
+            elif not given_name:
                 self.file_name = self.fetch_torrent_file()
                 self.file_names()
 
@@ -286,9 +290,10 @@ class Tracker:
         file_sock.listen(5)
         return file_sock
 
-    def fetch_torrent_file(self):
+    def fetch_torrent_file(self, file_name=None):
         try:
-            file_name = input("What torrent would you like to download? -> ")
+            if not file_name:
+                file_name = input("What torrent would you like to download? -> ")
             self.sock.sendto(f"GET {file_name}".encode(), self.local_tracker)
             return self.recv_files()
 

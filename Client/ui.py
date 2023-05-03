@@ -81,7 +81,7 @@ class Ui_MainWindow(object):
         self.frame_TopCenter.setObjectName("frame_TopCenter")
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.frame_TopCenter)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.textEdit_TxtTopSearch = QtWidgets.QTextEdit(self.frame_TopCenter)
+        self.textEdit_TxtTopSearch = QtWidgets.QLineEdit(self.frame_TopCenter)
         self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
         font = QtGui.QFont()
         font.setPointSize(1)
@@ -89,16 +89,13 @@ class Ui_MainWindow(object):
         self.textEdit_TxtTopSearch.setAcceptDrops(False)
         self.textEdit_TxtTopSearch.setToolTip("")
         self.textEdit_TxtTopSearch.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.textEdit_TxtTopSearch.setStyleSheet("QTextEdit{\n"
-"border-radius:15px;\n"
+        self.textEdit_TxtTopSearch.setStyleSheet("QLineEdit{\n"
+"border-radius:5px;\n"
 "background-color: #f2f2f2;\n"
 "text-align: center;\n"
 "font-size:30px;\n"
 "color:#8e8e8e;\n"
 "}")
-        self.textEdit_TxtTopSearch.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.textEdit_TxtTopSearch.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.textEdit_TxtTopSearch.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.textEdit_TxtTopSearch.setReadOnly(False)
         self.textEdit_TxtTopSearch.setObjectName("textEdit_TxtTopSearch")
 
@@ -421,11 +418,11 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "exTor Admin"))
         self.pushButton_LogoReceitaFederal.setText(_translate("MainWindow", "exTor"))
 
-        self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-"p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
+#         self.textEdit_TxtTopSearch.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+# "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+# "p, li { white-space: pre-wrap; }\n"
+# "</style></head><body style=\" font-family:\'Noto Sans\'; font-size:30px; font-weight:400; font-style:normal;\">\n"
+# "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:14pt;\">Search</span></p></body></html>")) # Search for Torrent
 
         self.label_TxtTopDataUser.setText(_translate("MainWindow", "{USER}"))
         self.label_TxtTopDataUserType.setText(_translate("MainWindow", "{PROFILE_TYPE}"))

@@ -12,7 +12,7 @@ import threading
 import pickle
 from socket import *
 import ssl
-
+from main import Handler
 
 def errormng(func):
     def wrapper(*args, **kwargs):
@@ -24,6 +24,8 @@ def errormng(func):
             print(e)
     return wrapper
 
+def test(obj):
+    print(obj.text)
 
 class MainWindow(QMainWindow):
     def __init__(self, tracker):
@@ -32,13 +34,16 @@ class MainWindow(QMainWindow):
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
         self.file_name = ""
-        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
-        self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
-        self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
-        self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
+        # self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
+        # self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
+        # self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
+        # self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
+
+        self.ui_main.textEdit_TxtTopSearch.returnPressed.connect(
+            lambda: self.torrent_triggered(query=self.ui_main.textEdit_TxtTopSearch.text()))
 
         self._add_action = self.ui_main.toolbar.addAction('Add')
-        # self._add_action.triggered.connect(self._add_torrents_triggered)
+        self._add_action.triggered.connect(self.torrent_triggered)
 
         self._pause_action = self.ui_main.toolbar.addAction('Pause')
         self._pause_action.setEnabled(False)
@@ -52,27 +57,26 @@ class MainWindow(QMainWindow):
         self._remove_action.setEnabled(False)
         # self._remove_action.triggered.connect(partial(self._control_action_triggered, control.remove))
 
-        self._about_action = self.ui_main.toolbar.addAction('About')
-        # self._about_action.triggered.connect(self._show_about)
-
         # self.ui_main.logWidget.setText(log_data)
 
         # self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
         self.hidden = False
-        self.sock = init_udp_sock()
+        # self.sock = init_udp_sock()
 
-        redis_host = "localhost"
-        redis_port = 6379
-        self.r = redis.StrictRedis(host=redis_host, port=redis_port)
-
-        self.tcp_sock = socket(AF_INET, SOCK_STREAM)
-        self.tcp_sock.settimeout(5)
-        self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
-                                        certfile='cert.pem')
-        self.tcp_sock.connect((self.local_tracker[0], 55556))
+        # self.tcp_sock = socket(AF_INET, SOCK_STREAM)
+        # self.tcp_sock.settimeout(5)
+        # self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
+        #                                 certfile='cert.pem')
+        # self.tcp_sock.connect((self.local_tracker[0], 55556))
 
         self.set_dash_value()
         self.show()
+
+    def torrent_triggered(self, query=None):
+        if query:
+            print(query)
+            handler = Handler
+            threading.Thread(target=handler, args=(None, None, None, query)).start()  # create new download
 
     def set_dash_value(self):
         self.ui_main.label_TxtTopDataUserType.setText("User")

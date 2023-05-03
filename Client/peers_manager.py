@@ -46,12 +46,16 @@ class Downloader:
         self.torrent = torrent
         self.tracker = tracker
         self.path = self.tracker.path
+        self.one_file = False
         try:
             self.files = self.torrent.torrent['info']['files']
             self.file_names = [list(self.files[i].items())[1][1][0] for i in range(len(self.files))]
         except Exception as e:
             print("exception:", e)
+            # print(self.torrent.torrent['info'])
+            self.one_file = True
             self.files = self.torrent.torrent['info']
+            self.file_names = [list(self.files.items())[1][1]]
 
         self.listen_sock = socket(AF_INET, SOCK_STREAM)
         self.listen_sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -76,6 +80,7 @@ class Downloader:
         self.buf = 68
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.progress_flag = True
+
         if not self.path:
             if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
                 os.makedirs(f"torrents\\files\\{self.torrent_name}")
@@ -104,7 +109,7 @@ class Downloader:
         # print(f"{self.check_piece_instances(0)}\n")
         # print(f"{self.check_piece_instances(1)}\n")
         # print(f"{self.check_piece_instances(986)}\n")
-
+        print("GOT HERE")
         self.calculate_bitfield()
 
     def update_have(self, piece):
@@ -119,13 +124,13 @@ class Downloader:
         :return:
         """
         threading.Thread(target=self.calculate_have_bitfield2).start()
-        self.generate_progress_bar()
+        self.generate_progress_bar()  # PROGRESS
 
     def listen_seq(self):
         threading.Thread(target=self.listen_to_peers).start()
         threading.Thread(target=self.listen_to_tracker).start()
 
-    def generate_download_bar(self):
+    def generate_download_bar(self):  # PROGRESS
         threading.Thread(target=self.generate_progress_bar).start()
 
     def listen_to_peers(self):
@@ -205,7 +210,7 @@ class Downloader:
 
     def update_bar(self):
         with data_lock:
-            self.bar()
+            self.bar()  # PROGRESS
             self.count_bar += 1
 
     def add_piece_data(self, piece_number, data):
@@ -281,7 +286,7 @@ class Downloader:
                     return file, begin, size
                 begin += size
 
-    def generate_progress_bar(self):
+    def generate_progress_bar(self):  # PROGRESS
         """
         Generates on-screen progress bar when checking pieces the user owns
         :return:
@@ -331,7 +336,7 @@ class Downloader:
                             temp = list(self.have)
                             temp[piece] = "1"
                             self.have = "".join(temp)
-                            self.bar()
+                            self.bar()  # PROGRESS
                             self.count_bar += 1
 
                     err = False
@@ -366,13 +371,13 @@ class Downloader:
                             temp = list(self.have)
                             temp[piece] = "1"
                             self.have = "".join(temp)
-                            self.bar()
+                            self.bar()  # PROGRESS
                             self.count_bar += 1
 
                     err = False
 
             # print(file_piece)
-        self.progress_flag = False
+        self.progress_flag = False  # PROGRESS
 
     def check_piece_instances(self, index):
         ret = {}
@@ -394,7 +399,6 @@ class Downloader:
         if not self.path:
             if not os.path.exists(f"torrents\\files\\{self.torrent_name}\\temp"):
                 os.makedirs(f"torrents\\files\\{self.torrent_name}\\temp")
-
             files_dummy = {file_name: open(f"torrents\\files\\{self.torrent_name}\\temp\\{file_name}", "wb") for
                            file_name in self.file_names}
             read = 0  # whats left to next piece
@@ -402,14 +406,18 @@ class Downloader:
             piece_number = 0  # what piece are we at?
             size = self.torrent.size()
             c = 0
-            for file_name, file in files_dummy.items():
-                data = b"*" * self.files[c]["length"]
-                file.write(data)
-                c += 1
-
+            if not self.one_file:
+                for file_name, file in files_dummy.items():
+                    data = b"*" * self.files[c]["length"]
+                    file.write(data)
+                    c += 1
+            else:
+                for file_name, file in files_dummy.items():
+                    data = b"*" * list(self.files.items())[0][1]
+                    file.write(data)
+                    break
             for file_name, f in files_dummy.items():
                 f.close()
-
             for file in files:
                 with open(f"torrents\\files\\{self.torrent_name}\\temp\\{file}", "rb") as f:
                     total_current_piece_length = self.piece_length if piece_number != self.num_of_pieces - 1 else size - self.piece_length * piece_number
@@ -455,10 +463,16 @@ class Downloader:
             piece_number = 0  # what piece are we at?
             size = self.torrent.size()
             c = 0
-            for file_name, file in files_dummy.items():
-                data = b"*" * self.files[c]["length"]
-                file.write(data)
-                c += 1
+            if not self.one_file:
+                for file_name, file in files_dummy.items():
+                    data = b"*" * self.files[c]["length"]
+                    file.write(data)
+                    c += 1
+            else:
+                for file_name, file in files_dummy.items():
+                    data = b"*" * list(self.files.items())[0][1]
+                    file.write(data)
+                    break
 
             for file_name, f in files_dummy.items():
                 f.close()
