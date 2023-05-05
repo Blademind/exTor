@@ -143,9 +143,10 @@ class Tracker:
                     local_file_name = datacontent[17:]
 
                     if local_file_name in torrent_files:
-                        if local_file_name[-15:-8] == "_UPLOAD":
+                        if local_file_name[-15:-8] == "_UPLOAD" or local_file_name[-12:-8] == "_LOC":
                             # HAS ALL PIECES (ALREADY ADDED TO LOCAL FILE THOUGH)
-                            self.add_peer_to_LOC(local_file_name, addr)
+                            pass
+                            # self.add_peer_to_LOC(local_file_name, addr)
 
                         else:  # local file was not already created
                             print(local_file_name[:-8])
@@ -207,8 +208,9 @@ class Tracker:
                         locals_ = [local for local in locals_ if "_LOC" in local]
 
                         uploads = get_close_matches(f"{datacontent[4:]}_UPLOAD", torrent_files, n=1, cutoff=0.6)
-                        uploads = [upload for upload in uploads if "_UPLOAD" in uploads]
-
+                        print(uploads)
+                        uploads = [upload for upload in uploads if "_UPLOAD" in upload]
+                        print(uploads)
                         print(locals_)
 
                         if locals_:
@@ -235,6 +237,7 @@ class Tracker:
 
                         elif uploads:
                             upload_file_name = uploads[0]
+                            print("here")
                             threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr, True)).start()
 
                         else:

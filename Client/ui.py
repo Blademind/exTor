@@ -432,6 +432,3 @@ class Ui_MainWindow(object):
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))
         self.date_widget.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
         self.label_TitleDash.setText("Download")
-
-
-

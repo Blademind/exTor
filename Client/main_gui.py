@@ -1,6 +1,6 @@
 import sys
 import datetime
-from ui import Ui_MainWindow
+import ui
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -13,6 +13,7 @@ import pickle
 from socket import *
 import ssl
 from main import Handler
+from multiprocessing import Process
 
 def errormng(func):
     def wrapper(*args, **kwargs):
@@ -24,13 +25,14 @@ def errormng(func):
             print(e)
     return wrapper
 
-def test(obj):
-    print(obj.text)
 
 class MainWindow(QMainWindow):
     def __init__(self, tracker):
         QMainWindow.__init__(self)
-        self.ui_main = Ui_MainWindow()
+
+        ui.init_win()
+        self.ui_main = ui.ui_main
+        print(self.ui_main)
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
         self.file_name = ""
@@ -68,15 +70,34 @@ class MainWindow(QMainWindow):
         # self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
         #                                 certfile='cert.pem')
         # self.tcp_sock.connect((self.local_tracker[0], 55556))
-
+        # self.threads = []
         self.set_dash_value()
         self.show()
 
     def torrent_triggered(self, query=None):
         if query:
             print(query)
-            handler = Handler
-            threading.Thread(target=handler, args=(None, None, None, query)).start()  # create new download
+            vbox = QVBoxLayout(self.ui_main.frame_2)
+
+            self.ui_main._name_label = QLabel()
+            # self._name_label.setFont(TorrentListWidgetItem._name_font)
+            vbox.addWidget(self.ui_main._name_label)
+
+            self.ui_main._upper_status_label = QLabel()
+            # self._upper_status_label.setFont(TorrentListWidgetItem._stats_font)
+            vbox.addWidget(self.ui_main._upper_status_label)
+
+            self.ui_main._progress_bar = QProgressBar()
+            self.ui_main._progress_bar.setFixedHeight(15)
+            self.ui_main._progress_bar.setMaximum(1000)
+            vbox.addWidget(self.ui_main._progress_bar)
+
+            self.ui_main._lower_status_label = QLabel()
+            # self._lower_status_label.setFont(TorrentListWidgetItem._stats_font)
+            vbox.addWidget(self.ui_main._lower_status_label)
+
+            p = Process(target=Handler, args=(None, None, None, query))
+            p.start()
 
     def set_dash_value(self):
         self.ui_main.label_TxtTopDataUserType.setText("User")

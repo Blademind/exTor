@@ -345,7 +345,12 @@ class Tracker:
 
     def done_downloading(self, downloaded_peers):
         print(downloaded_peers)
-        self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-8:-12] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
+        print(self.file_name[:-8])
+        print(f"DONE DOWNLOADING {self.file_name if self.file_name[-12:-8] != '_LOC' else self.file_name[:-8]}")
+
+        self.sock.sendto(f"DONE DOWNLOADING {self.file_name}".encode(), self.local_tracker)
+
+        # self.sock.sendto(f"DONE DOWNLOADING {self.file_name if self.file_name[-12:-8] != '_LOC' else self.file_name[:-8]}".encode(), self.local_tracker)
 
         # data = self.sock.recv(self.__BUF)
         # c = 0

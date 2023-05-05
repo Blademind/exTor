@@ -12,7 +12,7 @@ import ssl
 import warnings
 import os
 from customized import PasswordEdit
-from main_gui import MainWindow
+from main import MainWindow
 
 
 # ========= BAN IP =========
