@@ -174,9 +174,7 @@ class Ui_MainWindow(object):
         self.home_button.setMinimumSize(QtCore.QSize(0, 50))
         self.home_button.setMaximumSize(QtCore.QSize(140, 50))
         self.home_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.home_button.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.home_button.setStyleSheet("QPushButton{\n"
-"    text-align:left;\n"
 "    color:#E7E7E7;\n"
 "    border:0px;\n"
 "    border-radius:25px;\n"
@@ -461,7 +459,7 @@ class Ui_MainWindow(object):
         self.pushButton_LogoReceitaFederal.setText(_translate("MainWindow", "exTor"))
         self.label_TxtTopDataUser.setText(_translate("MainWindow", "{USER}"))
         self.label_TxtTopDataUserType.setText(_translate("MainWindow", "{PROFILE_TYPE}"))
-        self.home_button.setText(_translate("MainWindow", "   Home"))
+        self.home_button.setText(_translate("MainWindow", " Home"))
         self.pushButton_BtnServico.setText(_translate("MainWindow", "Swarms"))
         self.pushButton_BtnAssuntos.setText(_translate("MainWindow", "Banned IPs"))
         self.pushButton_BtnAcessoInfo.setText(_translate("MainWindow", "Log"))

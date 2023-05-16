@@ -245,7 +245,7 @@ class MainWindow(QMainWindow):
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
-            requests_per_ip = requests_data[1]
+            # requests_per_ip = requests_data[1]
             self.ui_main.y[self.ui_main.y.index(np.nan)] = num_of_requests
         else:
             self.ui_main.x = self.ui_main.x[1:]  # Remove the first y element.
@@ -255,16 +255,16 @@ class MainWindow(QMainWindow):
 
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
-            requests_per_ip = requests_data[1]
+            # requests_per_ip = requests_data[1]
             self.ui_main.y.append(num_of_requests)  # Add a new random value.
 
-        for ip in requests_per_ip:
-            requests_ip = requests_per_ip[ip]
-            # print(ip, "-> requests:", requests_ip)
-            if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
-                self.add_to_log(f"Banned {ip} due to over requesting")
-                self.remove_from_database(ip)
-                self.tcp_sock.send(f"BAN_IP {ip}".encode())
+        # for ip in requests_per_ip:
+        #     requests_ip = requests_per_ip[ip]
+        #     # print(ip, "-> requests:", requests_ip)
+        #     if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
+        #         self.add_to_log(f"Banned {ip} due to over requesting")
+        #         self.remove_from_database(ip)
+        #         self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
         self.ui_main.graphWidget.clear()

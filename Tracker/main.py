@@ -47,7 +47,18 @@ class Tracker:
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
+        threading.Thread(target=self.requests_check).start()
         self.listen_udp()  # listen
+
+    def requests_check(self):
+        while 1:
+            requests_per_ip = settings.requests[1]
+            for ip in requests_per_ip:
+                requests_ip = requests_per_ip[ip]
+                print(requests_ip, ip)
+                if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
+                    settings.ban_ip(ip, self.r)
+            time.sleep(5)
 
     def init_udp_sock(self, port):
         """
