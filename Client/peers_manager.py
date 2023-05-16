@@ -150,6 +150,10 @@ class Downloader:
                 else:
                     try:
                         data = sock.recv(self.BUFS[sock])
+                        ip = sock.getpeername()[0]
+                        if ip in self.banned_ips:
+                            sock.close()
+                            break
                     except:
                         if sock in self.readable:
                             self.readable.remove(sock)
@@ -186,27 +190,26 @@ class Downloader:
         print("Now listening for tracker UDP queries...")
         while 1:
             data, addr = self.udp_list_sock.recvfrom(self.__BUF)
-            if not data:
-                break
-            try:
-                datacontent = data.decode()
+            if addr[0] == self.tracker.local_tracker[0]:
+                if not data:
+                    break
+                try:
+                    datacontent = data.decode()
 
-            except:
-                datacontent = ""
+                except:
+                    datacontent = ""
 
-            print("data from tracker:", datacontent)
-            if datacontent == "UPDATED":
-                if self.tracker.current_file_status == "local file" or self.tracker.current_file_status == "upload file":
-                    self.udp_list_sock.sendto(pickle.dumps((f"INFORM_SHARED_PEERS {self.tracker.file_name}", sharing_peers)),
-                                     self.tracker.local_tracker)
-                print("Tracker was informed of downloaded file")
-            if datacontent[:6] == "BAN_IP":
-                # TODO to fix
-                print("banned ip from tracker: ", datacontent[7:])
-                ip = datacontent[7:]
-                self.banned_ips.append(ip)
-            elif datacontent[:11] == "BAN_REMOVED":
-                pass  # TODO tracker side
+                print("data from tracker:", datacontent)
+                if datacontent == "UPDATED":
+                    if self.tracker.current_file_status == "local file" or self.tracker.current_file_status == "upload file":
+                        self.udp_list_sock.sendto(pickle.dumps((f"INFORM_SHARED_PEERS {self.tracker.file_name}", sharing_peers)),
+                                         self.tracker.local_tracker)
+                    print("Tracker was informed of downloaded file")
+                if datacontent[:6] == "BAN_IP":
+                    # TODO to fix
+                    print("banned ip from tracker: ", datacontent[7:])
+                    ip = datacontent[7:]
+                    self.banned_ips.append(ip)
 
     def update_bar(self):
         with data_lock:

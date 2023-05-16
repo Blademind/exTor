@@ -177,20 +177,20 @@ class MainWindow(QMainWindow):
             # update table now
         elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
             print("Banned")
-            self.remove_from_database(ip[0])
+            # self.remove_from_database(ip[0])
 
-            self.tcp_sock.send(b"UPDATE_FILES")
-            try:
-                data = self.tcp_sock.recv(1024)
-                if data == b"FLOW":
-                    self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
-            except Exception as e:
-                print(e)
-                pass
+            # self.tcp_sock.send(b"UPDATE_FILES")
+            # try:
+            #     data = self.tcp_sock.recv(1024)
+            #     if data == b"FLOW":
+            #         self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
+            # except Exception as e:
+            #     print(e)
+            #     pass
 
+            self.swarms(self.file_name, ban_ip=ip[0])
             self.add_to_log(f"Banned {ip[0]} as prompted")
             self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
-            self.swarms(self.file_name)
             # update table now
         elif ip[0] == self.sock.getsockname()[0]:
             print("could not ban because the IP is of this Admin")
@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
             self.ui_main.logWidget.hide()
             self.ui_main.label_SubTitleDash.setText("Log is empty")
 
-    def swarms(self, item):
+    def swarms(self, item, ban_ip=""):
         try:
             self.ui_main.table.doubleClicked.disconnect()
         except: pass
@@ -423,6 +423,11 @@ class MainWindow(QMainWindow):
             except:
                 file = item
             peers = self.r.lrange(file, 0, -1)
+            if ban_ip:
+                for peer in peers:
+                    peer_ip = pickle.loads(peer)[0]
+                    if peer_ip == ban_ip:
+                        peers.remove(peer)
             if peers:
                 self.ui_main.table.setColumnCount(2)
                 self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])

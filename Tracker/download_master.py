@@ -105,7 +105,6 @@ class TrackerTCP:
                         data = sock.recv(self.__BUF)
 
                         if not data:
-                            print("NOT DATA")
                             self.read_tcp.remove(sock)
                             break
                     except:
