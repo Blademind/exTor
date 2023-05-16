@@ -1,6 +1,5 @@
 import shutil
 from collections import OrderedDict
-
 import time
 import os
 import hashlib
@@ -9,7 +8,6 @@ from alive_progress import alive_bar
 import select
 from socket import *
 import message_handler as message
-import tracker
 import pickle
 
 
@@ -39,14 +37,17 @@ def get_ip_addr():
 
 
 class Downloader:
-    def __init__(self, torrent, tracker):
+    def __init__(self, torrent, tracker, ui):
+        self.ui = ui
         self.count_bar = 0
         self.__BUF = 1024
         self.s_bytes = b""
         self.torrent = torrent
         self.tracker = tracker
+        self.ui_sock = self.tracker.ui_sock
+
         self.path = self.tracker.path
-        self.one_file = False
+        self.one_file = False  # there is only one target file in torrent
         try:
             self.files = self.torrent.torrent['info']['files']
             self.file_names = [list(self.files[i].items())[1][1][0] for i in range(len(self.files))]
@@ -109,7 +110,6 @@ class Downloader:
         # print(f"{self.check_piece_instances(0)}\n")
         # print(f"{self.check_piece_instances(1)}\n")
         # print(f"{self.check_piece_instances(986)}\n")
-        print("GOT HERE")
         self.calculate_bitfield()
 
     def update_have(self, piece):
@@ -210,8 +210,14 @@ class Downloader:
 
     def update_bar(self):
         with data_lock:
-            self.bar()  # PROGRESS
+            if not self.ui:
+                self.bar()  # PROGRESS
             self.count_bar += 1
+            if self.ui_sock:
+                msg = f"PROGRESS {int((self.count_bar / self.num_of_pieces) * 1000)}".encode()
+                len_msg = len(msg).to_bytes(4, byteorder='big')
+                time.sleep(0)
+                self.ui_sock.send(len_msg + msg)
 
     def add_piece_data(self, piece_number, data):
         file_name, begin_piece, size = self.find_begin_piece_index(piece_number)
@@ -243,7 +249,7 @@ class Downloader:
         index = int.from_bytes(data[1: 5], "big")
         begin = int.from_bytes(data[5: 9], "big")
         length = int.from_bytes(data[9: 13], "big")
-        print(f"sending block {begin}:{begin + length} in piece #{index} to {sock.getpeername()}")
+        # print(f"sending block {begin}:{begin + length} in piece #{index} to {sock.getpeername()}")  # IMPORTANT PRINT?
         if self.have[index]:
             file_name, begin_piece, size = self.find_begin_piece_index(index)
             total_current_piece_length = self.piece_length if index != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * index
@@ -294,7 +300,11 @@ class Downloader:
         # start a new progress bar
         if not self.progress_flag:
             self.progress_flag = True
-        with alive_bar(self.num_of_pieces - self.count_bar, force_tty=True) as self.bar:
+        if not self.ui:
+            with alive_bar(self.num_of_pieces - self.count_bar, force_tty=True) as self.bar:
+                while self.progress_flag:
+                    time.sleep(1)
+        else:
             while self.progress_flag:
                 time.sleep(1)
 
@@ -336,13 +346,20 @@ class Downloader:
                             temp = list(self.have)
                             temp[piece] = "1"
                             self.have = "".join(temp)
-                            self.bar()  # PROGRESS
+                            if not self.ui:
+                                self.bar()  # PROGRESS
                             self.count_bar += 1
+                            if self.ui_sock:
+
+                                msg = f"PROGRESS {int((self.count_bar / self.num_of_pieces) * 1000)}".encode()
+                                len_msg = len(msg).to_bytes(4, byteorder='big')
+                                self.ui_sock.send(len_msg + msg)
+                                time.sleep(0)
 
                     err = False
         else:
             if os.path.exists(f"{self.path}"):
-                print("EXISTS")
+                # print("EXISTS")
                 err = False
                 for piece in range(self.num_of_pieces):
                     piece_instances = self.check_piece_instances(piece)
@@ -371,8 +388,14 @@ class Downloader:
                             temp = list(self.have)
                             temp[piece] = "1"
                             self.have = "".join(temp)
-                            self.bar()  # PROGRESS
+                            if not self.ui:
+                                self.bar()  # PROGRESS
                             self.count_bar += 1
+                            if self.ui_sock:
+                                msg = f"PROGRESS {int((self.count_bar / self.num_of_pieces) * 1000)}".encode()
+                                len_msg = len(msg).to_bytes(4, byteorder='big')
+                                self.ui_sock.send(len_msg + msg)
+                                time.sleep(0)
 
                     err = False
 
@@ -525,7 +548,6 @@ class Downloader:
             if peer not in sharing_peers:
                 sharing_peers.append(peer)
                 print(peer, "added to sharing_peers list")
-
 
 def reset_to_default():
     global currently_connected, DONE

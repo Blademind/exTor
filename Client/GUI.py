@@ -8,16 +8,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from socket import *
 import pickle
-import ssl
 import warnings
 import os
-from customized import PasswordEdit
 from main import MainWindow
-
-
-# ========= BAN IP =========
-# self.sock.sendto(f"BAN_IP {addr[0]}".encode(), self.local_tracker)
-
+import signal
 
 def errormng(func):
     def wrapper(*args, **kwargs):
@@ -50,7 +44,7 @@ class UI:
             self.MainWindow.show()
             self.app.exec_()
         else:
-            print("IT CANNOT GET HERE!!!!")
+            print("IT CANNOT GET HERE!!!! WTF!!!!!")
 
     def find_local_tracker(self):
         sock = init_udp_sock()
@@ -141,8 +135,16 @@ def get_ip_addr():
     return ip
 
 
+def exit_function():
+    print("\nprogram ended")
+    ui.MainWindow.interrupt_event.set()
+    # for pr in ui.MainWindow.processes:
+    #     os.kill(pr.pid, signal.SIGTERM)
+    #     # pr.kill()
+    os._exit(0)
+
+
 if __name__ == '__main__':
     warnings.simplefilter("ignore", category=RuntimeWarning)
-    UI()
-
-    os._exit(0)
+    ui = UI()
+    exit_function()

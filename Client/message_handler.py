@@ -1,9 +1,4 @@
-import hashlib
 import struct
-from socket import *
-import bencode
-from urllib.parse import urlparse
-from socket import *
 
 
 def is_handshake(msg):

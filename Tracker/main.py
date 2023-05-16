@@ -1,20 +1,16 @@
-import _thread
 import os
 import pickle
 import sys
 import threading
 import time
-from random import randbytes
 from socket import *
 import requests
 import select
 from download_master import TrackerTCP
-from torrents_handler import info_torrent
 from difflib import get_close_matches
 from py1337x import py1337x
 import bencode
 import urllib3
-import sqlite3
 import settings
 import redis
 
@@ -48,21 +44,10 @@ class Tracker:
         self.__BUF = 1024
         self.read_udp, self.write_udp = [self.server_sock], []  # read write for select udp
 
-        # self.connection_ids = {}  # list of all connected clients
-        # self.ip_addresses = {}
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
-        # self.r.delete("admin_ip")
         self.listen_udp()  # listen
-
-    # def reset_ip_addresses(self):
-    #     """
-    #     Puts an empty list on each of the owned files, will be filled with peers
-    #     :return: None
-    #     """
-    #     for i in info_torrent.values():
-    #         self.ip_addresses[i] = []
 
     def init_udp_sock(self, port):
         """
@@ -115,11 +100,6 @@ class Tracker:
                             file_name = datacontent[0][20:]
 
                             peers = [pickle.loads(p) for p in self.r.lrange(file_name, 0, -1)]
-
-                            print(peers)
-                            print(sharing_peers)
-                            print(data)
-
                             for peer in sharing_peers:
                                 if peer in peers:
                                     self.r.set(pickle.dumps(peer), time.time())
@@ -149,7 +129,6 @@ class Tracker:
                             # self.add_peer_to_LOC(local_file_name, addr)
 
                         else:  # local file was not already created
-                            print(local_file_name[:-8])
                             print("address added to new LOC file:", addr)
                             self.r.lpush(f"{local_file_name[:-8]}_LOC.torrent", pickle.dumps(addr))
                             self.r.set(pickle.dumps(addr), time.time())
@@ -208,10 +187,7 @@ class Tracker:
                         locals_ = [local for local in locals_ if "_LOC" in local]
 
                         uploads = get_close_matches(f"{datacontent[4:]}_UPLOAD", torrent_files, n=1, cutoff=0.6)
-                        print(uploads)
                         uploads = [upload for upload in uploads if "_UPLOAD" in upload]
-                        print(uploads)
-                        print(locals_)
 
                         if locals_:
                             local_file_name = locals_[0]
@@ -231,13 +207,10 @@ class Tracker:
                                         global_file_name = file
                                         break
 
-                            print(local_file_name, global_file_name)
-
                             threading.Thread(target=self.send_files, args=(local_file_name, global_file_name, addr)).start()
 
                         elif uploads:
                             upload_file_name = uploads[0]
-                            print("here")
                             threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr, True)).start()
 
                         else:
@@ -266,7 +239,6 @@ class Tracker:
             if peer_decode[0] == addr[0]:
                 in_peers = peer
                 break
-        print(in_peers)
         if in_peers:
             self.r.lrem(file_name, 0, in_peers)
             self.r.delete(in_peers)
@@ -293,7 +265,6 @@ class Tracker:
 
         self.send_torrent_file(file_name, addr)
         time.sleep(1)
-        print(file_name2)
         self.send_torrent_file(file_name2, addr)
 
         # adds the client to the local file after sending the file

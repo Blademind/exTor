@@ -1,10 +1,7 @@
 import hashlib
 import random
-import time
-
 import bencode
 from urllib.parse import urlparse
-from contextlib import closing
 from socket import *
 
 class Torrent:
@@ -29,10 +26,6 @@ class Torrent:
                 self.port = open_port
         else:
             self.port = port
-        # torrents = os.listdir("torrents\\info_hashes")
-        # for torrent in torrents:
-        #     print(torrents.index(torrent), torrent)
-        # index = input("what torrent would you like to download? ->\t")
 
     def find_open_port(self, s):
         s.bind(("0.0.0.0", 0))
@@ -45,7 +38,6 @@ class Torrent:
         with open(f'torrents\\info_hashes\\{file_name}', 'rb') as t:
             torrent = t.read()
         self.torrent = bencode.bdecode(torrent)
-        # print(self.torrent["announce-list"] is not None)
 
         if not local:
             try:
@@ -53,8 +45,8 @@ class Torrent:
             except:
                 self.announce_list = []
             self.announce_list.insert(0, [self.torrent["announce"]])  # there is usually one more tracker in announce whether than in announce list, pop him in
-            self.url_yields = self.next_tracker()
-            self.url = self.url_yields.__next__()
+            self.trackers = self.parse_trackers()
+
 
     def generate_info_hash(self):
         info = bencode.encode(self.torrent['info'])
@@ -69,14 +61,15 @@ class Torrent:
                 s += file['length']
             return s
 
-    def next_tracker(self):
+    def parse_trackers(self):
+        trackers_list = []
         for tracker in self.announce_list:
             for sub in tracker:
                 if 'udp' in sub:
-                    yield urlparse(sub)
+                    trackers_list.append(urlparse(sub))
                 elif 'http' in sub:
-                    yield sub
+                    trackers_list.append(sub)
                 else:  # might be wss? not supported yet
-                    yield
-        yield
+                    pass
+        return trackers_list
 

@@ -105,22 +105,35 @@ class TrackerTCP:
                         data = sock.recv(self.__BUF)
 
                         if not data:
+                            print("NOT DATA")
                             self.read_tcp.remove(sock)
                             break
                     except:
                         self.read_tcp.remove(sock)
                         break
                     datacontent = data.decode()
-
-                    if datacontent[:13] == "REMOVE_UPLOAD":
-                        if os.path.exists(f"torrents\\{datacontent[14:]}"):
-                            with open(f"torrents\\{datacontent[14:]}", "rb") as f:
+                    print(datacontent)
+                    if datacontent[:6] == "REMOVE":
+                        file_name = datacontent[7:]
+                        if os.path.exists(f"torrents\\{file_name}"):
+                            with open(f"torrents\\{file_name}", "rb") as f:
                                 torrent_data = bencode.bdecode(f.read())
-                            if len(torrent_data["announce-list"]) == 1 and tuple(torrent_data["announce-list"][0]) == sock.getpeername():
-                                os.remove(f"torrents\\{datacontent[14:]}")
-                                raw_addr = pickle.dumps(sock.getpeername())
-                                self.r.lrem(datacontent[14:], 0, raw_addr)
-                                self.r.delete(raw_addr)
+
+                            for i in torrent_data["announce-list"]:
+                                if sock.getpeername()[0] == i[0]:
+                                    raw_addr = pickle.dumps(tuple(i))
+                                    print(self.r.lrem(file_name, 0, raw_addr))
+                                    print(self.r.delete(raw_addr))
+                                    print("removed", i)
+                                    torrent_data["announce-list"].remove(i)
+                                    break
+
+                            if torrent_data["announce-list"]:
+                                with open(f"torrents\\{file_name}", "wb") as f:
+                                    f.write(bencode.bencode(torrent_data))
+                            else:
+                                print("removed whole file:",file_name)
+                                os.remove(f"torrents\\{file_name}")
 
                     # file upload immensing
                     elif datacontent[-8:] == ".torrent":
@@ -167,13 +180,9 @@ class TrackerTCP:
                             sock.send(b"FLOW")
                             data = sock.recv(self.__BUF)
                             ip_file = pickle.loads(data)
-                            print(ip_file)
                             for raw_addr, file_name in ip_file:
                                 addr = pickle.loads(raw_addr)
                                 file_name = file_name.decode()
-
-                                print("IS THIS IT? (2)")
-
                                 if os.path.exists(f"torrents\\{file_name}"):
                                     with open(f"torrents\\{file_name}", "rb") as f:
                                         torrent_data = bencode.bdecode(f.read())
@@ -182,6 +191,7 @@ class TrackerTCP:
                                         if list(addr) == i:
                                             torrent_data["announce-list"].remove(i)
                                             break
+
                                     if torrent_data["announce-list"]:
                                         with open(f"torrents\\{file_name}", "wb") as f:
                                             f.write(bencode.bencode(torrent_data))
@@ -205,7 +215,6 @@ class TrackerTCP:
 
     def recv_files(self, sock, filename):
         try:
-            print("IS THIS IT? (3)")
             if not os.path.exists(f"torrents\\{filename}"):
                 sock.send("FLOW".encode())
                 s = 0
@@ -231,7 +240,6 @@ class TrackerTCP:
 
                 self.r.lpush(filename, pickle.dumps(sock.getpeername()))
                 self.r.set(pickle.dumps(sock.getpeername()), time.time())
-                print('HERE')
                 # conn = sqlite3.connect("databases\\swarms_data.db")
                 # curr = conn.cursor()
                 # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"

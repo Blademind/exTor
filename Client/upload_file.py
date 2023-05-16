@@ -1,21 +1,13 @@
 import pickle
 import socket
 import threading
-import time
 from socket import *
 import os
 from main import Handler
 import tracker_init_contact
-import bencode
-import hashlib
 from torf import Torrent
 import ssl
-import shutil
 import warnings
-import atexit
-# print("Welcome to exTorrent upload service\n"
-#       "Here you can upload your own file to a tracker\n"
-#       "NOTE: SENDING CORRUPTED .torrent FILES WILL BAN YOU FROM THE SERVICE")
 
 
 def get_ip_addr():
@@ -34,8 +26,14 @@ def folders_in(path_to_parent):
 
 
 class Upload:
-    def __init__(self):
+    def __init__(self, ui=False):
         global torrent
+        if ui:
+            self.ui_sock = socket(AF_INET, SOCK_STREAM)
+            self.ui_sock.connect(("127.0.0.1", 9999))
+        else:
+            self.ui_sock = None
+
         self.local_tracker = tracker_init_contact.find_local_tracker()
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock.bind((get_ip_addr(), 0))
@@ -44,6 +42,7 @@ class Upload:
             if self.local_tracker:
                 self.path = input("Enter the path of the file\s you would like to upload -> ")
                 self.torrent = self.create_metadata_file(self.path)
+
                 while self.torrent is None or folders_in(self.path):
                     print("torrent could not be created on this path")
                     self.path = input("Enter the path of the file\s you would like to upload -> ")
@@ -72,6 +71,7 @@ class Upload:
             t.generate()
             torrent_name = f"{os.path.split(os.path.basename(path))[1]}_UPLOAD.torrent"
             print(torrent_name)
+
             t.write(f"torrents\\info_hashes\\{torrent_name}")
 
             return torrent_name
@@ -119,7 +119,7 @@ class Upload:
                 input()
         except UnicodeDecodeError:
             try:
-                self.sock.send(f"REMOVE_UPLOAD {self.torrent}".encode())
+                self.sock.send(f"REMOVE {self.torrent}".encode())
             except:
                 pass
             if self.torrent:
@@ -130,5 +130,4 @@ class Upload:
 
 if __name__ == '__main__':
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    # atexit.register(lambda: print("program ended"))
     Upload()

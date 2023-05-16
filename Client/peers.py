@@ -46,10 +46,14 @@ class Peer:
         self.peers = tracker.peers
 
         self.piece_error = False
-        self.create_new_sock()
+        self.sock = None
+        self.sock = self.create_new_sock()
         # self.have = reset_have(self.num_of_pieces)  # what pieces I have
         # self.info_hashes = self.generate_info_hashes()
         self.buf = 68  # initial buffer size 68 for BitTorrent handshake message
+
+    def change_timeout(self, timeout):
+        self.sock.settimeout(timeout)
 
     def is_handshake_hash(self, handshake_msg):
         """
@@ -62,9 +66,10 @@ class Peer:
     def create_new_sock(self):
         if self.sock:
             self.sock.close()
-        self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.sock.settimeout(10)
+        sock = socket(AF_INET, SOCK_STREAM)
+        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        sock.settimeout(10)
+        return sock
 
     def request_piece(self, piece_number):
         try:
@@ -95,7 +100,7 @@ class Peer:
 
         except Exception as e:
             print("Error piece request:", e)
-            time.sleep(0.5)
+            # time.sleep(0.5)  # sleep
             with manager.lock:
                 if self.peer in manager.currently_connected:
                     manager.currently_connected.remove(self.peer)
@@ -124,11 +129,13 @@ class Peer:
         while 1:
             try:
                 data = self.sock.recv(self.buf)
+
                 if not data:
                     raise Exception("data length 0", self.c_piece)
 
                 if manager.DONE:
                     break
+
                 self.message_handler(data)
 
             except TimeoutError:
@@ -142,28 +149,39 @@ class Peer:
                 break
 
             except timeout:
-                print("TIMEOUT")
-                if not self.done_piece_download:
+                if not manager.DONE:
+                    if not self.done_piece_download:
+                        print("TIMEOUT")
+                    else:
+                        print("TIMEOUT (THOUGH WONT BE REMOVED)")
+                else:
+                    print("CLOSED CONNECTION (DONE)")
+
+                # if self.in_progress:
+                if not self.done_piece_download or manager.DONE:
                     with manager.lock:
                         if self.peer in manager.currently_connected:
                             manager.currently_connected.remove(self.peer)
                         manager.down.error_queue.append((self.peer, self.c_piece))
                     self.peer_removed = True
                     break
-                else:
-                    self.peer_removed = True
-                    with manager.lock:
-                        if self.peer in manager.currently_connected:
-                            manager.currently_connected.remove(self.peer)
-                    break
+                    # else:
+                    #     self.peer_removed = True
+                    #     with manager.lock:
+                    #         if self.peer in manager.currently_connected:
+                    #             manager.currently_connected.remove(self.peer)
+                    #     break
+                elif self.done_piece_download:
+                    self.sock = self.create_new_sock()
+
             except Exception as e:
-                print("peer exception:", type(e).__name__)
+                print("peer exception:", print(e))
                 # inside error, try another request
                 if e == "data length mismatch":
                     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
 
                 else:
-                    time.sleep(1)
+                    # time.sleep(1)  # sleep
                     with manager.lock:
                         if self.peer in manager.currently_connected:
                             manager.currently_connected.remove(self.peer)
