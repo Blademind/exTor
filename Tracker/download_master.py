@@ -133,6 +133,15 @@ class TrackerTCP:
                         self.not_listening.append(sock)
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
 
+                    elif "FETCH_REQUESTS" == datacontent:
+                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
+                            all_requests = settings.requests  # all requests recorded not inc. current request.
+                            sock.send(pickle.dumps(all_requests))
+                            settings.requests[0] = 0
+                            settings.requests[1] = {}
+                        else:
+                            sock.send(b"DENIED not an Admin")
+
                     elif "USER_PASSWORD" in datacontent:
                         user_password = datacontent[14:].split(" ")
                         conn = sqlite3.connect("databases\\users.db")

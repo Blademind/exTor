@@ -21,7 +21,7 @@ def errormng(func):
             return result
 
         except Exception as e:
-            print(e)
+            print("Handler error:", e)
     return wrapper
 
 
@@ -211,12 +211,20 @@ class MainWindow(QMainWindow):
 
     def fetch_requests(self):
         try:
-            self.sock.sendto(b"FETCH_REQUESTS", self.local_tracker)
-            requests = self.sock.recv(1024)
+            self.tcp_sock.send(b"FETCH_REQUESTS")
+            requests = self.tcp_sock.recv(1024)
             requests = pickle.loads(requests)
             return requests
+        except timeout:
+            # timeout - create a new socket and reconnect
+            self.tcp_sock = socket(AF_INET, SOCK_STREAM)
+            self.tcp_sock.settimeout(5)
+            self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
+                                            certfile='cert.pem')
+            self.tcp_sock.connect((self.local_tracker[0], 55556))
+
         except Exception as e:
-            print(e)
+            print("Fetch error:",e)
             return
 
     @errormng

@@ -126,7 +126,7 @@ class Handler:
                     if ui:
                         msg = b"UPDATE_STATUS Seeding..."
                         self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
-                        if self.tracker.file_name[-12:-8] != "_LOC":
+                        if self.tracker.file_name[-12:-8] != "_LOC" and self.tracker.file_name[-15:-8] != "_UPLOAD":
                             self.tracker.file_name = self.tracker.file_name[:-8] + '_LOC.torrent'
                             msg = f"NAME {self.tracker.file_name}".encode()
                             self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
