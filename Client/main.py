@@ -72,22 +72,23 @@ class Handler:
             os.makedirs("torrents\\files")
         try:
             if not given_name:
-                if ui:
+
+                if ui:  # not given name (download) and ui
                     self.tracker = Tracker(ui_given_name=ui_given_name, ui_sock=self.ui_sock)
-                else:
+                else:  # not given name (download) and without ui
                     self.tracker = Tracker(ui_given_name=ui_given_name)
 
+                self.sock = socket(AF_INET, SOCK_STREAM)
+                self.sock.bind((get_ip_addr(), 0))
+                self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+                self.sock.connect((self.tracker.local_tracker[0], 55556))
+
             elif given_name:
-                if ui:
+
+                if ui:  # given name (upload) and ui
                     self.tracker = Tracker(given_name=given_name, path=path, port=port, ui_sock=self.ui_sock)
-                else:
+                else:  # given name (upload) and without ui
                     self.tracker = Tracker(given_name=given_name, path=path, port=port)
-
-            self.sock = socket(AF_INET, SOCK_STREAM)
-            self.sock.bind((get_ip_addr(), 0))
-            self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
-            self.sock.connect((self.tracker.local_tracker[0], 55556))
-
             if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a
                 # name of a file which already is present on disk was given)
                 if ui:
@@ -120,7 +121,8 @@ class Handler:
                     manager.down.progress_flag = False
                     manager.DONE = True
                     manager.down.listen_seq()  # listen to peers (for pieces sharing)
-                    self.tracker.done_downloading(manager.sharing_peers)
+                    if not given_name:
+                        self.tracker.done_downloading(manager.sharing_peers)
                     if ui:
                         msg = b"UPDATE_STATUS Seeding..."
                         self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
@@ -129,9 +131,6 @@ class Handler:
                             msg = f"NAME {self.tracker.file_name}".encode()
                             self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
 
-        except TypeError:
-            # a name of file was not given before program was closed by the user
-            pass
         except Exception as e:
             print("Exception (at main):", e)
 
@@ -411,7 +410,7 @@ class Upload:
                         self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)
                         self.sock.send(self.torrent.encode())  # sends torrent name (to start upload)
                         self.__BUF = 1024
-                        self.listen()
+                        self.listen()  # listen for upload response (and to upload)
                     except:
                         print("Error connecting to Tracker")
         except KeyboardInterrupt:
@@ -478,7 +477,9 @@ class Upload:
 
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
-
+                # p = Process(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True))
+                # p.start()  # < process solution ^
+                # thread solution
                 threading.Thread(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True)).start()
 
                 msg = f"NOTIFICATION {self.torrent}, SUCCESS: uploaded and sharing torrent".encode()

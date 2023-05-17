@@ -141,5 +141,14 @@ def exit_function():
 
 if __name__ == '__main__':
     warnings.simplefilter("ignore", category=RuntimeWarning)
+    if not os.path.exists("torrents"):
+        os.makedirs("torrents\\info_hashes")
+        os.makedirs("torrents\\files")
+
+    if not os.path.exists("torrents\\info_hashes"):
+        os.makedirs("torrents\\info_hashes")
+
+    if not os.path.exists("torrents\\files"):
+        os.makedirs("torrents\\files")
     ui = UI()
     exit_function()

@@ -30,15 +30,14 @@ def generate_peer_id():
 
 class Tracker:
     def __init__(self, given_name=None, path=None, port=None, ui_given_name=None, ui_sock=None):
+
         self.ui_sock = ui_sock
 
         self.given_name = given_name
         self.path = path
-        print(self.path)
         self.local_tracker = None  # set local_tracker to none (was not yet found)
         if not given_name:
             self.local_tracker = tracker_init_contact.find_local_tracker()  # find local tracker
-
         if self.local_tracker or given_name:  # local tracker was found or a name was given
             self.global_flag = False
             self.peers = None
