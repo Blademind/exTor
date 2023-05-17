@@ -100,14 +100,14 @@ class Tracker:
                 except:
                     try:
                         datacontent = pickle.loads(data)
-                        if "INFORM_SHARED_PEERS " in datacontent[0]:
-                            sharing_peers = datacontent[1]
-                            file_name = datacontent[0][20:]
-
-                            peers = [pickle.loads(p) for p in self.r.lrange(file_name, 0, -1)]
-                            for peer in sharing_peers:
-                                if peer in peers:
-                                    self.r.set(pickle.dumps(peer), time.time())
+                        # if "INFORM_SHARED_PEERS " in datacontent[0]:
+                        #     sharing_peers = datacontent[1]
+                        #     file_name = datacontent[0][20:]
+                        #
+                        #     peers = [pickle.loads(p) for p in self.r.lrange(file_name, 0, -1)]
+                        #     for peer in sharing_peers:
+                        #         if peer in peers:
+                        #             self.r.set(pickle.dumps(peer), time.time())
 
                     except Exception as e:
                         print("(listen_udp) error exception handling: ", e)
@@ -206,6 +206,7 @@ class Tracker:
                         # search 1337x for a torrent matching request, get the torrent and send it to the client
                         query = datacontent[4:]
                         self.torrent_from_web(query, addr, sock)
+
     def add_peer_to_LOC(self, file_name, addr):
         """
         Adds given peer to a local torrent file
@@ -222,21 +223,32 @@ class Tracker:
             if peer_decode[0] == addr[0]:
                 in_peers = peer
                 break
+        try:
+            if in_peers:
+                self.r.lrem(file_name, 0, in_peers)
+                self.r.delete(in_peers)
 
-        if in_peers:
-            self.r.lrem(file_name, 0, in_peers)
-            self.r.delete(in_peers)
+                with open(f"torrents\\{file_name}", "rb") as f:
+                    torrent = bencode.bdecode(f.read())
 
-        self.r.lpush(file_name, pickle.dumps(addr))
-        self.r.set(pickle.dumps(addr), time.time())
-        with open(f"torrents\\{file_name}", "rb") as f:
-            torrent = bencode.bdecode(f.read())
+                if addr not in torrent["announce-list"]:
+                    torrent["announce-list"].remove(list(pickle.loads(in_peers)))
 
-        if addr not in torrent["announce-list"]:
-            torrent["announce-list"].append(addr)
+                with open(f"torrents\\{file_name}", "wb") as f:
+                    f.write(bencode.bencode(torrent))
 
-        with open(f"torrents\\{file_name}", "wb") as f:
-            f.write(bencode.bencode(torrent))
+            self.r.lpush(file_name, pickle.dumps(addr))
+            self.r.set(pickle.dumps(addr), time.time())
+            with open(f"torrents\\{file_name}", "rb") as f:
+                torrent = bencode.bdecode(f.read())
+
+            if addr not in torrent["announce-list"]:
+                torrent["announce-list"].append(addr)
+
+            with open(f"torrents\\{file_name}", "wb") as f:
+                f.write(bencode.bencode(torrent))
+        except:
+            pass
 
     def send_files(self, file_name, file_name2, addr):
         """

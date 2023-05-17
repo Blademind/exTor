@@ -375,8 +375,11 @@ class MainWindow(QMainWindow):
                 for i, peer_raw in enumerate(peers):
                     peer = pickle.loads(peer_raw)
                     ip = f"{peer[0]}:{peer[1]}"
-                    time_added = time.asctime(time.localtime(time.time()))
-
+                    try:
+                        time_added = time.asctime(time.localtime(float(self.r.get(peer_raw))))
+                    except:
+                        time_added = None
+                        
                     self.ui_main.table.setItem(i, 0, QTableWidgetItem(ip))
                     self.ui_main.table.item(i, 0).setBackground(QColor(41, 40, 62))
                     self.ui_main.table.item(i, 0).setForeground(QColor("white"))

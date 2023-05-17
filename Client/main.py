@@ -370,10 +370,11 @@ class Handler:
         time.sleep(4)  # some peers are slow, gives them some time to delete client's instance from them
 
     def remove(self):
-        if self.tracker.file_name[-15: -8] == "_UPLOAD" or self.tracker.file_name[-12: -8] == "_LOC":
-            print("FILENAME", self.tracker.file_name)
+        if self.tracker.file_name[-12: -8] == "_LOC":
+            print(self.tracker.file_name)
             self.sock.send(f"REMOVE {self.tracker.file_name}".encode())
-            os.remove(f"torrents\\info_hashes\\{self.tracker.file_name}")
+            if os.path.exists(f"torrents\\info_hashes\\{self.tracker.file_name}"):
+                os.remove(f"torrents\\info_hashes\\{self.tracker.file_name}")
 
     def interrupt_handler(self, interrupt_event):
         interrupt_event.wait()
@@ -477,10 +478,10 @@ class Upload:
 
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
-                # p = Process(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True))
-                # p.start()  # < process solution ^
+                p = Process(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True))
+                p.start()  # < process solution ^
                 # thread solution
-                threading.Thread(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True)).start()
+                # threading.Thread(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True)).start()
 
                 msg = f"NOTIFICATION {self.torrent}, SUCCESS: uploaded and sharing torrent".encode()
                 self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
