@@ -84,6 +84,7 @@ class TrackerTCP:
                     conn, addr = self.server_sock.accept()
                     # ip must not be banned
                     banned_ips = self.r.lrange("banned", 0, -1)
+
                     if addr[0].encode() in banned_ips:
                         conn.close()
                         break
@@ -98,6 +99,12 @@ class TrackerTCP:
                 else:
                     try:
                         data = sock.recv(self.__BUF)
+
+                        banned_ips = self.r.lrange("banned", 0, -1)
+
+                        if sock.getpeername()[0].encode() in banned_ips:
+                            sock.close()
+                            break
 
                         if not data:
                             self.read_tcp.remove(sock)

@@ -249,7 +249,7 @@ class MainWindow(QMainWindow):
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
         self.ui_main.graphWidget.clear()
-        for i in range(len(self.ui_main.x)):
+        for i in range(len(self.ui_main.x)):  # create a line
             self.ui_main.graphWidget.plot((self.ui_main.x[i], self.ui_main.x[i]), (0, self.ui_main.y[i]), pen=self.ui_main.line_pen)
 
     def add_to_log(self, msg):

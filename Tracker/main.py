@@ -57,7 +57,12 @@ class Tracker:
                 requests_ip = requests_per_ip[ip]
                 if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
                     settings.ban_ip(ip, self.r)
+            if not self.r.get("admin_ip"):
+                settings.requests[0] = 0
+                settings.requests[1] = {}
+
             time.sleep(5)
+
 
     def init_udp_sock(self, port):
         """
@@ -98,8 +103,9 @@ class Tracker:
                     datacontent = data.decode()
                     # MESSAGE FROM INFO SERVER
                 except:
-                    try:
-                        datacontent = pickle.loads(data)
+
+                    # try:
+                        # datacontent = pickle.loads(data)
                         # if "INFORM_SHARED_PEERS " in datacontent[0]:
                         #     sharing_peers = datacontent[1]
                         #     file_name = datacontent[0][20:]
@@ -109,11 +115,10 @@ class Tracker:
                         #         if peer in peers:
                         #             self.r.set(pickle.dumps(peer), time.time())
 
-                    except Exception as e:
-                        print("(listen_udp) error exception handling: ", e)
-                        pass
+                    # except Exception as e:
+                    #     print("(listen_udp) error exception handling: ", e)
+                    #     pass
                     break
-
                 settings.requests[0] += 1  # another request detected
                 if addr[0] in settings.requests[1]:
                     settings.requests[1][addr[0]] += 1

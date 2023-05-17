@@ -77,11 +77,13 @@ class Handler:
                     self.tracker = Tracker(ui_given_name=ui_given_name, ui_sock=self.ui_sock)
                 else:  # not given name (download) and without ui
                     self.tracker = Tracker(ui_given_name=ui_given_name)
-
-                self.sock = socket(AF_INET, SOCK_STREAM)
-                self.sock.bind((get_ip_addr(), 0))
-                self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
-                self.sock.connect((self.tracker.local_tracker[0], 55556))
+                try:
+                    self.sock = socket(AF_INET, SOCK_STREAM)
+                    self.sock.bind((get_ip_addr(), 0))
+                    self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+                    self.sock.connect((self.tracker.local_tracker[0], 55556))
+                except:
+                    pass
 
             elif given_name:
 

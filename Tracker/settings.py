@@ -15,7 +15,8 @@ def ban_ip(ip, r_server):
     :param banned_ips: the banned ips list
     :return: None
     """
-    if r_server.get("admin_ip") is not None and r_server.get("admin_ip").decode() != ip:
+    get_admin_ip = r_server.get("admin_ip")
+    if (not get_admin_ip) or (get_admin_ip and get_admin_ip.decode() != ip):
         r_server.lrem("banned", 0, ip)
         r_server.lpush("banned", ip)
         print("Banned", ip)
