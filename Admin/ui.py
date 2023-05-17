@@ -427,8 +427,8 @@ class Ui_MainWindow(object):
 
         date_list = [math.floor((datetime.datetime.today() + datetime.timedelta(seconds=i)).timestamp()) for i in
                      range(5, 51, 5)]
-        self.x = sorted(date_list, reverse=False)  # 100 time points
-        self.y = [np.nan for _ in range(10)]  # 100 data points
+        self.x = sorted(date_list, reverse=False)
+        self.y = [np.nan for _ in range(10)]
 
         pen = pg.mkPen(width=-1)
         self.line_pen = pg.mkPen(width=15, color="#0668E1")

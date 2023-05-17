@@ -53,7 +53,6 @@ class Downloader:
             self.file_names = [list(self.files[i].items())[1][1][0] for i in range(len(self.files))]
         except Exception as e:
             print("exception:", e)
-            # print(self.torrent.torrent['info'])
             self.one_file = True
             self.files = self.torrent.torrent['info']
             self.file_names = [list(self.files.items())[1][1]]
@@ -78,7 +77,6 @@ class Downloader:
         self.pointer = 0
         self.have = reset_have(self.num_of_pieces)  # what pieces I have
         self.info_hashes = self.generate_info_hashes()
-        self.buf = 68
         self.piece_length = self.torrent.torrent['info']['piece length']
         self.progress_flag = True
 
@@ -86,7 +84,7 @@ class Downloader:
             if not os.path.exists(f"torrents\\files\\{self.torrent_name}"):
                 os.makedirs(f"torrents\\files\\{self.torrent_name}")
 
-        self.error_queue = []  # queue for errors from peers calls
+        self.error_queue = []  # queue for errors from peers calls (used in main.py)
 
         self.file_piece = self.calculate_file_piece()
 
@@ -107,9 +105,6 @@ class Downloader:
             self.file_piece = OrderedDict([(el, self.file_piece[el]) for el in self.file_names if
                                            os.path.exists(f"{self.path}\\{el}")])
 
-        # print(f"{self.check_piece_instances(0)}\n")
-        # print(f"{self.check_piece_instances(1)}\n")
-        # print(f"{self.check_piece_instances(986)}\n")
         self.calculate_bitfield()
 
     def update_have(self, piece):
@@ -164,7 +159,6 @@ class Downloader:
                         break
                     if not message.is_handshake(data):
                         data_len = int.from_bytes(data, 'big')
-                        # print("data length:", data_len)
                         data = sock.recv(data_len)
                         if message.server_msg_type(data) == 'interested':  # message is interested
                             print("interested")
@@ -206,7 +200,6 @@ class Downloader:
                                          self.tracker.local_tracker)
                     print("Tracker was informed of downloaded file")
                 if datacontent[:6] == "BAN_IP":
-                    # TODO to fix
                     print("banned ip from tracker: ", datacontent[7:])
                     ip = datacontent[7:]
                     self.banned_ips.append(ip)
@@ -252,7 +245,6 @@ class Downloader:
         index = int.from_bytes(data[1: 5], "big")
         begin = int.from_bytes(data[5: 9], "big")
         length = int.from_bytes(data[9: 13], "big")
-        # print(f"sending block {begin}:{begin + length} in piece #{index} to {sock.getpeername()}")  # IMPORTANT PRINT?
         if self.have[index]:
             file_name, begin_piece, size = self.find_begin_piece_index(index)
             total_current_piece_length = self.piece_length if index != self.num_of_pieces - 1 else self.torrent.size() - self.piece_length * index
@@ -325,12 +317,10 @@ class Downloader:
                 for piece in range(self.num_of_pieces):
                     piece_instances = self.check_piece_instances(piece)
                     piece_data = b""
-                    # print(piece,piece_instances.keys())
                     for file in piece_instances.keys():
                         if os.path.exists(f"torrents\\files\\{self.torrent_name}\\{file}"):
                             begin = piece_instances[file][0]
                             length = piece_instances[file][1]
-                            # print(begin,length)
                             with open(f"torrents\\files\\{self.torrent_name}\\{file}", "rb") as f:
                                 f.seek(begin)
 
@@ -362,17 +352,14 @@ class Downloader:
                     err = False
         else:
             if os.path.exists(f"{self.path}"):
-                # print("EXISTS")
                 err = False
                 for piece in range(self.num_of_pieces):
                     piece_instances = self.check_piece_instances(piece)
                     piece_data = b""
-                    # print(piece,piece_instances.keys())
                     for file in piece_instances.keys():
                         if os.path.exists(f"{self.path}\\{file}"):
                             begin = piece_instances[file][0]
                             length = piece_instances[file][1]
-                            # print(begin,length)
                             with open(f"{self.path}\\{file}", "rb") as f:
                                 f.seek(begin)
 
@@ -402,7 +389,6 @@ class Downloader:
 
                     err = False
 
-            # print(file_piece)
         self.progress_flag = False  # PROGRESS
 
     def check_piece_instances(self, index):

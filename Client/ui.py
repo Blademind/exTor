@@ -74,7 +74,6 @@ class Ui_MainWindow(object):
         self.textEdit_TxtTopSearch.setClearButtonEnabled(True)
         icon = QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_ArrowRight)
         self.action = self.textEdit_TxtTopSearch.addAction(icon, self.textEdit_TxtTopSearch.TrailingPosition)
-        # self.textEdit_TxtTopSearch.setMinimumSize(QtCore.QSize(242, 0))
         font = QtGui.QFont()
         font.setPointSize(1)
         self.textEdit_TxtTopSearch.setFont(font)
@@ -195,7 +194,6 @@ class Ui_MainWindow(object):
         self.home_button.setMaximumSize(QtCore.QSize(140, 50))
         self.home_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.home_button.setStyleSheet("QPushButton{\n"
-# "    text-align:left;\n"
 "    color:#E7E7E7;\n"
 "    border:0px;\n"
 "    border-radius:25px;\n"
@@ -339,7 +337,6 @@ class Ui_MainWindow(object):
         self.verticalLayout_8 = QtWidgets.QVBoxLayout(self.frame_DashCentral)
         self.verticalLayout_8.setObjectName("verticalLayout_8")
         self.frame_2 = QtWidgets.QFrame(self.frame_DashCentral)
-        # self.frame_2.setMaximumSize(QtCore.QSize(16777215, 101))
         self.frame_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame_2.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame_2.setObjectName("frame_2")
@@ -368,12 +365,6 @@ class Ui_MainWindow(object):
         self.label_SubTitleDash.setObjectName("label_SubTitleDash")
         self.label_SubTitleDash.hide()
         self.verticalLayout_9.addWidget(self.label_SubTitleDash)
-
-        self.toolbar = QtWidgets.QToolBar(self.frame_2)
-        self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        self.toolbar.setMovable(False)
-        self.toolbar.hide()
-        self.verticalLayout_9.addWidget(self.toolbar)
 
         self.download_list = QtWidgets.QListWidget(self.frame_2)
         self.download_list.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -426,16 +417,13 @@ class Message(QtWidgets.QWidget):
         self.titleLabel = QtWidgets.QLabel(title, self)
         self.titleLabel.setStyleSheet(
             "font-family: 'Roboto', sans-serif; font-size: 15px; font-weight: bold; padding: 0;color:white;")
-        # self.titleLabel.setFixedSize(10, 1)
         self.messageLabel = QtWidgets.QLabel(message, self)
         self.messageLabel.setStyleSheet(
             "font-family: 'Roboto', sans-serif; font-size: 15px; font-weight: normal; padding: 0; color:white;")
-        # self.messageLabel.setFixedSize(10,1)
 
         self.timeLabel = QtWidgets.QLabel(datetime.datetime.now().strftime("%H:%M:%S"), self)
         self.timeLabel.setStyleSheet(
             "font-family: 'Roboto', sans-serif; font-size: 12px; font-weight: normal; padding: 0; color:white;")
-        # self.timeLabel.setFixedSize(10, 1)
 
         self.buttonClose = QtWidgets.QPushButton(self)
         self.buttonClose.setStyleSheet("border-radius: 15px;")
@@ -485,3 +473,10 @@ class Notification(QtWidgets.QWidget):
             self.close()
 
 
+# region TRASH
+        # self.toolbar = QtWidgets.QToolBar(self.frame_2)
+        # self.toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        # self.toolbar.setMovable(False)
+        # self.toolbar.hide()
+        # self.verticalLayout_9.addWidget(self.toolbar)
+# endregion

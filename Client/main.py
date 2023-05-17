@@ -1,6 +1,4 @@
-import atexit
 import os
-import signal
 import socket
 import threading
 import time
@@ -20,6 +18,7 @@ import ssl
 import pickle
 import tracker_init_contact
 from torf import Torrent
+
 
 def create_new_sock():
     """
@@ -73,14 +72,12 @@ class Handler:
             os.makedirs("torrents\\files")
         try:
             if not given_name:
-                # print("not given name")
                 if ui:
                     self.tracker = Tracker(ui_given_name=ui_given_name, ui_sock=self.ui_sock)
                 else:
                     self.tracker = Tracker(ui_given_name=ui_given_name)
 
             elif given_name:
-                # print("given name")
                 if ui:
                     self.tracker = Tracker(given_name=given_name, path=path, port=port, ui_sock=self.ui_sock)
                 else:
@@ -141,7 +138,6 @@ class Handler:
             try:
                 manager.down.progress_flag = False
                 self.responded_peers = []
-                # manager.DONE = True
             except: pass
 
             if self.tracker and self.tracker.global_flag:
@@ -326,14 +322,12 @@ class Handler:
                 break
 
     def connect_to_peer(self, peers, sock, current_peer, tracker):
-        # flag = False
         try:
             sock.connect(peers[current_peer])
             sock.send(message.build_handshake(tracker))
             data = sock.recv(68)  # read handshake
             if message.is_handshake(data):
                 print("HANDSHAKE")
-                # flag = True
                 msg_len = int.from_bytes(sock.recv(4), "big")
                 data = sock.recv(msg_len)
                 if message.msg_type(data) == 'bitfield':
@@ -348,9 +342,6 @@ class Handler:
                     rarest_piece_lock.unlock()
             sock.close()
 
-        # risky
-        except timeout:
-            pass
         except:
             return
 
@@ -384,7 +375,6 @@ class Handler:
             print("FILENAME", self.tracker.file_name)
             self.sock.send(f"REMOVE {self.tracker.file_name}".encode())
             os.remove(f"torrents\\info_hashes\\{self.tracker.file_name}")
-            # sock.close()
 
     def interrupt_handler(self, interrupt_event):
         interrupt_event.wait()
@@ -416,7 +406,6 @@ class Upload:
                     msg = f"NOTIFICATION {self.path[self.path.rfind('/') + 1:]}, Error: torrent could not be created on this path".encode()
                     self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
                     self.ui_sock.close()
-                    # print("torrent could not be created on this path")
                 else:
                     try:
                         self.sock.connect((self.local_tracker[0], 55556))  # tracker downloader ip (tcp)
@@ -490,7 +479,7 @@ class Upload:
             if datacontent == "DONE":
                 print(self.torrent, "successfully uploaded to tracker")
 
-                threading.Thread(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True)).start()  # WORK HERE
+                threading.Thread(target=Handler, args=(self.torrent, self.path, self.sock.getsockname()[1], None, True)).start()
 
                 msg = f"NOTIFICATION {self.torrent}, SUCCESS: uploaded and sharing torrent".encode()
                 self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
@@ -549,30 +538,12 @@ class MainWindow(QMainWindow):
         self.local_tracker = tracker
         self.file_name = ""
         self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Upload'))
-        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))  # TBU
+        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
         self.ui_main.action.triggered.connect(self.torrent_triggered)
         self.processes = []
 
         self.spacerItem = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
-        self._add_action = self.ui_main.toolbar.addAction('Add')
-        self._add_action.triggered.connect(self.torrent_triggered)
-
         self.ui_main.folder_button.clicked.connect(self.launch_folder_dialog)
-
-        self._pause_action = self.ui_main.toolbar.addAction('Pause')
-        self._pause_action.setEnabled(False)
-        # self._pause_action.triggered.connect(partial(self._control_action_triggered, control.pause))
-
-        self._resume_action = self.ui_main.toolbar.addAction('Resume')
-        self._resume_action.setEnabled(False)
-        # self._resume_action.triggered.connect(partial(self._control_action_triggered, control.resume))
-
-        self._remove_action = self.ui_main.toolbar.addAction('Remove')
-        self._remove_action.setEnabled(False)
-        # self._remove_action.triggered.connect(partial(self._control_action_triggered, control.remove))
-
-        self.hidden = False
 
         self.ui_main.textEdit_TxtTopSearch.returnPressed.connect(
             self.torrent_triggered)
@@ -590,7 +561,6 @@ class MainWindow(QMainWindow):
             p = Process(target=Upload, args=(self.folder_name, self.interrupt_event))
             p.start()
             self.processes.append(p)
-            # interrupt_event.set()
 
     def click_button(self,value):
         if value == "Home":
@@ -598,7 +568,6 @@ class MainWindow(QMainWindow):
             self.ui_main.label_SubTitleDash.hide()
             self.ui_main.folder_button.hide()
             self.ui_main.download_list.show()
-            # self.ui_main.toolbar.show()
             self.ui_main.verticalLayout_9.removeItem(self.spacerItem)
 
         elif value == "Upload":
@@ -606,7 +575,6 @@ class MainWindow(QMainWindow):
             self.ui_main.label_SubTitleDash.show()
             self.ui_main.folder_button.show()
             self.ui_main.download_list.hide()
-            # self.ui_main.toolbar.hide()
             self.ui_main.verticalLayout_9.addItem(self.spacerItem)
 
     def update(self, data, item_place):
@@ -633,7 +601,6 @@ class MainWindow(QMainWindow):
             elif datacontent[:12] == "REMOVE_ENTRY":
                 self.ui_main.download_list.takeItem(item_place)
             elif datacontent[:12] == "NOTIFICATION":
-                print("NOTIFICATION")
                 title_message = datacontent[13:].split(", ")
                 self.ui_main.notification.setNotify(title_message[0], title_message[1])
 
@@ -668,7 +635,6 @@ class MainWindow(QMainWindow):
                 if widget:
                     _name_label = widget._name_label
                     _name_label.setText(datacontent[5:])
-                # print(_name_label.text())
 
             elif datacontent[:13] == "UPDATE_STATUS":
                 item = self.ui_main.download_list.item(item_place)
@@ -810,6 +776,24 @@ def folders_in(path_to_parent):
 lock = QMutex()
 rarest_piece_lock = QMutex()
 updates = []
+
+# region TRASH
+# self._add_action = self.ui_main.toolbar.addAction('Add')
+# self._add_action.triggered.connect(self.torrent_triggered)
+#
+#
+# self._pause_action = self.ui_main.toolbar.addAction('Pause')
+# self._pause_action.setEnabled(False)
+# self._pause_action.triggered.connect(partial(self._control_action_triggered, control.pause))
+#
+# self._resume_action = self.ui_main.toolbar.addAction('Resume')
+# self._resume_action.setEnabled(False)
+# self._resume_action.triggered.connect(partial(self._control_action_triggered, control.resume))
+#
+# self._remove_action = self.ui_main.toolbar.addAction('Remove')
+# self._remove_action.setEnabled(False)
+# self._remove_action.triggered.connect(partial(self._control_action_triggered, control.remove))
+# endregion
 
 if __name__ == '__main__':
     Handler()

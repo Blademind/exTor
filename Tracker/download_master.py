@@ -48,8 +48,7 @@ class TrackerTCP:
         self.__BUF = 1024
         self.read_tcp, self.write_tcp = [self.server_sock], []  # read write for select udp
 
-        self.not_listening = []
-        # self.admin_ips = []
+        self.not_listening = []  # peer to whom not listen (when downloading metadata files from them)
         conn = sqlite3.connect("databases\\users.db")
         curr = conn.cursor()
         curr.execute(f"""CREATE TABLE IF NOT EXISTS BannedIPs
@@ -60,7 +59,6 @@ class TrackerTCP:
         redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
-
         threading.Thread(target=self.listen_tcp).start()
 
     def init_tcp_sock(self):
@@ -93,9 +91,6 @@ class TrackerTCP:
                     print(f"Connection from {addr}")
                     if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() != addr[0]:
                         conn.settimeout(5.0)
-
-                    # if addr[0] not in settings.admin_ips:
-                    #     conn.settimeout(5.0)
                     else:
                         conn.settimeout(None)
                     self.read_tcp.append(conn)
@@ -111,7 +106,6 @@ class TrackerTCP:
                         self.read_tcp.remove(sock)
                         break
                     datacontent = data.decode()
-                    print(datacontent)
                     if datacontent[:6] == "REMOVE":
                         file_name = datacontent[7:]
                         if os.path.exists(f"torrents\\{file_name}"):
@@ -121,8 +115,8 @@ class TrackerTCP:
                             for i in torrent_data["announce-list"]:
                                 if sock.getpeername()[0] == i[0]:
                                     raw_addr = pickle.dumps(tuple(i))
-                                    print(self.r.lrem(file_name, 0, raw_addr))
-                                    print(self.r.delete(raw_addr))
+                                    self.r.lrem(file_name, 0, raw_addr)
+                                    self.r.delete(raw_addr)
                                     print("removed", i)
                                     torrent_data["announce-list"].remove(i)
                                     break
@@ -134,14 +128,13 @@ class TrackerTCP:
                                 print("removed whole file:",file_name)
                                 os.remove(f"torrents\\{file_name}")
 
-                    # file upload immensing
+                    # file upload starting
                     elif datacontent[-8:] == ".torrent":
                         self.not_listening.append(sock)
                         threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
 
                     elif "USER_PASSWORD" in datacontent:
                         user_password = datacontent[14:].split(" ")
-                        # print(user_password)
                         conn = sqlite3.connect("databases\\users.db")
                         curr = conn.cursor()
                         curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
@@ -156,23 +149,8 @@ class TrackerTCP:
                             else:
                                 sock.send(b"DENIED an Admin is already connected")
 
-                            # if not settings.admin_ips:
-                            #     sock.send(b"SUCCESS")
-                            #     settings.admin_ips.append(sock.getpeername()[0])
-                            #
-                            # else:
-                            #     sock.send(b"DENIED an Admin is already connected")
-
-                            # user was found, open a thread dedicated to him
                         else:
                             sock.send(b"DENIED user or password incorrect")
-
-                    # elif datacontent == "REQUEST_DB":
-                    #     if sock.getpeername()[0] in settings.admin_ips:
-                    #         self.not_listening.append(sock)
-                    #         threading.Thread(target=self.send_db, args=(sock,)).start()
-                    #     else:
-                    #         sock.send(b"DENIED not an Admin")
 
                     elif datacontent == "UPDATE_FILES":
                         if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
@@ -206,9 +184,6 @@ class TrackerTCP:
                         if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
                             settings.ban_ip(datacontent[7:], self.r)
 
-                        # if sock.getpeername()[0] in settings.admin_ips:
-                        #     settings.ban_ip(datacontent[7:], self.r)
-
                         else:
                             sock.send(b"DENIED not an Admin")
 
@@ -239,17 +214,6 @@ class TrackerTCP:
 
                 self.r.lpush(filename, pickle.dumps(sock.getpeername()))
                 self.r.set(pickle.dumps(sock.getpeername()), time.time())
-                # conn = sqlite3.connect("databases\\swarms_data.db")
-                # curr = conn.cursor()
-                # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
-                #  (address BLOB, time REAL, tokens INT)""")
-                #
-                # curr.execute(f"""INSERT INTO "{filename}" VALUES
-                # (?, ?)""", (pickle.dumps(sock.getpeername()), time.time()))
-                # conn.commit()
-                # conn.close()
-
-                # self.check_newly_added_file(filename, sock)  # A PRIOR IDEA
             else:
                 sock.send("FILE_EXISTS".encode())
         except Exception as e:
@@ -312,6 +276,17 @@ class TrackerTCP:
     #             print(f"torrent swarms database successfully sent to {sock.getpeername()[0]}")
     #             done = True
     #             self.not_listening.remove(sock)
+    # conn = sqlite3.connect("databases\\swarms_data.db")
+    # curr = conn.cursor()
+    # curr.execute(f"""CREATE TABLE IF NOT EXISTS "{filename}"
+    #  (address BLOB, time REAL, tokens INT)""")
+    #
+    # curr.execute(f"""INSERT INTO "{filename}" VALUES
+    # (?, ?)""", (pickle.dumps(sock.getpeername()), time.time()))
+    # conn.commit()
+    # conn.close()
+
+    # self.check_newly_added_file(filename, sock)  # A PRIOR IDEA
 # endregion
 
 if __name__ == '__main__':

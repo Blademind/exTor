@@ -23,16 +23,6 @@ def msg_type(msg):
     elif id_ == 7:
         return 'piece'
     return
-    # try:
-    #     if msg[1:21].decode()[:19] == 'BitTorrent protocol':
-    #         return 'handshake'
-    #     return None
-    # except:
-    #     return None
-    # else:
-    #     if len(msg) == 4:
-    #         if int.from_bytes(msg[:4], 'big') == 0:
-    #             return 'keep-alive'
 
 
 def server_msg_type(msg):
@@ -83,10 +73,10 @@ def build_not_interested():
     return message
 
 
-def build_have(payload):
+def build_have(index):
     message = (5).to_bytes(4, byteorder='big')  # len
     message += (4).to_bytes(1, byteorder='big')  # id
-    message += struct.pack('>I', payload)
+    message += struct.pack('>I', index)  # piece index
     return message
 
 

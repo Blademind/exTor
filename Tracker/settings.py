@@ -19,7 +19,6 @@ def ban_ip(ip, r_server):
         r_server.lrem("banned", 0, ip)
         r_server.lpush("banned", ip)
         print("Banned", ip)
-        # file_name = file_name.decode()
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.bind((get_ip_addr(), 0))
         file_names = []

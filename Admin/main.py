@@ -13,6 +13,7 @@ import pickle
 from socket import *
 import ssl
 
+
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
@@ -22,6 +23,8 @@ def errormng(func):
         except Exception as e:
             print(e)
     return wrapper
+
+
 def mousePressEvent(obj, event):
     obj.oldPos = event.globalPos()
 
@@ -50,12 +53,10 @@ class MainWindow(QMainWindow):
 
         self.ui_main.logWidget.setText(log_data)
         self.ui_main.logWidget.moveCursor(QTextCursor.End)
-
-        # self.ui_main.pushButton_BtnConfiguracao.clicked.connect(lambda x:self.click_button('CONFIGURAÇÃO'))
         self.hidden = False
         self.sock = init_udp_sock()
 
-        redis_host = "localhost"
+        redis_host = self.local_tracker[0]
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
         try:
@@ -68,11 +69,8 @@ class MainWindow(QMainWindow):
         self.tcp_sock = ssl.wrap_socket(self.tcp_sock, server_side=False, keyfile='private-key.pem',
                                         certfile='cert.pem')
         self.tcp_sock.connect((self.local_tracker[0], 55556))
-
         self.set_dash_value(username)
-        # threading.Thread(target=self.deleter_timer).start()
-
-        self.fetch_requests()
+        self.fetch_requests()  # initial reset of requests
         self.timer = QTimer()
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.update_widgets)
@@ -148,7 +146,7 @@ class MainWindow(QMainWindow):
         point.setX(0)
         index = obj.indexAt(point)
         if index.isValid():
-            kick = menu.addAction('Kick Peer')  # index.data()
+            kick = menu.addAction('Kick Peer')
             ban = menu.addAction('Ban Peer')
         else: return
 
@@ -174,24 +172,12 @@ class MainWindow(QMainWindow):
 
             self.swarms(self.file_name)
 
-            # update table now
         elif res == ban and ip[0] != self.sock.getsockname()[0]:  # ban only if ip is not admin's ip
             print("Banned")
-            # self.remove_from_database(ip[0])
-
-            # self.tcp_sock.send(b"UPDATE_FILES")
-            # try:
-            #     data = self.tcp_sock.recv(1024)
-            #     if data == b"FLOW":
-            #         self.tcp_sock.send(pickle.dumps([(raw_addr, self.file_name.encode())]))
-            # except Exception as e:
-            #     print(e)
-            #     pass
-
             self.swarms(self.file_name, ban_ip=ip[0])
             self.add_to_log(f"Banned {ip[0]} as prompted")
             self.tcp_sock.send(f"BAN_IP {ip[0]}".encode())
-            # update table now
+
         elif ip[0] == self.sock.getsockname()[0]:
             print("could not ban because the IP is of this Admin")
 
@@ -223,9 +209,6 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.hide()
                 self.ui_main.label_SubTitleDash.setText("No Banned IPs, Yet.")
 
-
-            # update table now
-
     def fetch_requests(self):
         try:
             self.sock.sendto(b"FETCH_REQUESTS", self.local_tracker)
@@ -245,7 +228,6 @@ class MainWindow(QMainWindow):
         if np.nan in self.ui_main.y:
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
-            # requests_per_ip = requests_data[1]
             self.ui_main.y[self.ui_main.y.index(np.nan)] = num_of_requests
         else:
             self.ui_main.x = self.ui_main.x[1:]  # Remove the first y element.
@@ -255,16 +237,7 @@ class MainWindow(QMainWindow):
 
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
-            # requests_per_ip = requests_data[1]
             self.ui_main.y.append(num_of_requests)  # Add a new random value.
-
-        # for ip in requests_per_ip:
-        #     requests_ip = requests_per_ip[ip]
-        #     # print(ip, "-> requests:", requests_ip)
-        #     if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
-        #         self.add_to_log(f"Banned {ip} due to over requesting")
-        #         self.remove_from_database(ip)
-        #         self.tcp_sock.send(f"BAN_IP {ip}".encode())
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
         self.ui_main.graphWidget.clear()
@@ -275,53 +248,13 @@ class MainWindow(QMainWindow):
         with open("log.log", "a") as f:
             f.write(f"\n\n> {msg} [{time.strftime('%H:%M:%S %d-%m-%Y', time.gmtime())}]")
 
-    # Set values in Dash
-    def deleter_timer(self):
-        """
-        removes ip after an hour (according to protocol)
-        :return: None
-        """
-        timer = 300  # 300
-        try:
-            self.r.ping()
-            while 1:
-                ip_files = []
-                table_names = self.r.keys("*.torrent*")
-                for file_name in table_names:
-                    records = self.r.lrange(file_name, 0, -1)
-
-                    for raw_addr in records:
-                        time_added = self.r.get(raw_addr)
-                        print(pickle.loads(raw_addr),time_added)
-                        if time.time() - float(time_added) >= timer:
-                            self.r.lrem(file_name, 0, raw_addr)
-                            self.r.delete(raw_addr)
-                            ip_files.append((raw_addr, file_name))
-                            self.add_to_log(f"Kicked {pickle.loads(raw_addr)} due to inactivity")
-                if ip_files:
-                    self.tcp_sock.send(b"UPDATE_FILES")
-                    try:
-                        data = self.tcp_sock.recv(1024)
-                        if data == b"FLOW":
-                            self.tcp_sock.send(pickle.dumps(ip_files))
-                    except Exception as e:
-                        print(e)
-                        pass
-                time.sleep(1)
-        except Exception as e:
-            print(e)
-            pass
-
     def set_dash_value(self, username):
         self.ui_main.label_TxtTopDataUser.setText(username)
         self.ui_main.label_TxtTopDataUserType.setText("Admin")
-        # self.ui_main.label_TxtValorRestituicao.setText("R$"+data_dict.get('receita_value'))
-        # self.ui_main.pushButton_TopAlert.setText(data_dict.get('notification'))
         self.ui_main.date_widget.setText(self.date_now())
 
     # Clicked buttons
     def click_button(self,value):
-        # print("CLICKED", value)
         if value == "Home":
             # Object hide before showing graph, change text as well
             self.ui_main.table.hide()
@@ -345,7 +278,6 @@ class MainWindow(QMainWindow):
             self.ui_main.label_TitleDash.setText("Swarms")
             self.ui_main.label_SubTitleDash.setText("Group of Peers per local file")
             files = self.r.keys("*.torrent*")
-            # print(files)
             if files:
                 self.ui_main.table.clear()
                 self.ui_main.table.setColumnCount(1)
@@ -393,8 +325,6 @@ class MainWindow(QMainWindow):
             self.ui_main.table.hide()
             self.ui_main.graphWidget.hide()
             self.ui_main.label_TitleDash.setText("Log")
-            # self.ui_main.label_SubTitleDash.hide()
-            # self.ui_main.label_SubTitleDash.setText("Log of this admin")
 
             if not self.ui_main.logWidget.document().isEmpty():
                 self.ui_main.label_SubTitleDash.hide()
@@ -433,9 +363,6 @@ class MainWindow(QMainWindow):
                 self.ui_main.table.setHorizontalHeaderLabels(['IP:PORT','Time Added'])
 
                 self.ui_main.table.contextMenuEvent = lambda event: self.menu_event(self.ui_main.table, event)
-
-                # print("file:",file)
-                # print(peers)
                 self.ui_main.table.setRowCount(len(peers))
                 for i, peer_raw in enumerate(peers):
                     peer = pickle.loads(peer_raw)
@@ -484,6 +411,44 @@ def get_ip_addr():
     return ip
     return sock
 
+# region TRASH
+    #def deleter_timer(self):
+    #     """
+    #     removes ip after an hour (according to protocol)
+    #     :return: None
+    #     """
+    #     timer = 300  # 300
+    #     try:
+    #         self.r.ping()
+    #         while 1:
+    #             ip_files = []
+    #             table_names = self.r.keys("*.torrent*")
+    #             for file_name in table_names:
+    #                 records = self.r.lrange(file_name, 0, -1)
+    #
+    #                 for raw_addr in records:
+    #                     time_added = self.r.get(raw_addr)
+    #                     print(pickle.loads(raw_addr),time_added)
+    #                     if time.time() - float(time_added) >= timer:
+    #                         self.r.lrem(file_name, 0, raw_addr)
+    #                         self.r.delete(raw_addr)
+    #                         ip_files.append((raw_addr, file_name))
+    #                         self.add_to_log(f"Kicked {pickle.loads(raw_addr)} due to inactivity")
+    #             if ip_files:
+    #                 self.tcp_sock.send(b"UPDATE_FILES")
+    #                 try:
+    #                     data = self.tcp_sock.recv(1024)
+    #                     if data == b"FLOW":
+    #                         self.tcp_sock.send(pickle.dumps(ip_files))
+    #                 except Exception as e:
+    #                     print(e)
+    #                     pass
+    #             time.sleep(1)
+    #     except Exception as e:
+    #         print(e)
+    #         pass
+
+# endregion
 
 if __name__ == "__main__":
     warnings.simplefilter("ignore", category=RuntimeWarning)

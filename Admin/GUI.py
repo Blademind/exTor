@@ -15,10 +15,6 @@ from customized import PasswordEdit
 from main import MainWindow
 
 
-# ========= BAN IP =========
-# self.sock.sendto(f"BAN_IP {addr[0]}".encode(), self.local_tracker)
-
-
 def errormng(func):
     def wrapper(*args, **kwargs):
         try:
@@ -229,13 +225,9 @@ class AdminLoginGui(QWidget):
         self.label_3.setText(_translate(
             "Form",
             "<html><head/><body><p><img src=\"icons/lock.svg\"/></p></body></html>"))
-        # self.label_4.setText(_translate(
-        #     "Form",
-        #     "<html><head/><body><p><img src=\"icons/mail_32x32.png\"/></p></body></html>"))
         self.pushButton.setText(_translate("Form", "Sign In"))
         self.pushButton.clicked.connect(self.pass_password)
 
-        # self.pushButton_2.setText(_translate("Form", "Register"))
     def pass_password(self):
         self.sock = socket(AF_INET, SOCK_STREAM)
         self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
@@ -278,7 +270,6 @@ class AdminLoginGui(QWidget):
     def error_handler(self, msg, close_program=True):
         error_dialog = QMessageBox()
         error_dialog.setWindowTitle("Error")
-        # error_dialog.setWindowFlags(Qt.FramelessWindowHint)
         error_dialog.setStyleSheet(
             """
             QPushButton {

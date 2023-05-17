@@ -11,7 +11,6 @@ import pickle
 import warnings
 import os
 from main import MainWindow
-import signal
 
 def errormng(func):
     def wrapper(*args, **kwargs):
@@ -71,7 +70,6 @@ class UI:
     def error_handler(self, msg, close_program=True):
         error_dialog = QMessageBox()
         error_dialog.setWindowTitle("Error")
-        # error_dialog.setWindowFlags(Qt.FramelessWindowHint)
         error_dialog.setStyleSheet(
             """
             QPushButton {
@@ -138,9 +136,6 @@ def get_ip_addr():
 def exit_function():
     print("\nprogram ended")
     ui.MainWindow.interrupt_event.set()
-    # for pr in ui.MainWindow.processes:
-    #     os.kill(pr.pid, signal.SIGTERM)
-    #     # pr.kill()
     os._exit(0)
 
 

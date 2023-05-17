@@ -55,7 +55,6 @@ class Tracker:
             requests_per_ip = settings.requests[1]
             for ip in requests_per_ip:
                 requests_ip = requests_per_ip[ip]
-                print(requests_ip, ip)
                 if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
                     settings.ban_ip(ip, self.r)
             time.sleep(5)
@@ -87,10 +86,6 @@ class Tracker:
                     data = b""
                 if not data:
                     break
-                # conn = sqlite3.connect("databases\\users.db")
-                # curr = conn.cursor()
-                # curr.execute("SELECT * FROM BannedIPs WHERE address=?;", (addr[0],))
-                # banned = curr.fetchall()
                 try:
                     banned_ips = self.r.lrange("banned", 0, -1)
                     if addr[0].encode() in banned_ips:
@@ -98,7 +93,6 @@ class Tracker:
                         break
 
                 except: pass
-                # conn.close()
 
                 try:
                     datacontent = data.decode()
@@ -165,14 +159,6 @@ class Tracker:
                         settings.requests[1] = {}
                     else:
                         sock.sendto(b"DENIED not an Admin", addr)
-
-                    # if addr[0] in settings.admin_ips:
-                    #     all_requests = settings.requests  # all requests recorded not inc. current request.
-                    #     sock.sendto(pickle.dumps(all_requests), addr)
-                    #     settings.requests[0] = 0
-                    #     settings.requests[1] = {}
-                    # else:
-                    #     sock.sendto(b"DENIED not an Admin", addr)
 
                 elif datacontent == "DONE_ADMIN_OPERATION":
                     if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
@@ -405,11 +391,6 @@ def exit_function():
         while 1:
             input()
     except UnicodeDecodeError:
-        # for torrent in os.listdir(f"torrents"):
-
-            # if torrent[-12:-8] == "_LOC" or torrent[-15:-8] == "_UPLOAD":
-            #     os.remove(f"torrents\\{torrent}")
-
         print("\nprogram ended")
 
 

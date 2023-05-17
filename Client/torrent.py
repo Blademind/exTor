@@ -4,13 +4,13 @@ import bencode
 from urllib.parse import urlparse
 from socket import *
 
+
 class Torrent:
     """
     The Torrent object, everything regarding the torrent is located here
     """
-    def __init__(self, port = None):
-        self.url = None
-        self.url_yields = None
+    def __init__(self, port=None):
+        self.trackers = None
         self.announce_list = None
         self.torrent = None
         if not port:
@@ -46,7 +46,6 @@ class Torrent:
                 self.announce_list = []
             self.announce_list.insert(0, [self.torrent["announce"]])  # there is usually one more tracker in announce whether than in announce list, pop him in
             self.trackers = self.parse_trackers()
-
 
     def generate_info_hash(self):
         info = bencode.encode(self.torrent['info'])

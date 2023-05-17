@@ -25,9 +25,7 @@ class Peer:
         self.in_progress = False
         self.all_downloaded = 0  # downloaded files
         self.block = b''
-        self.bitfield_progress = False
         self.length = 0
-        # self.written = b''
         self.tracker = tracker
         self.torrent = tracker.torrent
         self.__BUF = 1024
@@ -45,11 +43,8 @@ class Peer:
         self.torrent_name = self.torrent.torrent['info']['name']
         self.peers = tracker.peers
 
-        self.piece_error = False
         self.sock = None
         self.sock = self.create_new_sock()
-        # self.have = reset_have(self.num_of_pieces)  # what pieces I have
-        # self.info_hashes = self.generate_info_hashes()
         self.buf = 68  # initial buffer size 68 for BitTorrent handshake message
 
     def change_timeout(self, timeout):
@@ -157,7 +152,6 @@ class Peer:
                 else:
                     print("CLOSED CONNECTION (DONE)")
 
-                # if self.in_progress:
                 if not self.done_piece_download or manager.DONE:
                     with manager.lock:
                         if self.peer in manager.currently_connected:
@@ -165,12 +159,7 @@ class Peer:
                         manager.down.error_queue.append((self.peer, self.c_piece))
                     self.peer_removed = True
                     break
-                    # else:
-                    #     self.peer_removed = True
-                    #     with manager.lock:
-                    #         if self.peer in manager.currently_connected:
-                    #             manager.currently_connected.remove(self.peer)
-                    #     break
+
                 elif self.done_piece_download:
                     self.sock = self.create_new_sock()
 
@@ -204,8 +193,6 @@ class Peer:
         message_type = message.msg_type(data)
         # message is piece
         if message_type == "piece":
-            # print("piece")
-
             while len(data) != self.buf:
                 data += self.sock.recv(self.buf)
 
@@ -298,16 +285,10 @@ class Peer:
         elif message_type == "unchoke":
             # print("unchoke")
             if not self.in_progress:
-                # last piece algo
+                # last piece algorithm
                 if self.c_piece == self.num_of_pieces - 1:
                     if self.total_current_piece_length >= self.block_len:
                         self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
-
-                        # if self.total_current_piece_length - len(self.s_bytes) < self.block_len:
-                        #     print("here", self.total_current_piece_length)
-                        #     self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
-                        # else:
-                        #     self.sock.send(message.build_request(self.c_piece, self.s, self.block_len))
                     else:
                         self.sock.send(message.build_request(self.c_piece, self.s, self.total_current_piece_length))
                 else:
