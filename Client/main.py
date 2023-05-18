@@ -432,9 +432,9 @@ class Upload:
     def interrupt_handler(self, interrupt_event):
         interrupt_event.wait()
         try:
-            self.sock.send(f"REMOVE {self.torrent}".encode())
             if self.torrent:
                 print(self.torrent)
+                self.sock.send(f"REMOVE {self.torrent}".encode())
                 os.remove(f"torrents\\info_hashes\\{self.torrent}")
         except:
             pass
@@ -556,8 +556,8 @@ class MainWindow(QMainWindow):
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
         self.file_name = ""
-        self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Upload'))
-        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
+        self.ui_main.uploadButton.clicked.connect(lambda x:self.click_button('Upload'))
+        self.ui_main.homeButton.clicked.connect(lambda x:self.click_button('Home'))
         self.ui_main.action.triggered.connect(self.torrent_triggered)
         self.processes = []
 

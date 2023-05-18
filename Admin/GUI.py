@@ -16,6 +16,11 @@ from main import MainWindow
 
 
 def errormng(func):
+    """
+    handles errors of any type
+    :param func: function to handle
+    :return: result
+    """
     def wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
@@ -27,15 +32,31 @@ def errormng(func):
 
 
 def mousePressEvent(obj, event):
+    """
+    mouse pressed event
+    :param obj: object that has been pressed
+    :param event: mouse pressed
+    :return: None
+    """
     obj.oldPos = event.globalPos()
 
 
 def mouseMoveEvent(obj, event):
+    """
+
+    :param obj: object that has been moved
+    :param event: mouse moved
+    :return: None
+    """
     delta = QPoint (event.globalPos() - obj.oldPos)
     obj.move(obj.x() + delta.x(), obj.y() + delta.y())
     obj.oldPos = event.globalPos()
 
+
 class UI:
+    """
+    initiate UI
+    """
     def __init__(self):
         global tracker
         self.app = QApplication(sys.argv)
@@ -50,6 +71,9 @@ class UI:
 
 
 class AdminLoginGui(QWidget):
+    """
+    Admin Login Window
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.local_tracker = self.find_local_tracker()
@@ -58,7 +82,8 @@ class AdminLoginGui(QWidget):
             self.setup_ui()
 
     def setup_ui(self):
-        """Setup the login form.
+        """
+        Setup the login form.
         """
         self.resize(480, 625)
         # remove the title bar

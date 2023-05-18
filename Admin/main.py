@@ -42,10 +42,10 @@ class MainWindow(QMainWindow):
         self.ui_main.setupUi(self)
         self.local_tracker = tracker
         self.file_name = ""
-        self.ui_main.home_button.clicked.connect(lambda x:self.click_button('Home'))
-        self.ui_main.pushButton_BtnServico.clicked.connect(lambda x:self.click_button('Swarms'))
-        self.ui_main.pushButton_BtnAssuntos.clicked.connect(lambda x:self.click_button('Banned IPs'))
-        self.ui_main.pushButton_BtnAcessoInfo.clicked.connect(lambda x:self.click_button('Log'))
+        self.ui_main.homeButton.clicked.connect(lambda x:self.click_button('Home'))
+        self.ui_main.swarmButton.clicked.connect(lambda x:self.click_button('Swarms'))
+        self.ui_main.bannedButton.clicked.connect(lambda x:self.click_button('Banned IPs'))
+        self.ui_main.logButton.clicked.connect(lambda x:self.click_button('Log'))
         self.ui_main.clear.clicked.connect(lambda x: self.click_button('Clear'))
 
         with open("log.log", "r") as log:

@@ -19,9 +19,6 @@ class PasswordEdit(QLineEdit):
         self.parent = parent
         super().__init__(self.parent)
 
-        # Set styles
-        #self.setStyleSheet(self.CSS)
-
         self.visibleIcon = QIcon("icons/eye.svg")
         self.hiddenIcon = QIcon("icons/eye-off.svg")
 
@@ -31,6 +28,10 @@ class PasswordEdit(QLineEdit):
         self.password_shown = False
 
     def on_toggle_password_Action(self):
+        """
+        password visibility on / off
+        :return: None
+        """
         if not self.password_shown:
             self.setEchoMode(QLineEdit.Normal)
             self.password_shown = True
