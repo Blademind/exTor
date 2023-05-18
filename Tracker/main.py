@@ -188,12 +188,12 @@ class Tracker:
 
                     # global_torrent_files = [file[:-8] for file in os.listdir("torrents") if file[-12:-8] != "_LOC" and file[-15:-8] != "_UPLOAD"]
 
-                    globals = get_close_matches(f"{query}", global_torrent_files, n=1, cutoff=0.6)
+                    globals = get_close_matches(f"{query}", global_torrent_files, n=1, cutoff=0.8)
 
-                    locals_ = get_close_matches(f"{query}_LOC", local_torrent_files, n=1, cutoff=0.6)
+                    locals_ = get_close_matches(f"{query}_LOC", local_torrent_files, n=1, cutoff=0.8)
                     # locals_ = [local for local in locals_ if "_LOC" in local]
 
-                    uploads = get_close_matches(f"{query}_UPLOAD", upload_torrent_files, n=1, cutoff=0.6)
+                    uploads = get_close_matches(f"{query}_UPLOAD", upload_torrent_files, n=1, cutoff=0.8)
                     # uploads = [upload for upload in uploads if "_UPLOAD" in upload]
 
                     if uploads:  # priority - uploads
@@ -212,7 +212,7 @@ class Tracker:
                         if not global_file_name:
                             self.torrent_from_web(query, addr, sock)
 
-                            for file in get_close_matches(query, global_torrent_files, n=1, cutoff=0.6):
+                            for file in get_close_matches(query, global_torrent_files, n=1, cutoff=0.8):
                                 if file != local_file_name:
                                     global_file_name = file
                                     break
