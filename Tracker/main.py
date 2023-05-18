@@ -63,7 +63,6 @@ class Tracker:
 
             time.sleep(5)
 
-
     def init_udp_sock(self, port):
         """
         Creates a udp sock listening on given port

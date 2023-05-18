@@ -86,11 +86,11 @@ class Handler:
                     pass
 
             elif given_name:
-
                 if ui:  # given name (upload) and ui
                     self.tracker = Tracker(given_name=given_name, path=path, port=port, ui_sock=self.ui_sock)
                 else:  # given name (upload) and without ui
                     self.tracker = Tracker(given_name=given_name, path=path, port=port)
+
             if given_name or self.tracker.local_tracker:  # local tracker must be found for a download to start (or a
                 # name of a file which already is present on disk was given)
                 if ui:
@@ -223,7 +223,12 @@ class Handler:
             self.check_errors()
 
         self.check_errors()
-        print(manager.down.count_bar, manager.down.num_of_pieces)
+        retries = 0
+        while manager.down.count_bar != manager.down.num_of_pieces and retries < 3:
+            retries += 1
+            print("not all pieces downloaded, retry:", retries)
+            time.sleep(1)
+
         if manager.down.count_bar != manager.down.num_of_pieces:
             raise Exception("not all pieces downloaded")
 
@@ -238,10 +243,13 @@ class Handler:
 
         manager.down.progress_flag = False
         self.tracker.done_downloading(manager.sharing_peers)
-        if self.global_switched:
+
+        if (self.tracker and self.tracker.current_file_status == "global file") or self.global_switched:
             if self.ui_sock:
-                msg = f"NAME {self.tracker.file_name[:-8] + '_LOC.torrent'}".encode()
-                self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
+                if self.tracker.file_name[-12:-8] != "_LOC":
+                    self.tracker.file_name = self.tracker.file_name[:-8] + '_LOC.torrent'
+                    msg = f"NAME {self.tracker.file_name}".encode()
+                    self.ui_sock.send(len(msg).to_bytes(4, byteorder='big') + msg)
 
     def go_over_pieces(self):
         """
@@ -515,6 +523,11 @@ class WorkerThread(QThread):
                     lock.unlock()
                 else:
                     data = sock.recv(BUFS[sock])
+                    try:
+                        datacontent = data.decode()
+                    except:
+                        datacontent = ""
+
                     if BUFS[sock] == 4:
                         BUFS[sock] = int.from_bytes(data, 'big')
 
@@ -522,13 +535,15 @@ class WorkerThread(QThread):
                         lock.lock()
                         if data[:12] == b"CREATE_ENTRY":
                             entries.insert(0, sock)
+
                         if sock in entries:
                             self.data_progress.emit(data, entries.index(sock))
                         else:
                             self.data_progress.emit(data, None)
 
-                        if data == b"REMOVE_ENTRY":
+                        if datacontent == "REMOVE_ENTRY":
                             entries.remove(sock)
+
                         else:
                             BUFS[sock] = 4
 
