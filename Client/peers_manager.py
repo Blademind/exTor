@@ -145,10 +145,11 @@ class Downloader:
                 else:
                     try:
                         data = sock.recv(self.BUFS[sock])
-                        ip = sock.getpeername()[0]
-                        if ip in self.banned_ips:
-                            sock.close()
-                            break
+                        if self.banned_ips:
+                            ip = sock.getpeername()[0]
+                            if ip in self.banned_ips:
+                                sock.close()
+                                break
                     except:
                         if sock in self.readable:
                             self.readable.remove(sock)
