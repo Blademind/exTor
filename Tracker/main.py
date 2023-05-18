@@ -172,18 +172,34 @@ class Tracker:
                         sock.sendto(b"DENIED not an Admin", addr)
 
                 elif datacontent[:4] == "GET ":
-                    torrent_files = [file[:-8] for file in os.listdir("torrents")]
                     query = datacontent[4:]
-                    globals = get_close_matches(f"{query}", torrent_files, n=1, cutoff=0.6)
 
-                    locals_ = get_close_matches(f"{query}_LOC", torrent_files, n=1, cutoff=0.8)
-                    locals_ = [local for local in locals_ if "_LOC" in local]
+                    global_torrent_files = []
+                    local_torrent_files = []
+                    upload_torrent_files = []
 
-                    uploads = get_close_matches(f"{query}_UPLOAD", torrent_files, n=1, cutoff=0.9)
-                    uploads = [upload for upload in uploads if "_UPLOAD" in upload]
-                    if uploads:
+                    for file in os.listdir("torrents"):
+                        if file[-15:-8] == "_UPLOAD":
+                            upload_torrent_files.append(file[:-8])
+                        elif file[-12:-8] == "_LOC":
+                            local_torrent_files.append(file[:-8])
+                        else:
+                            global_torrent_files.append(file[:-8])
+
+                    # global_torrent_files = [file[:-8] for file in os.listdir("torrents") if file[-12:-8] != "_LOC" and file[-15:-8] != "_UPLOAD"]
+
+                    globals = get_close_matches(f"{query}", global_torrent_files, n=1, cutoff=0.6)
+
+                    locals_ = get_close_matches(f"{query}_LOC", local_torrent_files, n=1, cutoff=0.6)
+                    # locals_ = [local for local in locals_ if "_LOC" in local]
+
+                    uploads = get_close_matches(f"{query}_UPLOAD", upload_torrent_files, n=1, cutoff=0.6)
+                    # uploads = [upload for upload in uploads if "_UPLOAD" in upload]
+
+                    if uploads:  # priority - uploads
                         upload_file_name = f"{uploads[0]}.torrent"
                         threading.Thread(target=self.send_torrent_file, args=(upload_file_name, addr, True)).start()
+
                     elif locals_:
                         local_file_name = f"{locals_[0]}.torrent"
                         global_file_name = None
@@ -196,16 +212,18 @@ class Tracker:
                         if not global_file_name:
                             self.torrent_from_web(query, addr, sock)
 
-                            for file in get_close_matches(query, torrent_files, n=1, cutoff=0.6):
+                            for file in get_close_matches(query, global_torrent_files, n=1, cutoff=0.6):
                                 if file != local_file_name:
                                     global_file_name = file
                                     break
                         global_file_name = f"{global_file_name}.torrent"
                         threading.Thread(target=self.send_files, args=(local_file_name, global_file_name, addr)).start()
+
                     elif globals:
                         on_disk_file_name = f"{globals[0]}.torrent"
                         threading.Thread(target=self.send_torrent_file, args=(on_disk_file_name, addr)).start()
                         # send the client the file via udp
+
                     else:
                         # search 1337x for a torrent matching request, get the torrent and send it to the client
                         query = datacontent[4:]
