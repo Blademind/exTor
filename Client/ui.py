@@ -362,7 +362,7 @@ class Ui_MainWindow(object):
         self.uploadButton.setText(_translate("MainWindow", "Upload"))
         self.date_widget.setText(_translate("MainWindow", "{weekday} 00/00/0000"))
 
-        self.label_TitleDash.setText("Download")
+        self.label_TitleDash.setText("Activities")
         self.label_SubTitleDash.setText("Upload your desired files to the LAN to share with others")
         self.folder_button.setText("Select Folder")
 

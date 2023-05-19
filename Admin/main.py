@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
         self.hidden = False
         self.sock = init_udp_sock()
 
-        redis_host = self.local_tracker[0]
+        redis_host = "localhost"
         redis_port = 6379
         self.r = redis.StrictRedis(host=redis_host, port=redis_port)
         try:
@@ -245,12 +245,17 @@ class MainWindow(QMainWindow):
 
             requests_data = self.fetch_requests()
             num_of_requests = requests_data[0] - 1
+
             self.ui_main.y.append(num_of_requests)  # Add a new random value.
 
         self.ui_main.data_line.setData(self.ui_main.x, self.ui_main.y)  # Update the data.
         self.ui_main.graphWidget.clear()
+
         for i in range(len(self.ui_main.x)):  # create a line
-            self.ui_main.graphWidget.plot((self.ui_main.x[i], self.ui_main.x[i]), (0, self.ui_main.y[i]), pen=self.ui_main.line_pen)
+            if self.ui_main.y[i] != -1:
+                self.ui_main.graphWidget.plot((self.ui_main.x[i], self.ui_main.x[i]), (0, self.ui_main.y[i]), pen=self.ui_main.line_pen)
+            else:
+                self.ui_main.graphWidget.plot((self.ui_main.x[i], self.ui_main.x[i]), (0, 0), pen=self.ui_main.line_pen)
 
     def add_to_log(self, msg):
         with open("log.log", "a") as f:

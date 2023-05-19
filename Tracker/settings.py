@@ -16,6 +16,7 @@ def ban_ip(ip, r_server):
     :return: None
     """
     get_admin_ip = r_server.get("admin_ip")
+    print("start Ban:", ip, "admin ip:", get_admin_ip)
     if (not get_admin_ip) or (get_admin_ip and get_admin_ip.decode() != ip):
         r_server.lrem("banned", 0, ip)
         r_server.lpush("banned", ip)

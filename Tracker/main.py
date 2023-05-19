@@ -52,14 +52,15 @@ class Tracker:
 
     def requests_check(self):
         while 1:
-            requests_per_ip = settings.requests[1]
-            for ip in requests_per_ip:
-                requests_ip = requests_per_ip[ip]
-                if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
-                    settings.ban_ip(ip, self.r)
-            if not self.r.get("admin_ip"):
-                settings.requests[0] = 0
-                settings.requests[1] = {}
+            with lock:
+                requests_per_ip = settings.requests[1]
+                for ip in requests_per_ip:
+                    requests_ip = requests_per_ip[ip]
+                    if requests_ip >= 10:  # more than 10 requests in 5 seconds, Ban
+                        settings.ban_ip(ip, self.r)
+                if not self.r.get("admin_ip"):
+                    settings.requests[0] = 0
+                    settings.requests[1] = {}
 
             time.sleep(5)
 
@@ -118,11 +119,12 @@ class Tracker:
                     #     print("(listen_udp) error exception handling: ", e)
                     #     pass
                     break
-                settings.requests[0] += 1  # another request detected
-                if addr[0] in settings.requests[1]:
-                    settings.requests[1][addr[0]] += 1
-                else:
-                    settings.requests[1][addr[0]] = 1
+                with lock:
+                    settings.requests[0] += 1  # another request detected
+                    if addr[0] in settings.requests[1]:
+                        settings.requests[1][addr[0]] += 1
+                    else:
+                        settings.requests[1][addr[0]] = 1
 
                 if datacontent == "FIND_LOCAL_TRACKER":
                     sock.sendto(pickle.dumps((sock.getsockname()[0], 12345)), addr)
@@ -158,15 +160,17 @@ class Tracker:
                 elif datacontent == "DONE_ADMIN_OPERATION":
                     if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
                         self.r.delete("admin_ip")
-                        settings.requests[0] = 0
-                        settings.requests[1] = {}
+                        with lock:
+                            settings.requests[0] = 0
+                            settings.requests[1] = {}
                         print("reset after admin quit")
                     else:
                         sock.sendto(b"DENIED not an Admin", addr)
 
                 elif datacontent[:6] == "BAN_IP":
                     if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == addr[0]:
-                        settings.ban_ip(datacontent[7:], self.server_sock)
+                        with lock:
+                            settings.ban_ip(datacontent[7:], self.server_sock)
 
                     else:
                         sock.sendto(b"DENIED not an Admin", addr)
@@ -424,7 +428,7 @@ def test_database():
     except:
         print("redis database is offline, cannot continue")
         sys.exit(0)
-
+lock = threading.Lock()
 
 if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
