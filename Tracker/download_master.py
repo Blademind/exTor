@@ -16,7 +16,7 @@ import settings
 import redis
 
 
-def errormng(func):
+def error_management(func):
     def wrapper(*args, **kwargs):
         try:
             func(*args, **kwargs)
@@ -75,7 +75,7 @@ class TrackerTCP:
     def get_ip_port(self):
         return gethostbyname(gethostname()), self.server_sock.getsockname()[1]
 
-    @errormng
+    @error_management
     def listen_tcp(self):
         print("TCP Server is now listening\n")
         while 1:

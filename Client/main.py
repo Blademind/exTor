@@ -31,7 +31,7 @@ def create_new_sock():
     return sock
 
 
-def errormng(func):
+def error_management(func):
     def wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
@@ -568,18 +568,18 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
 
         self.ui_main = ui.Ui_MainWindow()
-        self.ui_main.setupUi(self)
+        self.ui_main.setup_ui(self)
         self.local_tracker = tracker
         self.file_name = ""
-        self.ui_main.uploadButton.clicked.connect(lambda x:self.click_button('Upload'))
-        self.ui_main.homeButton.clicked.connect(lambda x:self.click_button('Home'))
+        self.ui_main.upload_button.clicked.connect(lambda x:self.click_button('Upload'))
+        self.ui_main.push_button_home.clicked.connect(lambda x:self.click_button('Home'))
         self.ui_main.action.triggered.connect(self.torrent_triggered)
         self.processes = []
 
         self.spacerItem = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.ui_main.folder_button.clicked.connect(self.launch_folder_dialog)
+        self.ui_main.push_button_folder.clicked.connect(self.launch_folder_dialog)
 
-        self.ui_main.textEdit_TxtTopSearch.returnPressed.connect(
+        self.ui_main.line_edit_search_top.returnPressed.connect(
             self.torrent_triggered)
 
         self.interrupt_event = Event()
@@ -590,7 +590,7 @@ class MainWindow(QMainWindow):
         self.worker_thread.start()
 
     def launch_folder_dialog(self):
-        self.folder_name = QFileDialog.getExistingDirectory(self.ui_main.frame_2, 'Select Folder')
+        self.folder_name = QFileDialog.getExistingDirectory(self.ui_main.frame_5, 'Select Folder')
         if self.folder_name:
             p = Process(target=Upload, args=(self.folder_name, self.interrupt_event))
             p.start()
@@ -598,18 +598,18 @@ class MainWindow(QMainWindow):
 
     def click_button(self,value):
         if value == "Home":
-            self.ui_main.label_TitleDash.setText("Download")
-            self.ui_main.label_SubTitleDash.hide()
-            self.ui_main.folder_button.hide()
-            self.ui_main.download_list.show()
-            self.ui_main.verticalLayout_9.removeItem(self.spacerItem)
+            self.ui_main.label_title_dash.setText("Activities")
+            self.ui_main.label_sub_title_dash.hide()
+            self.ui_main.push_button_folder.hide()
+            self.ui_main.list_download.show()
+            self.ui_main.vertical_layout_9.removeItem(self.spacerItem)
 
         elif value == "Upload":
-            self.ui_main.label_TitleDash.setText("Upload")
-            self.ui_main.label_SubTitleDash.show()
-            self.ui_main.folder_button.show()
-            self.ui_main.download_list.hide()
-            self.ui_main.verticalLayout_9.addItem(self.spacerItem)
+            self.ui_main.label_title_dash.setText("Upload")
+            self.ui_main.label_sub_title_dash.show()
+            self.ui_main.push_button_folder.show()
+            self.ui_main.list_download.hide()
+            self.ui_main.vertical_layout_9.addItem(self.spacerItem)
 
     def update(self, data, item_place):
         try: datacontent = data.decode()
@@ -624,39 +624,39 @@ class MainWindow(QMainWindow):
 
                 item.setSizeHint(widget.sizeHint())
 
-                self.ui_main.download_list.insertItem(0, item)
-                self.ui_main.download_list.setItemWidget(item, widget)
+                self.ui_main.list_download.insertItem(0, item)
+                self.ui_main.list_download.setItemWidget(item, widget)
 
-                item = self.ui_main.download_list.item(item_place)
-                widget = self.ui_main.download_list.itemWidget(item)
+                item = self.ui_main.list_download.item(item_place)
+                widget = self.ui_main.list_download.itemWidget(item)
                 _name_label = widget._name_label
                 _name_label.setText(name)
 
             elif datacontent[:12] == "REMOVE_ENTRY":
-                self.ui_main.download_list.takeItem(item_place)
+                self.ui_main.list_download.takeItem(item_place)
             elif datacontent[:12] == "NOTIFICATION":
                 title_message = datacontent[13:].split(", ")
-                self.ui_main.notification.setNotify(title_message[0], title_message[1])
+                self.ui_main.notification.set_notify(title_message[0], title_message[1])
 
             elif datacontent[:5] == "PEERS":
                 if len(datacontent) == 5:
-                    item = self.ui_main.download_list.item(item_place)
-                    widget = self.ui_main.download_list.itemWidget(item)
+                    item = self.ui_main.list_download.item(item_place)
+                    widget = self.ui_main.list_download.itemWidget(item)
                     if widget:
                         _lower_status_label = widget._lower_status_label
                         _lower_status_label.setText(None)
                 else:
                     values = datacontent[6:].split(" ")
-                    item = self.ui_main.download_list.item(item_place)
-                    widget = self.ui_main.download_list.itemWidget(item)
+                    item = self.ui_main.list_download.item(item_place)
+                    widget = self.ui_main.list_download.itemWidget(item)
                     if widget:
                         _lower_status_label = widget._lower_status_label
                         _lower_status_label.setText(f"Downloading from {values[0]} Peers out of {values[1]} responded Peers")
 
             elif datacontent[:8] == "PROGRESS":
 
-                item = self.ui_main.download_list.item(item_place)
-                widget = self.ui_main.download_list.itemWidget(item)
+                item = self.ui_main.list_download.item(item_place)
+                widget = self.ui_main.list_download.itemWidget(item)
                 if widget:
                     _progress_bar = widget._progress_bar
 
@@ -664,15 +664,15 @@ class MainWindow(QMainWindow):
                     _progress_bar.setValue(percentage)
 
             elif datacontent[:4] == "NAME":
-                item = self.ui_main.download_list.item(item_place)
-                widget = self.ui_main.download_list.itemWidget(item)
+                item = self.ui_main.list_download.item(item_place)
+                widget = self.ui_main.list_download.itemWidget(item)
                 if widget:
                     _name_label = widget._name_label
                     _name_label.setText(datacontent[5:])
 
             elif datacontent[:13] == "UPDATE_STATUS":
-                item = self.ui_main.download_list.item(item_place)
-                widget = self.ui_main.download_list.itemWidget(item)
+                item = self.ui_main.list_download.item(item_place)
+                widget = self.ui_main.list_download.itemWidget(item)
                 if widget:
                     _upper_status_label = widget._upper_status_label
                     _upper_status_label.setText(datacontent[14:])
@@ -680,17 +680,17 @@ class MainWindow(QMainWindow):
         lock.unlock()
 
     def torrent_triggered(self):
-        query = self.ui_main.textEdit_TxtTopSearch.text()
+        query = self.ui_main.line_edit_search_top.text()
         if query:
             print(query)
-            self.ui_main.textEdit_TxtTopSearch.setText(None)
+            self.ui_main.line_edit_search_top.setText(None)
             p = Process(target=Handler, args=(None, None, None, query, True, self.interrupt_event))
             p.start()
             self.processes.append(p)
 
     def set_dash_value(self):
-        self.ui_main.label_TxtTopDataUserType.setText("User")
-        self.ui_main.date_widget.setText(self.date_now())
+        self.ui_main.label_userDataType_top.setText("User")
+        self.ui_main.line_edit_date.setText(self.date_now())
 
     def date_now(self):
         now = datetime.datetime.now()
@@ -776,7 +776,7 @@ class TorrentListWidgetItem(QWidget):
     def update_percents(self, number):
         self._progress_bar.setValue(number)
 
-@errormng
+@error_management
 def init_udp_sock():
     """
     Creates a udp sock listening on given port

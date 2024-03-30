@@ -12,7 +12,8 @@ import warnings
 import os
 from main import MainWindow
 
-def errormng(func):
+
+def error_management(func):
     def wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
@@ -23,11 +24,11 @@ def errormng(func):
     return wrapper
 
 
-def mousePressEvent(obj, event):
+def mouse_press_event(obj, event):
     obj.oldPos = event.globalPos()
 
 
-def mouseMoveEvent(obj, event):
+def mouse_move_event(obj, event):
     delta = QPoint (event.globalPos() - obj.oldPos)
     obj.move(obj.x() + delta.x(), obj.y() + delta.y())
     obj.oldPos = event.globalPos()
@@ -42,8 +43,6 @@ class UI:
             self.MainWindow = MainWindow(self.tracker)
             self.MainWindow.show()
             self.app.exec_()
-        else:
-            print("IT CANNOT GET HERE!!!! WTF!!!!!")
 
     def find_local_tracker(self):
         sock = init_udp_sock()
@@ -99,8 +98,8 @@ class UI:
             """
 
         )
-        error_dialog.mouseMoveEvent = lambda event: mouseMoveEvent(error_dialog, event)
-        error_dialog.mousePressEvent = lambda event: mousePressEvent(error_dialog, event)
+        error_dialog.mouseMoveEvent = lambda event: mouse_move_event(error_dialog, event)
+        error_dialog.mousePressEvent = lambda event: mouse_press_event(error_dialog, event)
 
         error_dialog.setText(msg)
         error_dialog.setIcon(QMessageBox.Critical)
@@ -109,7 +108,8 @@ class UI:
         else:
             error_dialog.exec_()
 
-@errormng
+
+@error_management
 def init_udp_sock():
     """
     Creates a udp sock listening on given port
