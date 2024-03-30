@@ -1,4 +1,4 @@
-<img src="https://gist.github.com/assets/74797869/9b3211d0-8cc7-4a54-9c88-d486f7e0181a" alt="exTor Logo" title="exTor" align="right" height="60" />
+<img src="https://github.com/Blademind/exTor/assets/74797869/d18dc0e0-e529-44db-b3a7-6c4b7e061df7" alt="exTor Logo" title="exTor" align="right" height="60" />
 
 # exTor Project
 
