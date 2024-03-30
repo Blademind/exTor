@@ -68,6 +68,10 @@ class TrackerTCP:
         self.server_sock.listen(5)
         self.server_sock = ssl.wrap_socket(self.server_sock, server_side=True, keyfile='private-key.pem', certfile='cert.pem')
 
+        # context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        # context.load_cert_chain(certfile='cert.pem', keyfile='private-key.pem')
+        # self.server_sock = context.wrap_socket(self.server_sock, server_side=True)
+
     def get_ip_port(self):
         return gethostbyname(gethostname()), self.server_sock.getsockname()[1]
 
@@ -76,55 +80,120 @@ class TrackerTCP:
         print("TCP Server is now listening\n")
         while 1:
             readable, writeable, ex = select.select(self.read_tcp, self.write_tcp, [])
-
             for sock in readable:
-                if sock in self.not_listening:
+                try:
+                    self.listen_tcp_loop(sock)  # listen tcp loop
                     break
-                if sock == self.server_sock:
-                    conn, addr = self.server_sock.accept()
-                    # ip must not be banned
-                    banned_ips = self.r.lrange("banned", 0, -1)
+                except Exception as e:
+                    print(e)
+                    pass
 
-                    if addr[0].encode() in banned_ips:
-                        conn.close()
-                        break
+    def listen_tcp_loop(self, sock):
+        if sock in self.not_listening:
+            return
 
-                    print(f"Connection from {addr}")
-                    if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() != addr[0]:
-                        conn.settimeout(5.0)
+        if sock == self.server_sock:
+            conn, addr = self.server_sock.accept()
+            # ip must not be banned
+            banned_ips = self.r.lrange("banned", 0, -1)
+
+            if addr[0].encode() in banned_ips:
+                conn.close()
+                return
+
+            print(f"Connection from {addr}")
+            if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() != addr[0]:
+                conn.settimeout(5.0)
+            else:
+                conn.settimeout(None)
+            self.read_tcp.append(conn)
+
+        else:
+            try:
+                data = sock.recv(self.__BUF)
+
+                banned_ips = self.r.lrange("banned", 0, -1)
+
+                if sock.getpeername()[0].encode() in banned_ips:
+                    sock.close()
+                    return
+
+                if not data:
+                    self.read_tcp.remove(sock)
+                    return
+            except:
+                self.read_tcp.remove(sock)
+                return
+            datacontent = data.decode()
+            if datacontent[:6] == "REMOVE":
+                file_name = datacontent[7:]
+                if os.path.exists(f"torrents\\{file_name}"):
+                    with open(f"torrents\\{file_name}", "rb") as f:
+                        torrent_data = bencode.bdecode(f.read())
+
+                    for i in torrent_data["announce-list"]:
+                        if sock.getpeername()[0] == i[0]:
+                            raw_addr = pickle.dumps(tuple(i))
+                            self.r.lrem(file_name, 0, raw_addr)
+                            self.r.delete(raw_addr)
+                            print("removed", i)
+                            torrent_data["announce-list"].remove(i)
+                            break
+
+                    if torrent_data["announce-list"]:
+                        with open(f"torrents\\{file_name}", "wb") as f:
+                            f.write(bencode.bencode(torrent_data))
                     else:
-                        conn.settimeout(None)
-                    self.read_tcp.append(conn)
+                        print("removed whole file:", file_name)
+                        os.remove(f"torrents\\{file_name}")
+
+            # file upload starting
+            elif datacontent[-8:] == ".torrent":
+                self.not_listening.append(sock)
+                threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
+
+            elif "FETCH_REQUESTS" == datacontent:
+                if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
+                    all_requests = settings.requests  # all requests recorded not inc. current request.
+                    sock.send(pickle.dumps(all_requests))
+                    settings.requests[0] = 0
+                    settings.requests[1] = {}
+                else:
+                    sock.send(b"DENIED not an Admin")
+
+            elif "USER_PASSWORD" in datacontent:
+                user_password = datacontent[14:].split(" ")
+                conn = sqlite3.connect("databases\\users.db")
+                curr = conn.cursor()
+                curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
+                                                                                  user_password[1]))
+                result = curr.fetchone()
+
+                if result:
+                    if self.r.get("admin_ip") is None:
+                        sock.send(b"SUCCESS")
+                        self.r.set("admin_ip", sock.getpeername()[0])
+
+                    else:
+                        sock.send(b"DENIED an Admin is already connected")
 
                 else:
-                    try:
-                        data = sock.recv(self.__BUF)
+                    sock.send(b"DENIED user or password incorrect")
 
-                        banned_ips = self.r.lrange("banned", 0, -1)
-
-                        if sock.getpeername()[0].encode() in banned_ips:
-                            sock.close()
-                            break
-
-                        if not data:
-                            self.read_tcp.remove(sock)
-                            break
-                    except:
-                        self.read_tcp.remove(sock)
-                        break
-                    datacontent = data.decode()
-                    if datacontent[:6] == "REMOVE":
-                        file_name = datacontent[7:]
+            elif datacontent == "UPDATE_FILES":
+                if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
+                    sock.send(b"FLOW")
+                    data = sock.recv(self.__BUF)
+                    ip_file = pickle.loads(data)
+                    for raw_addr, file_name in ip_file:
+                        addr = pickle.loads(raw_addr)
+                        file_name = file_name.decode()
                         if os.path.exists(f"torrents\\{file_name}"):
                             with open(f"torrents\\{file_name}", "rb") as f:
                                 torrent_data = bencode.bdecode(f.read())
 
                             for i in torrent_data["announce-list"]:
-                                if sock.getpeername()[0] == i[0]:
-                                    raw_addr = pickle.dumps(tuple(i))
-                                    self.r.lrem(file_name, 0, raw_addr)
-                                    self.r.delete(raw_addr)
-                                    print("removed", i)
+                                if list(addr) == i:
                                     torrent_data["announce-list"].remove(i)
                                     break
 
@@ -132,77 +201,19 @@ class TrackerTCP:
                                 with open(f"torrents\\{file_name}", "wb") as f:
                                     f.write(bencode.bencode(torrent_data))
                             else:
-                                print("removed whole file:",file_name)
+                                print("removed whole file:", file_name)
                                 os.remove(f"torrents\\{file_name}")
 
-                    # file upload starting
-                    elif datacontent[-8:] == ".torrent":
-                        self.not_listening.append(sock)
-                        threading.Thread(target=self.recv_files, args=(sock, datacontent)).start()
+                            print(f"removed {addr} from {file_name}")
+                else:
+                    sock.send(b"DENIED not an Admin")
 
-                    elif "FETCH_REQUESTS" == datacontent:
-                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
-                            all_requests = settings.requests  # all requests recorded not inc. current request.
-                            sock.send(pickle.dumps(all_requests))
-                            settings.requests[0] = 0
-                            settings.requests[1] = {}
-                        else:
-                            sock.send(b"DENIED not an Admin")
+            elif datacontent[:6] == "BAN_IP":
+                if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
+                    settings.ban_ip(datacontent[7:], self.r)
 
-                    elif "USER_PASSWORD" in datacontent:
-                        user_password = datacontent[14:].split(" ")
-                        conn = sqlite3.connect("databases\\users.db")
-                        curr = conn.cursor()
-                        curr.execute("SELECT * FROM Admins WHERE user=? AND password=?", (user_password[0],
-                                                                                          user_password[1]))
-                        result = curr.fetchone()
-
-                        if result:
-                            if self.r.get("admin_ip") is None:
-                                sock.send(b"SUCCESS")
-                                self.r.set("admin_ip", sock.getpeername()[0])
-
-                            else:
-                                sock.send(b"DENIED an Admin is already connected")
-
-                        else:
-                            sock.send(b"DENIED user or password incorrect")
-
-                    elif datacontent == "UPDATE_FILES":
-                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
-                            sock.send(b"FLOW")
-                            data = sock.recv(self.__BUF)
-                            ip_file = pickle.loads(data)
-                            for raw_addr, file_name in ip_file:
-                                addr = pickle.loads(raw_addr)
-                                file_name = file_name.decode()
-                                if os.path.exists(f"torrents\\{file_name}"):
-                                    with open(f"torrents\\{file_name}", "rb") as f:
-                                        torrent_data = bencode.bdecode(f.read())
-
-                                    for i in torrent_data["announce-list"]:
-                                        if list(addr) == i:
-                                            torrent_data["announce-list"].remove(i)
-                                            break
-
-                                    if torrent_data["announce-list"]:
-                                        with open(f"torrents\\{file_name}", "wb") as f:
-                                            f.write(bencode.bencode(torrent_data))
-                                    else:
-                                        print("removed whole file:",file_name)
-                                        os.remove(f"torrents\\{file_name}")
-
-                                    print(f"removed {addr} from {file_name}")
-                        else:
-                            sock.send(b"DENIED not an Admin")
-
-                    elif datacontent[:6] == "BAN_IP":
-                        if self.r.get("admin_ip") is not None and self.r.get("admin_ip").decode() == sock.getpeername()[0]:
-                            settings.ban_ip(datacontent[7:], self.r)
-
-                        else:
-                            sock.send(b"DENIED not an Admin")
-
+                else:
+                    sock.send(b"DENIED not an Admin")
     def recv_files(self, sock, filename):
         try:
             if not os.path.exists(f"torrents\\{filename}"):

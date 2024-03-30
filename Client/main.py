@@ -81,6 +81,11 @@ class Handler:
                     self.sock = socket(AF_INET, SOCK_STREAM)
                     self.sock.bind((get_ip_addr(), 0))
                     self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+
+                    # context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    # context.load_cert_chain(certfile='cert.pem', keyfile='private-key.pem')
+                    # self.sock = context.wrap_socket(self.sock, server_hostname=self.tracker.local_tracker[0])
+
                     self.sock.connect((self.tracker.local_tracker[0], 55556))
                 except:
                     pass
@@ -409,8 +414,14 @@ class Upload:
         self.sock.bind((get_ip_addr(), 0))
 
         self.sock = ssl.wrap_socket(self.sock, server_side=False, keyfile='private-key.pem', certfile='cert.pem')
+
+        # context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        # context.load_cert_chain(certfile='cert.pem', keyfile='private-key.pem')
+        # self.sock = context.wrap_socket(self.sock, server_hostname=self.local_tracker[0])
+
         try:
             if self.local_tracker:
+                self.torrent_name = f"{os.path.split(os.path.basename(path))[1]}_UPLOAD.torrent"
                 self.torrent = self.create_metadata_file(self.path)
                 if self.torrent is None or folders_in(self.path):
                     msg = f"NOTIFICATION {self.path[self.path.rfind('/') + 1:]}, Error: torrent could not be created on this path".encode()
@@ -424,6 +435,7 @@ class Upload:
                         self.listen()  # listen for upload response (and to upload)
                     except:
                         print("Error connecting to Tracker")
+                        self.remove_metadata_file()
         except KeyboardInterrupt:
             pass
         except Exception as e:
@@ -447,16 +459,19 @@ class Upload:
                 trackers=[],
                 comment='This file was created using the upload file algorithm by Alon Levy')
             t.generate()
-            torrent_name = f"{os.path.split(os.path.basename(path))[1]}_UPLOAD.torrent"
-            print(torrent_name)
+            print(self.torrent_name)
 
-            t.write(f"torrents\\info_hashes\\{torrent_name}")
+            t.write(f"torrents\\info_hashes\\{self.torrent_name}")
 
-            return torrent_name
+            return self.torrent_name
 
         except Exception as e:
             print(e)
             return
+
+    def remove_metadata_file(self):
+        os.remove(f"torrents\\info_hashes\\{self.torrent_name}")
+
 
     def listen(self):
         while 1:
